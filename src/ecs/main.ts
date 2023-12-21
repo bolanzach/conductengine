@@ -1,10 +1,20 @@
-import { COMPONENT_TYPE, Component, ComponentConstructor } from './component';
+import 'reflect-metadata';
+
+import {
+  COMPONENT_TYPE,
+  Component,
+  ComponentConstructor,
+  TestComponent,
+  ZachComponent,
+} from './component';
 import { Entity } from './entity';
+import { REGISTERED_SYSTEMS, System, TestSystem } from './system';
 
 type ComponentTable = Map<ComponentConstructor, Array<Component | null>>;
 
 export class World {
   #entityList: Array<Entity> = [];
+  #systems: Map<Function, System> = new Map();
   #table: ComponentTable = new Map();
 
   createEntity(): Entity {
@@ -48,16 +58,78 @@ export class World {
 
     return null;
   }
+
+  registerSystem(system: System): World {
+    this.#systems.set(system.constructor, system);
+    return this;
+  }
+
+  testStart() {
+    // Iterate each system
+    this.#systems.forEach((system, scstr) => {
+      const systemComponentTypes = REGISTERED_SYSTEMS.get(scstr);
+
+      if (!systemComponentTypes) {
+        return;
+      }
+
+      // Array of entities that when TRUE are excluded from the system update
+      const excludedEntities: Array<boolean> = new Array(
+        this.#entityList.length
+      ).fill(false);
+
+      // Iterate each component type required by the system
+      for (let i = 0; i < systemComponentTypes.length; i++) {
+        const componentType = systemComponentTypes[i];
+        const componentTypeRow = this.#table.get(componentType);
+
+        if (!componentTypeRow) {
+          return;
+        }
+
+        // Iterate each component instance of the component type
+        for (let entity = 0; entity < componentTypeRow.length; entity++) {
+          if (excludedEntities[entity]) {
+            continue;
+          }
+
+          // If the component instance is null, then the entity does not have the component
+          const component = componentTypeRow[entity];
+          if (!component) {
+            excludedEntities[entity] = true;
+          }
+        }
+      }
+
+      //const args: Array<Component[]> = [];
+      for (let entity = 0; entity < excludedEntities.length; entity++) {
+        if (excludedEntities[entity]) {
+          continue;
+        }
+
+        const localArgs: Array<Component> = [];
+        for (let i = 0; i < systemComponentTypes.length; i++) {
+          const componentType = systemComponentTypes[i];
+          const componentTypeRow = this.#table.get(componentType);
+          const component = componentTypeRow?.[entity];
+
+          if (!component) {
+            return;
+          }
+          localArgs.push(component);
+        }
+
+        system.update(entity, ...localArgs);
+      }
+
+      // for (let i = 0; i < args.length; i++) {
+      //   system.update(...args[i]);
+      // }
+    });
+  }
 }
 
-//////
-class TestComponent extends Component {
-  msg!: string;
-}
-
-class ZachComponent extends Component {
-  name!: string;
-}
+////// Main
 
 const world = new World();
 
@@ -67,11 +139,8 @@ test.msg = 'hellooooo';
 const entity = world.createEntity();
 
 world.addEntityComponent(entity, test);
+world.addEntityComponent(entity, new ZachComponent());
 
-const c = world.getEntityComponent(entity, TestComponent);
+world.registerSystem(new TestSystem());
 
-if (c) {
-  console.dir(c.msg);
-} else {
-  console.log('nope');
-}
+world.testStart();

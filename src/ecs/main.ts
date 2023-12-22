@@ -8,7 +8,12 @@ import {
   ZachComponent,
 } from './component';
 import { Entity } from './entity';
-import { REGISTERED_SYSTEMS, System, TestSystem } from './system';
+import {
+  REGISTERED_SYSTEMS,
+  System,
+  TestSystem,
+  TestSystemTwo,
+} from './system';
 
 type ComponentTable = Map<ComponentConstructor, Array<Component | null>>;
 
@@ -65,6 +70,8 @@ export class World {
   }
 
   testStart() {
+    // This is a naive way to update systems
+
     // Iterate each system
     this.#systems.forEach((system, scstr) => {
       const systemComponentTypes = REGISTERED_SYSTEMS.get(scstr);
@@ -79,10 +86,9 @@ export class World {
       ).fill(false);
 
       // Iterate each component type required by the system
-      for (let i = 0; i < systemComponentTypes.length; i++) {
-        const componentType = systemComponentTypes[i];
+      for (let i = 0; i < systemComponentTypes.queryWith.length; i++) {
+        const componentType = systemComponentTypes.queryWith[i];
         const componentTypeRow = this.#table.get(componentType);
-
         if (!componentTypeRow) {
           return;
         }
@@ -93,23 +99,42 @@ export class World {
             continue;
           }
 
-          // If the component instance is null, then the entity does not have the component
+          // If the component instance is null, then the entity does not have the component and shoudl be excluded
           const component = componentTypeRow[entity];
           if (!component) {
             excludedEntities[entity] = true;
           }
+
+          // Check if the entity has any of the components that are required to be excluded
+          for (
+            let ii = 0;
+            ii < systemComponentTypes.queryWithout.length;
+            ii++
+          ) {
+            const withoutComponentType = systemComponentTypes.queryWithout[i];
+            const withoutComponentTypeRow =
+              this.#table.get(withoutComponentType);
+            if (!withoutComponentTypeRow) {
+              return;
+            }
+
+            // If the withoutComponent is NOT null, then the entity has the component and should be excluded
+            const withoutComponent = withoutComponentTypeRow[entity];
+            if (withoutComponent) {
+              excludedEntities[entity] = true;
+            }
+          }
         }
       }
 
-      //const args: Array<Component[]> = [];
       for (let entity = 0; entity < excludedEntities.length; entity++) {
         if (excludedEntities[entity]) {
           continue;
         }
 
         const localArgs: Array<Component> = [];
-        for (let i = 0; i < systemComponentTypes.length; i++) {
-          const componentType = systemComponentTypes[i];
+        for (let i = 0; i < systemComponentTypes.queryWith.length; i++) {
+          const componentType = systemComponentTypes.queryWith[i];
           const componentTypeRow = this.#table.get(componentType);
           const component = componentTypeRow?.[entity];
 
@@ -121,10 +146,6 @@ export class World {
 
         system.update(entity, ...localArgs);
       }
-
-      // for (let i = 0; i < args.length; i++) {
-      //   system.update(...args[i]);
-      // }
     });
   }
 }
@@ -137,10 +158,13 @@ const test = new TestComponent();
 test.msg = 'hellooooo';
 
 const entity = world.createEntity();
-
 world.addEntityComponent(entity, test);
 world.addEntityComponent(entity, new ZachComponent());
 
+const entity2 = world.createEntity();
+world.addEntityComponent(entity2, new TestComponent());
+
 world.registerSystem(new TestSystem());
+world.registerSystem(new TestSystemTwo());
 
 world.testStart();

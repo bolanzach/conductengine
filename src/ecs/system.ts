@@ -2,7 +2,8 @@ import {
   Component,
   ComponentConstructor,
   TestComponent,
-  ZachComponent,
+  TestThreeComponent,
+  TestTwoComponent,
 } from './component';
 import { Entity } from './entity';
 
@@ -88,15 +89,23 @@ export interface System {
 
 export class TestSystem implements System {
   @QueryForComponents
-  update(e: Entity, t: TestComponent, z: ZachComponent) {
-    console.log(e, t.msg);
+  update(e: Entity, t: TestComponent, z: TestTwoComponent) {
+    console.log('TestSystem: ', e, t.msg);
   }
 }
 
 export class TestSystemTwo implements System {
   @QueryForComponents
-  @QueryWithout(ZachComponent)
+  @QueryWithout(TestTwoComponent)
   update(e: Entity, t: TestComponent) {
-    console.log(e, t.msg);
+    console.log('TestSystemTwo: ', e, t.msg);
+  }
+}
+
+export class TestSystemThree implements System {
+  @QueryForComponents
+  @QueryWithout(TestTwoComponent)
+  update(e: Entity, one: TestComponent, three: TestThreeComponent) {
+    console.log('TestSystemThree: ', e, one.msg);
   }
 }

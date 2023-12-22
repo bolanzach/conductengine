@@ -16,6 +16,10 @@ export class TestComponent extends Component {
   msg!: string;
 }
 
-export class ZachComponent extends Component {
+export class TestTwoComponent extends Component {
+  name!: string;
+}
+
+export class TestThreeComponent extends Component {
   name!: string;
 }

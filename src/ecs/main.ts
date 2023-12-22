@@ -115,7 +115,7 @@ export class World {
       }
 
       componentInstances.forEach(([entity, components]) =>
-        system.update(entity, ...components)
+        system.Update(entity, ...components)
       );
     });
   }

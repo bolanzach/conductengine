@@ -1,8 +1,7 @@
-import { System } from '../system';
+import { Query, System } from '../system';
 import { Component } from '../component';
 import { Entity } from '../entity';
 import { World } from '../main';
-import { QueryForComponents, QueryWithoutComponents } from '../system';
 
 class TestComponent extends Component {
   msg!: string;
@@ -17,31 +16,33 @@ class TestThreeComponent extends Component {
 }
 
 class TestSystem implements System {
-  @QueryForComponents
-  update(e: Entity, t: TestComponent, z: TestTwoComponent) {
+  @Query()
+  Update(e: Entity, t: TestComponent, z: TestTwoComponent) {
     console.log('TestSystem: ', e, t.msg);
   }
 }
 
 class TestSystemTwo implements System {
-  @QueryForComponents
-  @QueryWithoutComponents(TestTwoComponent)
-  update(e: Entity, t: TestComponent) {
+  @Query({
+    Without: [TestTwoComponent],
+  })
+  Update(e: Entity, t: TestComponent) {
     console.log('TestSystemTwo: ', e, t.msg);
   }
 }
 
 class TestSystemThree implements System {
-  @QueryForComponents
-  @QueryWithoutComponents(TestTwoComponent)
-  update(e: Entity, one: TestComponent, three: TestThreeComponent) {
+  @Query({
+    Without: [TestTwoComponent],
+  })
+  Update(e: Entity, one: TestComponent, three: TestThreeComponent) {
     console.log('TestSystemThree: ', e, three.name);
   }
 }
 
 class TestSystemFour implements System {
-  @QueryForComponents
-  update(
+  @Query()
+  Update(
     e: Entity,
     one: TestComponent,
     two: TestTwoComponent,

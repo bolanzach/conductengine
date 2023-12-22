@@ -34,40 +34,36 @@ function registerSystemComponents(
   REGISTERED_SYSTEMS.set(system, deps);
 }
 
-function queryForComponentsDecorator(target: any, key: any): any {
-  const cstr = target.constructor;
-  const paramTypes = Reflect.getMetadata(
-    'design:paramtypes',
-    target,
-    key
-  ) as ComponentConstructor[];
-  registerSystemComponents(cstr, { queryWith: paramTypes.slice(1) });
-}
-
-function queryWithoutComponentsDecorator(
-  ...components: ComponentConstructor[]
-) {
+function queryComponentsDeocrator(query?: { Without: ComponentConstructor[] }) {
   return function (target: any, key: any): any {
     const cstr = target.constructor;
-    registerSystemComponents(cstr, { queryWithout: components });
+    const paramTypes = Reflect.getMetadata(
+      'design:paramtypes',
+      target,
+      key
+    ) as ComponentConstructor[];
+    registerSystemComponents(cstr, { queryWith: paramTypes.slice(1) });
+
+    if (query) {
+      registerSystemComponents(cstr, { queryWithout: query.Without });
+    }
   };
 }
 
 export { REGISTERED_SYSTEMS };
-export const QueryForComponents = queryForComponentsDecorator;
-export const QueryWithoutComponents = queryWithoutComponentsDecorator;
+export const Query = queryComponentsDeocrator;
 
 /**
- * A System contains an `update` method that is called once per frame. Update operates on Components that
- * are attached to Entities. Use the `@QueryForComponents` decorator to specify which Components your System
+ * A System contains an `Update` method that is called once per frame. Update operates on Components that
+ * are attached to Entities. Use the `@Query` decorator to specify which Components your System
  * should query and operate on.
  *
  * @example
  *
- * // This System will be called once per frame and will log the message from the LoggerComponent
+ * // This System will query for all Entities that have a LoggerComponent and log the message
  * class LogSystem {
- *    [@QueryForComponents]
- *    update(e: Entity, logger: LoggerComponent) {
+ *    [@Query]
+ *    Update(e: Entity, logger: LoggerComponent) {
  *      console.log(logger.msg);
  *    }
  * }
@@ -77,8 +73,5 @@ export const QueryWithoutComponents = queryWithoutComponentsDecorator;
  * world.registerSystem(new LogSystem());
  */
 export interface System {
-  update(
-    entity: Entity,
-    ...components: (Component | Readonly<Component>)[]
-  ): void;
+  Update(entity: Entity, ...components: Component[]): void;
 }

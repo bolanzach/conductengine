@@ -1,18 +1,13 @@
-import {
-  Component,
-  ComponentConstructor,
-  TestComponent,
-  TestThreeComponent,
-  TestTwoComponent,
-} from './component';
+import { Component, ComponentConstructor } from './component';
 import { Entity } from './entity';
+import { World } from './main';
 
 type SystemComponentDeps = {
   queryWith: ComponentConstructor[];
   queryWithout: ComponentConstructor[];
 };
 
-export const REGISTERED_SYSTEMS: Map<Function, SystemComponentDeps> = new Map();
+const REGISTERED_SYSTEMS: Map<Function, SystemComponentDeps> = new Map();
 
 function registerSystemComponents(
   system: Function,
@@ -58,8 +53,9 @@ function queryWithoutComponentsDecorator(
   };
 }
 
+export { REGISTERED_SYSTEMS };
 export const QueryForComponents = queryForComponentsDecorator;
-export const QueryWithout = queryWithoutComponentsDecorator;
+export const QueryWithoutComponents = queryWithoutComponentsDecorator;
 
 /**
  * A System contains an `update` method that is called once per frame. Update operates on Components that
@@ -85,27 +81,4 @@ export interface System {
     entity: Entity,
     ...components: (Component | Readonly<Component>)[]
   ): void;
-}
-
-export class TestSystem implements System {
-  @QueryForComponents
-  update(e: Entity, t: TestComponent, z: TestTwoComponent) {
-    console.log('TestSystem: ', e, t.msg);
-  }
-}
-
-export class TestSystemTwo implements System {
-  @QueryForComponents
-  @QueryWithout(TestTwoComponent)
-  update(e: Entity, t: TestComponent) {
-    console.log('TestSystemTwo: ', e, t.msg);
-  }
-}
-
-export class TestSystemThree implements System {
-  @QueryForComponents
-  @QueryWithout(TestTwoComponent)
-  update(e: Entity, one: TestComponent, three: TestThreeComponent) {
-    console.log('TestSystemThree: ', e, one.msg);
-  }
 }

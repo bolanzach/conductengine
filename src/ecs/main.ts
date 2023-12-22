@@ -1,27 +1,13 @@
 import 'reflect-metadata';
 
-import {
-  COMPONENT_TYPE,
-  Component,
-  ComponentConstructor,
-  TestComponent,
-  TestThreeComponent,
-  TestTwoComponent,
-} from './component';
+import { COMPONENT_TYPE, Component, ComponentConstructor } from './component';
 import { Entity } from './entity';
-import {
-  REGISTERED_SYSTEMS,
-  System,
-  TestSystem,
-  TestSystemThree,
-  TestSystemTwo,
-} from './system';
+import { REGISTERED_SYSTEMS, System } from './system';
 
 type ComponentTable = Map<ComponentConstructor, Array<Component | null>>;
 
 export class World {
   #entityList: Array<Entity> = [];
-  #componentCount: Map<ComponentConstructor, number> = new Map();
   #systems: Map<Function, System> = new Map();
   #componentTable: ComponentTable = new Map();
 
@@ -51,12 +37,6 @@ export class World {
     }
 
     componentList[entity] = component;
-
-    // Cache the count of how many components of this type exist
-    this.#componentCount.set(
-      component[COMPONENT_TYPE],
-      componentList.reduce((acc, c) => acc + (c ? 1 : 0), 0)
-    );
   }
 
   getEntityComponent<TComponent extends ComponentConstructor>(
@@ -91,13 +71,7 @@ export class World {
         return;
       }
 
-      // Sorts the components to query by the least common component type, allowing us to more quickly
-      // ignore entities that don't have a component
-      const componentsToQuery = systemComponentTypes.queryWith.sort((a, b) => {
-        const aCount = this.#componentCount.get(a) ?? Infinity;
-        const bCount = this.#componentCount.get(b) ?? Infinity;
-        return aCount - bCount;
-      });
+      const componentsToQuery = systemComponentTypes.queryWith;
 
       // This is what we're trying to build up to
       const componentInstances: Array<[Entity, Component[]]> = [];
@@ -146,37 +120,3 @@ export class World {
     });
   }
 }
-
-////// Main
-
-const world = new World();
-
-world.registerSystem(new TestSystem());
-world.registerSystem(new TestSystemTwo());
-world.registerSystem(new TestSystemThree());
-
-const test = new TestComponent();
-test.msg = 'hellooooo';
-
-const entity0 = world.createEntity();
-world.addEntityComponent(entity0, test);
-world.addEntityComponent(entity0, new TestTwoComponent());
-
-const entity1 = world.createEntity();
-world.addEntityComponent(entity1, new TestComponent());
-
-const entity2 = world.createEntity();
-world.addEntityComponent(entity2, new TestComponent());
-world.addEntityComponent(entity2, new TestTwoComponent());
-
-const entity3 = world.createEntity();
-world.addEntityComponent(entity3, new TestComponent());
-world.addEntityComponent(entity3, new TestThreeComponent());
-world.addEntityComponent(entity3, new TestThreeComponent());
-
-const entity4 = world.createEntity();
-world.addEntityComponent(entity4, new TestComponent());
-world.addEntityComponent(entity4, new TestTwoComponent());
-world.addEntityComponent(entity4, new TestThreeComponent());
-
-world.testStart();

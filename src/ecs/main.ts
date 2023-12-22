@@ -107,13 +107,10 @@ export class World {
 
         // Check that the entity has all the components that are to be queried
         for (let i = 0; i < componentsToQuery.length; i++) {
-          const componentType = componentsToQuery[i];
-          const componentTypeRow = this.#componentTable.get(componentType);
-          if (!componentTypeRow) {
-            return;
-          }
-
-          const component = componentTypeRow[entity];
+          const component = this.getEntityComponent(
+            entity,
+            componentsToQuery[i]
+          );
           if (!component) {
             // The component instance is null for this entity, so the entity does not have the component and should be excluded
             break;
@@ -126,14 +123,11 @@ export class World {
           // All components were found for this entity, so now check if the entity has any of the components that are to be excluded
           let querySuccess = true;
           for (let i = 0; i < systemComponentTypes.queryWithout.length; i++) {
-            const componentType = systemComponentTypes.queryWithout[i];
-            const componentTypeRow = this.#componentTable.get(componentType);
-            if (!componentTypeRow) {
-              return;
-            }
-
-            const withoutComponent = componentTypeRow[entity];
-            if (withoutComponent) {
+            const component = this.getEntityComponent(
+              entity,
+              systemComponentTypes.queryWithout[i]
+            );
+            if (component) {
               // The instance is NOT null, so the entity has the component and should be excluded
               querySuccess = false;
               break;

@@ -23,45 +23,47 @@ export class World {
   #entityList: Array<Entity> = [];
   #componentCount: Map<ComponentConstructor, number> = new Map();
   #systems: Map<Function, System> = new Map();
-  #table: ComponentTable = new Map();
+  #componentTable: ComponentTable = new Map();
 
   createEntity(): Entity {
     const entity = this.#entityList.length;
     this.#entityList[entity] = entity;
 
     // Update the table to include the new entity
-    this.#table.forEach((componentList, componentType) => {
-      this.#table.set(componentType, [...componentList, null]);
+    this.#componentTable.forEach((componentList, componentType) => {
+      this.#componentTable.set(componentType, [...componentList, null]);
     });
 
     return entity;
   }
 
   addEntityComponent<T extends Component>(entity: Entity, component: T) {
-    if (!this.#table.has(component[COMPONENT_TYPE])) {
-      this.#table.set(
+    if (!this.#componentTable.has(component[COMPONENT_TYPE])) {
+      this.#componentTable.set(
         component[COMPONENT_TYPE],
         new Array(this.#entityList.length).fill(null)
       );
     }
 
-    const componentList = this.#table.get(component[COMPONENT_TYPE]);
+    const componentList = this.#componentTable.get(component[COMPONENT_TYPE]);
     if (!componentList) {
       return;
     }
 
     componentList[entity] = component;
 
-    // Cache the count (length) of how many components of this type exist
-    const count = this.#componentCount.get(component[COMPONENT_TYPE]) ?? 0;
-    this.#componentCount.set(component[COMPONENT_TYPE], count + 1);
+    // Cache the count of how many components of this type exist
+    this.#componentCount.set(
+      component[COMPONENT_TYPE],
+      componentList.reduce((acc, c) => acc + (c ? 1 : 0), 0)
+    );
   }
 
   getEntityComponent<TComponent extends ComponentConstructor>(
     entity: Entity,
     component: TComponent
   ): InstanceType<TComponent> | null {
-    const componentList = this.#table.get(component);
+    const componentList = this.#componentTable.get(component);
 
     if (componentList) {
       const foundComponent = componentList[entity];
@@ -106,7 +108,7 @@ export class World {
         // Check that the entity has all the components that are to be queried
         for (let i = 0; i < componentsToQuery.length; i++) {
           const componentType = componentsToQuery[i];
-          const componentTypeRow = this.#table.get(componentType);
+          const componentTypeRow = this.#componentTable.get(componentType);
           if (!componentTypeRow) {
             return;
           }
@@ -125,7 +127,7 @@ export class World {
           let querySuccess = true;
           for (let i = 0; i < systemComponentTypes.queryWithout.length; i++) {
             const componentType = systemComponentTypes.queryWithout[i];
-            const componentTypeRow = this.#table.get(componentType);
+            const componentTypeRow = this.#componentTable.get(componentType);
             if (!componentTypeRow) {
               return;
             }

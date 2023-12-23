@@ -1,24 +1,25 @@
 import { Component, ComponentConstructor } from './component';
 import { Entity } from './entity';
-import { World } from './main';
 
 type SystemComponentDeps = {
   queryWith: ComponentConstructor[];
   queryWithout: ComponentConstructor[];
 };
 
-const REGISTERED_SYSTEMS: Map<Function, SystemComponentDeps> = new Map();
-
 function registerSystemComponents(
-  system: Function,
+  system: SystemConstructor,
   components:
     | Pick<SystemComponentDeps, 'queryWith'>
     | Pick<SystemComponentDeps, 'queryWithout'>
 ) {
-  let deps = REGISTERED_SYSTEMS.get(system);
+  let deps: SystemComponentDeps | undefined = system[SYSTEM_PARAMS];
+  if (!deps) {
+    deps = {
+      queryWith: [],
+      queryWithout: [],
+    };
+  }
   deps = {
-    queryWith: [],
-    queryWithout: [],
     ...deps,
     ...components,
   };
@@ -31,7 +32,7 @@ function registerSystemComponents(
     }
   });
 
-  REGISTERED_SYSTEMS.set(system, deps);
+  system[SYSTEM_PARAMS] = deps;
 }
 
 function queryComponentsDeocrator(query?: { Without: ComponentConstructor[] }) {
@@ -50,8 +51,8 @@ function queryComponentsDeocrator(query?: { Without: ComponentConstructor[] }) {
   };
 }
 
-export { REGISTERED_SYSTEMS };
 export const Query = queryComponentsDeocrator;
+export const SYSTEM_PARAMS = Symbol('SYSTEM_PARAMS');
 
 /**
  * A System contains an `Update` method that is called once per frame. Update operates on Components that
@@ -75,3 +76,10 @@ export const Query = queryComponentsDeocrator;
 export interface System {
   Update(entity: Entity, ...components: Component[]): void;
 }
+
+/**
+ * A system's Component Query Params are stored on the registered constructor
+ */
+export type SystemConstructor = Function & {
+  [SYSTEM_PARAMS]: SystemComponentDeps;
+};

@@ -55,35 +55,35 @@ class TestSystemFour implements System {
 const world = new World();
 
 world
-  .registerSystem(new TestSystem())
-  .registerSystem(new TestSystemTwo())
-  .registerSystem(new TestSystemThree())
-  .registerSystem(new TestSystemFour());
+  .RegisterSystem(new TestSystem())
+  .RegisterSystem(new TestSystemTwo())
+  .RegisterSystem(new TestSystemThree())
+  .RegisterSystem(new TestSystemFour());
 
 const test = new TestComponent();
 test.msg = 'hellooooo';
 
-const entity0 = world.createEntity();
-world.addEntityComponent(entity0, test);
-world.addEntityComponent(entity0, new TestTwoComponent());
+const entity0 = world.CreateEntity();
+world.AddEntityComponent(entity0, test);
+world.AddEntityComponent(entity0, new TestTwoComponent());
 
-const entity1 = world.createEntity();
-world.addEntityComponent(entity1, new TestComponent());
+const entity1 = world.CreateEntity();
+world.AddEntityComponent(entity1, new TestComponent());
 
-const entity2 = world.createEntity();
-world.addEntityComponent(entity2, new TestComponent());
-world.addEntityComponent(entity2, new TestTwoComponent());
+const entity2 = world.CreateEntity();
+world.AddEntityComponent(entity2, new TestComponent());
+world.AddEntityComponent(entity2, new TestTwoComponent());
 
-const entity3 = world.createEntity();
+const entity3 = world.CreateEntity();
 const t3 = new TestThreeComponent();
 t3.name = 'asdfasdfsfd';
-world.addEntityComponent(entity3, new TestComponent());
-world.addEntityComponent(entity3, t3);
+world.AddEntityComponent(entity3, new TestComponent());
+world.AddEntityComponent(entity3, t3);
 
-const entity4 = world.createEntity();
+const entity4 = world.CreateEntity();
 
-world.addEntityComponent(entity4, new TestComponent());
-world.addEntityComponent(entity4, new TestTwoComponent());
-world.addEntityComponent(entity4, new TestThreeComponent());
+world.AddEntityComponent(entity4, new TestComponent());
+world.AddEntityComponent(entity4, new TestTwoComponent());
+world.AddEntityComponent(entity4, new TestThreeComponent());
 
-world.testStart();
+world.TestStart();

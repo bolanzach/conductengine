@@ -23,7 +23,7 @@ export class World {
     return entity;
   }
 
-  AddEntityComponent<T extends Component>(entity: Entity, component: T) {
+  AddEntityComponent<T extends Component>(entity: Entity, component: T): void {
     if (!this.#componentTable.has(component[COMPONENT_TYPE])) {
       this.#componentTable.set(
         component[COMPONENT_TYPE],
@@ -137,16 +137,8 @@ export class World {
       }
 
       componentInstances.forEach(([entity, components]) =>
-        system.Update(entity, ...components)
+        system.Update({ entity, world: this }, ...components)
       );
     });
   }
-}
-
-class ZComp extends Component {
-  name!: string;
-}
-
-class XComp extends Component {
-  name!: string;
 }

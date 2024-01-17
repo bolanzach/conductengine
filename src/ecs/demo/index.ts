@@ -1,4 +1,4 @@
-import { Query, System } from '../system';
+import { Query, System, SystemParams } from '../system';
 import { Component } from '../component';
 import { Entity } from '../entity';
 import { World } from '../main';
@@ -17,8 +17,8 @@ class TestThreeComponent extends Component {
 
 class TestSystem implements System {
   @Query()
-  Update(e: Entity, t: TestComponent, z: TestTwoComponent) {
-    console.log('TestSystem: ', e, t.msg);
+  Update({ entity }: SystemParams, t: TestComponent, z: TestTwoComponent) {
+    console.log('TestSystem: ', entity, t.msg);
   }
 }
 
@@ -26,8 +26,8 @@ class TestSystemTwo implements System {
   @Query({
     Without: [TestTwoComponent],
   })
-  Update(e: Entity, t: TestComponent) {
-    console.log('TestSystemTwo: ', e, t.msg);
+  Update({ entity }: SystemParams, t: TestComponent) {
+    console.log('TestSystemTwo: ', entity, t.msg);
   }
 }
 
@@ -35,20 +35,20 @@ class TestSystemThree implements System {
   @Query({
     Without: [TestTwoComponent],
   })
-  Update(e: Entity, one: TestComponent, three: TestThreeComponent) {
-    console.log('TestSystemThree: ', e, three.name);
+  Update({ entity }: SystemParams, one: TestComponent, three: TestThreeComponent) {
+    console.log('TestSystemThree: ', entity, three.name);
   }
 }
 
 class TestSystemFour implements System {
   @Query()
   Update(
-    e: Entity,
+    { entity }: SystemParams,
     one: TestComponent,
     two: TestTwoComponent,
     three: TestThreeComponent
   ) {
-    console.log('TestSystemFour: ', e);
+    console.log('TestSystemFour: ', entity);
   }
 }
 

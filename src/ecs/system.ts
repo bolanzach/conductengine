@@ -1,7 +1,10 @@
 import { Component, ComponentConstructor } from './component';
 import { Entity } from './entity';
 
-type SystemComponentDeps = {
+/**
+ * Gets stored on each System to declare how the System should query Components.
+ */
+interface SystemComponentDeps {
   queryWith: ComponentConstructor[];
   queryWithout: ComponentConstructor[];
 };
@@ -55,6 +58,22 @@ export const Query = queryComponentsDeocrator;
 export const SYSTEM_PARAMS = Symbol('SYSTEM_PARAMS');
 
 /**
+ * How a System can interact with the World.
+ */
+export interface World {
+  CreateEntity(): Entity;
+  AddEntityComponent<T extends Component>(entity: Entity, component: T): void;
+}
+
+/**
+ * The first parameter in each System Update call.
+ */
+export interface SystemParams {
+  entity: Entity;
+  world: World;
+}
+
+/**
  * A System contains an `Update` method that is called once per frame. Update operates on Components that
  * are attached to Entities. Use the `@Query` decorator to specify which Components your System
  * should query and operate on.
@@ -63,8 +82,8 @@ export const SYSTEM_PARAMS = Symbol('SYSTEM_PARAMS');
  *
  * // This System will query for all Entities that have a LoggerComponent and log the message
  * class LogSystem {
- *    [@Query]
- *    Update(e: Entity, logger: LoggerComponent) {
+ *    [@Query()]
+ *    Update({ entity, world }: SystemParams, logger: LoggerComponent) {
  *      console.log(logger.msg);
  *    }
  * }
@@ -74,11 +93,11 @@ export const SYSTEM_PARAMS = Symbol('SYSTEM_PARAMS');
  * world.registerSystem(new LogSystem());
  */
 export interface System {
-  Update(entity: Entity, ...components: Component[]): void;
+  Update(params: SystemParams, ...components: Component[]): void;
 }
 
 /**
- * A system's Component Query Params are stored on the registered constructor
+ * A system's Component Query Params are stored on the registered constructor.
  */
 export type SystemConstructor = Function & {
   [SYSTEM_PARAMS]: SystemComponentDeps;

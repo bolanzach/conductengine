@@ -23,6 +23,13 @@ export class World {
     return entity;
   }
 
+  /**
+   * Assignes the `component` to the `entity`.
+   * 
+   * @example
+   * 
+   * world.AddEntityComponent(entity, component);
+   */
   AddEntityComponent<T extends Component>(entity: Entity, component: T): void {
     if (!this.#componentTable.has(component[COMPONENT_TYPE])) {
       this.#componentTable.set(
@@ -39,6 +46,14 @@ export class World {
     componentList[entity] = component;
   }
 
+  /**
+   * Retrieves the instance of the `component` assigned to the `entity`. If the `entity`
+   * does *NOT* have a component of type `component` assigned to it, then `null` is returned.
+   * 
+   * @example
+   * 
+   * const c = world.GetEntityComponent(entity, SomeComponentType);
+   */
   GetEntityComponent<TComponent extends ComponentConstructor>(
     entity: Entity,
     component: TComponent
@@ -64,20 +79,67 @@ export class World {
     return this;
   }
 
-  // query<A extends ComponentConstructor, B extends ComponentConstructor>(
-  //   a: A,
-  //   b: B
-  // ): [InstanceType<A>, InstanceType<B>][];
+  Query<A extends ComponentConstructor>(
+    include: [A],
+    exclude?: ComponentConstructor[]
+  ): Array<[Entity, InstanceType<A>[]]>;
+  Query<A extends ComponentConstructor, B extends ComponentConstructor>(
+    include: [A, B],
+    exclude?: ComponentConstructor[]
+  ): Array<[Entity, [InstanceType<A>, InstanceType<B>]]>;
+  Query<A extends ComponentConstructor, B extends ComponentConstructor>(
+    include: [A] | [A, B],
+    exclude: ComponentConstructor[] = [],
+  ): Array<[Entity, [A] | [A, B]]> {
+    // This is what we're trying to build up to
+    const componentInstances: Array<[Entity, [A] | [A, B]]> = [];
 
-  // query<
-  //   A extends ComponentConstructor,
-  //   B extends ComponentConstructor,
-  //   C extends ComponentConstructor,
-  // >(
-  //   a: A,
-  //   b: B,
-  //   c: C
-  // ): [InstanceType<A>, InstanceType<B>, InstanceType<C>][];
+    for (let entity = 0; entity < this.#entityList.length; entity++) {
+      // Flip to FALSE whenever a condition fails. This must be TRUE in order for this
+      // entity's components to be added
+      let querySuccess = true;
+
+      const components = new Array(include.length) as [A] | [A, B];
+
+      // Check that the entity has all the components that are to be queried
+      for (let i = 0; i < include.length; i++) {
+        const component = this.GetEntityComponent(
+          entity,
+          include[i]
+        );
+        if (!component) {
+          // The component instance is null for this entity, so the entity does not have the component and should be excluded
+          querySuccess = false;
+          break;
+        }
+
+        // @todo ts-ignore may be unnavoidable
+        // @ts-ignore
+        components[i] = component;
+      }
+
+      if (querySuccess) {
+        // All components were found for this entity, so now check if the entity has any of the components that are to be excluded
+        for (let i = 0; i < exclude.length ?? 0; i++) {
+          const component = this.GetEntityComponent(
+            entity,
+            exclude[i]
+          );
+          if (component) {
+            // The instance is NOT null, so the entity has the component and should be excluded
+            querySuccess = false;
+            break;
+          }
+        }
+      }
+
+      if (querySuccess) {
+        componentInstances.push([entity, components]);
+      }
+    }
+
+    return componentInstances;
+  }
 
   TestStart() {
     this.#systems.forEach((system, scstr) => {
@@ -88,57 +150,11 @@ export class World {
         return;
       }
 
-      const componentsToQuery = systemComponentTypes.queryWith;
-
-      // This is what we're trying to build up to
-      const componentInstances: Array<[Entity, Component[]]> = [];
-
-      // const results = this.query(ZComp, XComp, ZComp);
-      // results.forEach(([z, x, z2]) => {
-
-      // });
-
-      for (let entity = 0; entity < this.#entityList.length; entity++) {
-        const components: Array<Component> = [];
-
-        // Check that the entity has all the components that are to be queried
-        for (let i = 0; i < componentsToQuery.length; i++) {
-          const component = this.GetEntityComponent(
-            entity,
-            componentsToQuery[i]
-          );
-          if (!component) {
-            // The component instance is null for this entity, so the entity does not have the component and should be excluded
-            break;
-          }
-
-          components.push(component);
-        }
-
-        if (components.length === componentsToQuery.length) {
-          // All components were found for this entity, so now check if the entity has any of the components that are to be excluded
-          let querySuccess = true;
-          for (let i = 0; i < systemComponentTypes.queryWithout.length; i++) {
-            const component = this.GetEntityComponent(
-              entity,
-              systemComponentTypes.queryWithout[i]
-            );
-            if (component) {
-              // The instance is NOT null, so the entity has the component and should be excluded
-              querySuccess = false;
-              break;
-            }
-          }
-
-          if (querySuccess) {
-            componentInstances.push([entity, components]);
-          }
-        }
+      const results = this.Query((systemComponentTypes.queryWith as [ComponentConstructor]));
+      for (let i = 0; i < results.length; i++) {
+        const [entity, components] = results[i];
+        system.Update({ entity, world: this }, ...components);
       }
-
-      componentInstances.forEach(([entity, components]) =>
-        system.Update({ entity, world: this }, ...components)
-      );
     });
   }
 }

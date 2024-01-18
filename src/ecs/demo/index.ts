@@ -1,6 +1,5 @@
 import { Query, System, SystemParams } from '../system';
 import { Component } from '../component';
-import { Entity } from '../entity';
 import { World } from '../main';
 
 class TestComponent extends Component {
@@ -17,8 +16,12 @@ class TestThreeComponent extends Component {
 
 class TestSystem implements System {
   @Query()
-  Update({ entity }: SystemParams, t: TestComponent, z: TestTwoComponent) {
+  Update({ entity, world }: SystemParams, t: TestComponent, z: TestTwoComponent) {
     console.log('TestSystem: ', entity, t.msg);
+
+    // for (const [e, [t1, t2]] of world.Query([TestComponent, TestTwoComponent])) {
+
+    // }
   }
 }
 

@@ -63,6 +63,15 @@ export const SYSTEM_PARAMS = Symbol('SYSTEM_PARAMS');
 export interface World {
   CreateEntity(): Entity;
   AddEntityComponent<T extends Component>(entity: Entity, component: T): void;
+  
+  Query<A extends ComponentConstructor>(
+    include: [A],
+    exclude?: ComponentConstructor[]
+  ): Array<[Entity, InstanceType<A>[]]>;
+  Query<A extends ComponentConstructor, B extends ComponentConstructor>(
+    include: [A, B],
+    exclude?: ComponentConstructor[]
+  ): Array<[Entity, [InstanceType<A>, InstanceType<B>]]>;
 }
 
 /**

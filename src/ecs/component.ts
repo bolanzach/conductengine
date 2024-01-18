@@ -1,3 +1,5 @@
+import { Entity } from "./entity";
+
 export const COMPONENT_TYPE = Symbol('COMPONENT_TYPE');
 
 export type ComponentConstructor<T extends Component = Component> = new () => T;
@@ -11,3 +13,20 @@ export abstract class Component {
   protected readonly [COMPONENT_TYPE]: ComponentConstructor = this
     .constructor as ComponentConstructor;
 }
+
+// /**
+//  * Something that can query for Components
+//  */
+// export interface ComponentQueryEngine {
+//   CreateEntity(): Entity;
+//   AddEntityComponent<T extends Component>(entity: Entity, component: T): void;
+  
+//   Query<A extends ComponentConstructor>(
+//     include: [A],
+//     exclude?: ComponentConstructor[]
+//   ): Array<A[]>;
+//   Query<A extends ComponentConstructor, B extends ComponentConstructor>(
+//     include: [A, B],
+//     exclude?: ComponentConstructor[]
+//   ): Array<[A, B]>;
+// }

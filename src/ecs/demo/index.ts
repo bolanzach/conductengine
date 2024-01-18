@@ -19,9 +19,12 @@ class TestSystem implements System {
   Update({ entity, world }: SystemParams, t: TestComponent, z: TestTwoComponent) {
     console.log('TestSystem: ', entity, t.msg);
 
-    // for (const [e, [t1, t2]] of world.Query([TestComponent, TestTwoComponent])) {
+    // Systems can Query the World. While it's more idiomatic to use the @Query annotationm, this
+    // can be useful for when a System needs to dynamically query Components or process a subset of
+    // Components.
+    for (const [e, [t1, t2]] of world.Query([TestComponent, TestTwoComponent])) {
 
-    // }
+    }
   }
 }
 

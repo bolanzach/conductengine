@@ -7,20 +7,35 @@ import { SYSTEM_PARAMS, System, SystemConstructor } from './system';
 type ComponentTable = Map<ComponentConstructor, Array<Component | null>>;
 
 export class World {
-  #entityList: Array<Entity> = [];
+  #entityList: Array<Entity | null> = [];
   #systems: Map<Function, System> = new Map();
   #componentTable: ComponentTable = new Map();
 
   CreateEntity(): Entity {
-    const entity = this.#entityList.length;
+    let entity = 0;
+    
+    while (entity <= this.#entityList.length) {
+      if (this.#entityList[entity] === null || this.#entityList[entity] === undefined) {
+        break;
+      }
+      entity++;
+    }
+
     this.#entityList[entity] = entity;
 
-    // Update the table to include the new entity
-    this.#componentTable.forEach((componentList, componentType) => {
-      this.#componentTable.set(componentType, [...componentList, null]);
+    this.#componentTable.forEach((componentList) => {
+      componentList.push(null);
     });
 
     return entity;
+  }
+
+  DestroyEntity(entity: Entity): void {
+    this.#componentTable.forEach((componentList) => {
+      componentList[entity] = null;
+    });
+
+    this.#entityList[entity] = null;
   }
 
   /**

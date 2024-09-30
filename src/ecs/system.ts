@@ -7,7 +7,7 @@ import { Entity } from './entity';
 interface SystemComponentDeps {
   queryWith: ComponentConstructor[];
   queryWithout: ComponentConstructor[];
-};
+}
 
 function registerSystemComponents(
   system: SystemConstructor,
@@ -38,7 +38,7 @@ function registerSystemComponents(
   system[SYSTEM_PARAMS] = deps;
 }
 
-function queryComponentsDeocrator(query?: { Without: ComponentConstructor[] }) {
+function queryComponentsDecorator(query?: { Without: ComponentConstructor[] }) {
   return function (target: any, key: any): any {
     const cstr = target.constructor;
     const paramTypes = Reflect.getMetadata(
@@ -54,7 +54,7 @@ function queryComponentsDeocrator(query?: { Without: ComponentConstructor[] }) {
   };
 }
 
-export const Query = queryComponentsDeocrator;
+export const Query = queryComponentsDecorator;
 export const SYSTEM_PARAMS = Symbol('SYSTEM_PARAMS');
 
 /**
@@ -72,6 +72,10 @@ export interface World {
     include: [A, B],
     exclude?: ComponentConstructor[]
   ): Array<[Entity, [InstanceType<A>, InstanceType<B>]]>;
+  Query<A extends ComponentConstructor, B extends ComponentConstructor, C extends ComponentConstructor>(
+    include: [A, B, C],
+    exclude?: ComponentConstructor[]
+  ): Array<[Entity, [InstanceType<A>, InstanceType<B>, InstanceType<C>]]>;
 }
 
 /**

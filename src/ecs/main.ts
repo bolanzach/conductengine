@@ -2,13 +2,13 @@ import 'reflect-metadata';
 
 import { COMPONENT_TYPE, Component, ComponentConstructor } from './component';
 import { Entity } from './entity';
-import { SYSTEM_PARAMS, System, SystemConstructor } from './system';
+import { SYSTEM_PARAMS, System, SystemConstructor, World as W } from './system';
 
 type ComponentTable = Map<ComponentConstructor, Array<Component | null>>;
 
-export class World {
+export class World implements W {
   #entityList: Array<Entity | null> = [];
-  #systems: Map<Function, System> = new Map();
+  #systems: Map<SystemConstructor, System> = new Map();
   #componentTable: ComponentTable = new Map();
 
   CreateEntity(): Entity {
@@ -90,7 +90,7 @@ export class World {
   }
 
   RegisterSystem(system: System): World {
-    this.#systems.set(system.constructor, system);
+    this.#systems.set(system.constructor as SystemConstructor, system);
     return this;
   }
 
@@ -102,19 +102,23 @@ export class World {
     include: [A, B],
     exclude?: ComponentConstructor[]
   ): Array<[Entity, [InstanceType<A>, InstanceType<B>]]>;
-  Query<A extends ComponentConstructor, B extends ComponentConstructor>(
-    include: [A] | [A, B],
+  Query<A extends ComponentConstructor, B extends ComponentConstructor, C extends ComponentConstructor>(
+    include: [A, B, C],
+    exclude?: ComponentConstructor[]
+  ): Array<[Entity, [InstanceType<A>, InstanceType<B>, InstanceType<C>]]>
+  Query<A extends ComponentConstructor, B extends ComponentConstructor, C extends ComponentConstructor>(
+    include: [A] | [A, B] | [A, B, C],
     exclude: ComponentConstructor[] = [],
-  ): Array<[Entity, [A] | [A, B]]> {
+  ): Array<[Entity, [A] | [A, B] | [A, B, C]]> {
     // This is what we're trying to build up to
-    const componentInstances: Array<[Entity, [A] | [A, B]]> = [];
+    const componentInstances: Array<[Entity, typeof include]> = [];
 
     for (let entity = 0; entity < this.#entityList.length; entity++) {
       // Flip to FALSE whenever a condition fails. This must be TRUE in order for this
       // entity's components to be added
       let querySuccess = true;
 
-      const components = new Array(include.length) as [A] | [A, B];
+      const components = new Array(include.length) as typeof include;
 
       // Check that the entity has all the components that are to be queried
       for (let i = 0; i < include.length; i++) {
@@ -158,7 +162,7 @@ export class World {
 
   TestStart() {
     this.#systems.forEach((system, scstr) => {
-      const systemComponentTypes = (system.constructor as SystemConstructor)[
+      const systemComponentTypes = scstr[
         SYSTEM_PARAMS
       ];
       if (!systemComponentTypes) {

@@ -1,6 +1,6 @@
 import { Query, System, SystemParams } from '../system';
 import { Component } from '../component';
-import { World } from '../main';
+import { World } from '../index';
 
 class TestComponent extends Component {
   msg!: string;

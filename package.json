@@ -4,7 +4,7 @@
   "main": "index.js",
   "license": "MIT",
   "scripts": {
-    "bundle": "node_modules/@swc/cli/bin/spack.js"
+    "build:ecs": "node_modules/@swc/cli/bin/swc.js src/ecs/ -d dist --config-file .swcrc"
   },
   "dependencies": {
     "reflect-metadata": "^0.2.1",

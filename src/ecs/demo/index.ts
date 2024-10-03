@@ -11,7 +11,9 @@ class TestTwoComponent extends Component {
 }
 
 class TestThreeComponent extends Component {
-  name!: string;
+  constructor(public name: string) {
+    super();
+  }
 }
 
 class TestSystem implements System {
@@ -81,8 +83,7 @@ world.AddEntityComponent(entity2, new TestComponent());
 world.AddEntityComponent(entity2, new TestTwoComponent());
 
 const entity3 = world.CreateEntity();
-const t3 = new TestThreeComponent();
-t3.name = 'asdfasdfsfd';
+const t3 = new TestThreeComponent('three-component');
 world.AddEntityComponent(entity3, new TestComponent());
 world.AddEntityComponent(entity3, t3);
 
@@ -90,6 +91,6 @@ const entity4 = world.CreateEntity();
 
 world.AddEntityComponent(entity4, new TestComponent());
 world.AddEntityComponent(entity4, new TestTwoComponent());
-world.AddEntityComponent(entity4, new TestThreeComponent());
+world.AddEntityComponent(entity4, new TestThreeComponent('three-component-2'));
 
 world.TestStart();

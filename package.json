@@ -3,17 +3,21 @@
   "version": "1.0.0",
   "main": "index.js",
   "license": "MIT",
+  "private": true,
   "scripts": {
-    "build:ecs": "node_modules/@swc/cli/bin/swc.js src/ecs/ -d dist --config-file .swcrc"
+    "build:ecs": "node_modules/@swc/cli/bin/swc.js src/ecs/ -d dist --config-file .swcrc",
+    "build:renderer": "yarn --cwd packages/conduct-renderer build",
+    "build:demo": "yarn --cwd packages/demos bundle"
   },
   "dependencies": {
     "reflect-metadata": "^0.2.1",
     "typescript": "^5.3.3"
   },
   "devDependencies": {
-    "@swc/cli": "^0.4.1-nightly.20240914",
-    "@swc/core": "^1.7.26",
     "@webgpu/types": "^0.1.47",
     "prettier": "3.1.1"
-  }
+  },
+  "workspaces": [
+    "packages/*"
+  ]
 }

@@ -1,0 +1,35 @@
+{
+  "compilerOptions": {
+    "lib": [
+      "esNext",
+      "dom"
+    ],
+    "module": "commonjs",
+    "target": "es2022",
+
+    "rootDir": "src",
+    "noEmit": false,
+    "outDir": "lib",
+    "declaration": true,
+
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "moduleResolution": "node",
+
+    "types": ["@webgpu/types"],
+
+    "allowSyntheticDefaultImports": true,
+    "sourceMap": true,
+    "allowJs": true,
+
+    "forceConsistentCasingInFileNames": true,
+    "noImplicitReturns": true,
+    "noImplicitThis": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "noUnusedLocals": false
+  },
+  "include": ["src/*"],
+  "exclude": ["node_modules"]
+}

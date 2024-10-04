@@ -1,0 +1,13 @@
+{
+  "name": "demos",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "bundle": "node_modules/@swc/cli/bin/swc.js index.ts -d dist --config-file .swcrc"
+  },
+  "dependencies": {
+    "conduct-renderer": "*"
+  },
+  "devDependencies": {}
+}

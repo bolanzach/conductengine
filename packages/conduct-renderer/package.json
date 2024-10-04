@@ -1,0 +1,13 @@
+{
+  "name": "conduct-renderer",
+  "version": "1.0.0",
+  "main": "lib/index.js",
+  "license": "MIT",
+  "scripts": {
+    "clean": "rm -rf lib",
+    "build": "yarn clean && node_modules/typescript/bin/tsc"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.2"
+  }
+}

@@ -1,10 +1,10 @@
 import raf from 'raf';
 
-import { COMPONENT_TYPE, Component, ComponentConstructor } from './component';
+import { Component, COMPONENT_TYPE, ComponentConstructor } from './component';
 import { Entity } from './entity';
-import { SYSTEM_PARAMS, System, SystemConstructor } from './system';
+import { System, SYSTEM_PARAMS, SystemConstructor } from './system';
 
-type ComponentTable = Map<ComponentConstructor, Array<Component | null>>;
+type ComponentTable = Map<ComponentConstructor, (Component | null)[]>;
 
 export interface WorldConfig {
   setup: (w: World) => void;
@@ -12,8 +12,8 @@ export interface WorldConfig {
 }
 
 export class World {
-  #entityList: Array<Entity | null> = [];
-  #systems: Map<SystemConstructor, System> = new Map();
+  #entityList: (Entity | null)[] = [];
+  #systems = new Map<SystemConstructor, System>();
   #componentTable: ComponentTable = new Map();
 
   #fps: number;
@@ -24,11 +24,14 @@ export class World {
     this.config.setup(this);
   }
 
-  CreateEntity(): Entity {
+  createEntity(): Entity {
     let entity = 0;
 
     while (entity <= this.#entityList.length) {
-      if (this.#entityList[entity] === null || this.#entityList[entity] === undefined) {
+      if (
+        this.#entityList[entity] === null ||
+        this.#entityList[entity] === undefined
+      ) {
         break;
       }
       entity++;
@@ -43,7 +46,7 @@ export class World {
     return entity;
   }
 
-  DestroyEntity(entity: Entity): void {
+  destroyEntity(entity: Entity): void {
     this.#componentTable.forEach((componentList) => {
       componentList[entity] = null;
     });
@@ -82,7 +85,7 @@ export class World {
    *
    * const c = world.GetEntityComponent(entity, SomeComponentType);
    */
-  GetEntityComponent<TComponent extends ComponentConstructor>(
+  getEntityComponent<TComponent extends ComponentConstructor>(
     entity: Entity,
     component: TComponent
   ): InstanceType<TComponent> | null {
@@ -102,7 +105,7 @@ export class World {
     return null;
   }
 
-  RegisterSystem(system: System): World {
+  registerSystem(system: System): World {
     this.#systems.set(system.constructor as SystemConstructor, system);
     return this;
   }
@@ -110,21 +113,29 @@ export class World {
   Query<A extends ComponentConstructor>(
     include: [A],
     exclude?: ComponentConstructor[]
-  ): Array<[Entity, InstanceType<A>[]]>;
+  ): [Entity, InstanceType<A>[]][];
   Query<A extends ComponentConstructor, B extends ComponentConstructor>(
     include: [A, B],
     exclude?: ComponentConstructor[]
-  ): Array<[Entity, [InstanceType<A>, InstanceType<B>]]>;
-  Query<A extends ComponentConstructor, B extends ComponentConstructor, C extends ComponentConstructor>(
+  ): [Entity, [InstanceType<A>, InstanceType<B>]][];
+  Query<
+    A extends ComponentConstructor,
+    B extends ComponentConstructor,
+    C extends ComponentConstructor,
+  >(
     include: [A, B, C],
     exclude?: ComponentConstructor[]
-  ): Array<[Entity, [InstanceType<A>, InstanceType<B>, InstanceType<C>]]>
-  Query<A extends ComponentConstructor, B extends ComponentConstructor, C extends ComponentConstructor>(
+  ): [Entity, [InstanceType<A>, InstanceType<B>, InstanceType<C>]][];
+  Query<
+    A extends ComponentConstructor,
+    B extends ComponentConstructor,
+    C extends ComponentConstructor,
+  >(
     include: [A] | [A, B] | [A, B, C],
-    exclude: ComponentConstructor[] = [],
-  ): Array<[Entity, [A] | [A, B] | [A, B, C]]> {
+    exclude: ComponentConstructor[] = []
+  ): [Entity, [A] | [A, B] | [A, B, C]][] {
     // This is what we're trying to build up to
-    const componentInstances: Array<[Entity, typeof include]> = [];
+    const componentInstances: [Entity, typeof include][] = [];
 
     for (let entity = 0; entity < this.#entityList.length; entity++) {
       // Flip to FALSE whenever a condition fails. This must be TRUE in order for this
@@ -135,28 +146,21 @@ export class World {
 
       // Check that the entity has all the components that are to be queried
       for (let i = 0; i < include.length; i++) {
-        const component = this.GetEntityComponent(
-          entity,
-          include[i]
-        );
+        const component = this.getEntityComponent(entity, include[i]);
         if (!component) {
           // The component instance is null for this entity, so the entity does not have the component and should be excluded
           querySuccess = false;
           break;
         }
 
-        // @todo ts-ignore may be unnavoidable
-        // @ts-ignore
+        // @ts-expect-error we know what we're doing here
         components[i] = component;
       }
 
       if (querySuccess) {
         // All components were found for this entity, so now check if the entity has any of the components that are to be excluded
         for (let i = 0; i < exclude.length; i++) {
-          const component = this.GetEntityComponent(
-            entity,
-            exclude[i]
-          );
+          const component = this.getEntityComponent(entity, exclude[i]);
           if (component) {
             // The instance is NOT null, so the entity has the component and should be excluded
             querySuccess = false;
@@ -179,9 +183,7 @@ export class World {
 
   private update(timestamp: number): void {
     this.#systems.forEach((system, scstr) => {
-      const systemComponentTypes = scstr[
-        SYSTEM_PARAMS
-        ];
+      const systemComponentTypes = scstr[SYSTEM_PARAMS];
       if (!systemComponentTypes) {
         return;
       }
@@ -191,17 +193,22 @@ export class World {
 
       //const fps = Math.round(1 / secondsPassed);
 
-      const results = this.Query((systemComponentTypes.queryWith as [ComponentConstructor]));
+      const results = this.Query(
+        systemComponentTypes.queryWith as [ComponentConstructor]
+      );
       for (let i = 0; i < results.length; i++) {
         const [entity, components] = results[i];
-        system.Update({
-          entity,
-          world: this,
-          time: {
-            delta: secondsPassed,
-            timestamp,
+        system.Update(
+          {
+            entity,
+            world: this,
+            time: {
+              delta: secondsPassed,
+              timestamp,
+            },
           },
-        }, ...components);
+          ...components
+        );
       }
     });
 

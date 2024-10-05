@@ -1,7 +1,6 @@
-import { GameServer } from './gameServer';
-
-import main from '../game/src/main';
 import { World } from '../conduct-ecs';
+import main from '../game/src/main';
+import { GameServer } from './gameServer';
 
 const gameServer = new GameServer();
 
@@ -12,5 +11,4 @@ function setup(w: World) {
 }
 
 // Start the game on the server
-main({ gameHost: "server", setup });
-
+main({ gameHost: 'server', setup });

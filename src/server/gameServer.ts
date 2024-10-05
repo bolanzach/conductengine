@@ -1,5 +1,5 @@
-import path from 'path';
 import express from 'express';
+import path from 'path';
 
 export class GameServer {
   private instance: express.Application;
@@ -23,10 +23,8 @@ export class GameServer {
       res.sendFile(path.join(__dirname, '/static/main.html'));
     });
 
-
-    this.instance.get("/static/:file", (req, res) => {
+    this.instance.get('/static/:file', (req, res) => {
       res.sendFile(path.join(__dirname, `/static/${req.params.file}`));
     });
   }
 }
-

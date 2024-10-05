@@ -1,3 +1,7 @@
+export {
+  Component,
+  ComponentConstructor,
+  ComponentConstructors,
+} from './component';
+export { Query, System, SystemConstructor, SystemParams } from './system';
 export { World } from './world';
-export { Component, ComponentConstructor, ComponentConstructors } from './component';
-export { System, SystemConstructor, SystemParams, Query } from './system';

@@ -67,7 +67,7 @@ export interface SystemParams {
   time: {
     delta: number;
     timestamp: number;
-  }
+  };
 }
 
 /**

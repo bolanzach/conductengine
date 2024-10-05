@@ -1,10 +1,10 @@
-import mainwgsl from "./main.wgsl";
+import mainwgsl from './main.wgsl';
 
 export function init() {
-  console.log("webgpu init");
+  console.log('webgpu init');
 
   if (!navigator.gpu) {
-    throw new Error("WebGPU is not supported on this device.");
+    throw new Error('WebGPU is not supported on this device.');
   }
 
   const GRID_SIZE = 4;
@@ -13,35 +13,35 @@ export function init() {
     const adapter = await navigator.gpu.requestAdapter();
     const device = await adapter?.requestDevice();
     if (!device) {
-      throw new Error("No device found.");
+      throw new Error('No device found.');
     }
 
-    const canvas = document.getElementById("canvas") as HTMLCanvasElement;
-    const context = canvas.getContext("webgpu");
+    const canvas = document.getElementById('canvas') as HTMLCanvasElement;
+    const context = canvas.getContext('webgpu');
     if (!context) {
-      throw new Error("Could not get WebGPU context.");
+      throw new Error('Could not get WebGPU context.');
     }
 
     const canvasFormat = navigator.gpu.getPreferredCanvasFormat();
 
-    // @ts-ignore
+    // @ts-expect-error webpgu_ts_compilation
     context.configure({
       device: device,
       format: canvasFormat,
     });
-    const encoder = device.createCommandEncoder()
+    const encoder = device.createCommandEncoder();
 
     const pass = encoder.beginRenderPass({
       label: '[renderpass]',
       colorAttachments: [
         {
-          // @ts-ignore
+          // @ts-expect-error webpgu_ts_compilation
           view: context.getCurrentTexture().createView(),
           loadOp: 'clear',
           storeOp: 'store',
-          clearValue: { r: 0.0, g: 0.15, b: 0.6, a: 1.0 }
-        }
-      ]
+          clearValue: { r: 0.0, g: 0.15, b: 0.6, a: 1.0 },
+        },
+      ],
     });
 
     const uniform = new Float32Array([GRID_SIZE, GRID_SIZE]);
@@ -52,15 +52,10 @@ export function init() {
     });
     device.queue.writeBuffer(uniformBuffer, 0, uniform);
 
-
     const vertices = new Float32Array([
-      -0.8, -0.8,
-      0.8, -0.8,
-      0.8,  0.8,
+      -0.8, -0.8, 0.8, -0.8, 0.8, 0.8,
 
-      -0.8, -0.8,
-      0.8,  0.8,
-      -0.8,  0.8,
+      -0.8, -0.8, 0.8, 0.8, -0.8, 0.8,
     ]);
 
     const vertexBuffer = device.createBuffer({
@@ -73,32 +68,36 @@ export function init() {
 
     const vertexBufferLayout: GPUVertexBufferLayout = {
       arrayStride: 8,
-      attributes: [{
-        format: "float32x2",
-        offset: 0,
-        shaderLocation: 0, // Position, see vertex shader
-      }],
+      attributes: [
+        {
+          format: 'float32x2',
+          offset: 0,
+          shaderLocation: 0, // Position, see vertex shader
+        },
+      ],
     };
 
     const cellShaderModule = device.createShaderModule({
-      label: "[cellshader]",
+      label: '[cellshader]',
       code: mainwgsl,
     });
 
     const cellPipeline = device.createRenderPipeline({
-      label: "[cellpipeline]",
+      label: '[cellpipeline]',
       layout: 'auto',
       vertex: {
         module: cellShaderModule,
-        entryPoint: "vmain",
+        entryPoint: 'vmain',
         buffers: [vertexBufferLayout],
       },
       fragment: {
         module: cellShaderModule,
-        entryPoint: "fmain",
-        targets: [{
-          format: canvasFormat,
-        }],
+        entryPoint: 'fmain',
+        targets: [
+          {
+            format: canvasFormat,
+          },
+        ],
       },
     });
 
@@ -109,7 +108,5 @@ export function init() {
     pass.end();
 
     device.queue.submit([encoder.finish()]); // typically done in one step
-
-
   })();
 }

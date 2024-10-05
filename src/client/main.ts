@@ -1,20 +1,7 @@
-import 'reflect-metadata'
+import { init } from './gpu';
 
-import { World} from '../conduct-ecs';
-import { init} from './gpu'
+import main from '../game/src/main';
 
-import * as _ from "lodash"
-
-console.dir(_);
-
-const w = new World();
-
-const message: string = "hello client";
-
-function main() {
-  console.log(message);
-}
-
-main();
+main({ gameHost: "client" });
 
 init();

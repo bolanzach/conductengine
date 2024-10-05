@@ -12,7 +12,7 @@ export class GameServer {
     this.routes();
 
     this.instance.listen(6969, () => {
-      console.log('Server is running on port :6969');
+      console.log('GameServer is running on port :6969');
     });
   }
 

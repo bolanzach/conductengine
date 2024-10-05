@@ -11,6 +11,9 @@
     "allowJs": true,
     "moduleResolution": "Node",
     "sourceMap": true,
+
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
     "typeRoots": [
       "./node_modules/@webgpu/types",
       "./node_modules/@types"]

@@ -5,9 +5,9 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "build:ecs": "node_modules/@swc/cli/bin/swc.js src/ecs/ -d dist --config-file .swcrc",
+    "build:ecs": "yarn --cwd packages/conduct-ecs build",
     "build:renderer": "yarn --cwd packages/conduct-renderer build",
-    "build:demo": "yarn --cwd packages/demos bundle"
+    "build:demo": "yarn build:ecs && yarn build:renderer && yarn --cwd packages/demos dev"
   },
   "dependencies": {
     "reflect-metadata": "^0.2.1",

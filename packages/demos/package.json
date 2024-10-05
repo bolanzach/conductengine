@@ -4,10 +4,13 @@
   "main": "index.js",
   "license": "MIT",
   "scripts": {
-    "bundle": "node_modules/@swc/cli/bin/swc.js index.ts -d dist --config-file .swcrc"
+    "dev": "vite"
   },
   "dependencies": {
-    "conduct-renderer": "*"
+    "conduct-renderer": "*",
+    "reflect-metadata": "^0.2.2"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "vite": "^5.4.8"
+  }
 }

@@ -1,19 +1,17 @@
-import 'reflect-metadata';
-
 import { COMPONENT_TYPE, Component, ComponentConstructor } from './component';
 import { Entity } from './entity';
-import { SYSTEM_PARAMS, System, SystemConstructor, World as W } from './system';
+import { SYSTEM_PARAMS, System, SystemConstructor } from './system';
 
 type ComponentTable = Map<ComponentConstructor, Array<Component | null>>;
 
-export class World implements W {
+export class World {
   #entityList: Array<Entity | null> = [];
   #systems: Map<SystemConstructor, System> = new Map();
   #componentTable: ComponentTable = new Map();
 
   CreateEntity(): Entity {
     let entity = 0;
-    
+
     while (entity <= this.#entityList.length) {
       if (this.#entityList[entity] === null || this.#entityList[entity] === undefined) {
         break;
@@ -40,9 +38,9 @@ export class World implements W {
 
   /**
    * Assignes the `component` to the `entity`.
-   * 
+   *
    * @example
-   * 
+   *
    * world.AddEntityComponent(entity, component);
    */
   AddEntityComponent<T extends Component>(entity: Entity, component: T): void {
@@ -64,9 +62,9 @@ export class World implements W {
   /**
    * Retrieves the instance of the `component` assigned to the `entity`. If the `entity`
    * does *NOT* have a component of type `component` assigned to it, then `null` is returned.
-   * 
+   *
    * @example
-   * 
+   *
    * const c = world.GetEntityComponent(entity, SomeComponentType);
    */
   GetEntityComponent<TComponent extends ComponentConstructor>(
@@ -164,7 +162,7 @@ export class World implements W {
     this.#systems.forEach((system, scstr) => {
       const systemComponentTypes = scstr[
         SYSTEM_PARAMS
-      ];
+        ];
       if (!systemComponentTypes) {
         return;
       }

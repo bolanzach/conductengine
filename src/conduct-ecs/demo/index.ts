@@ -1,6 +1,6 @@
-import { Query, System, SystemParams } from '../src/system';
-import { Component } from '../src/component';
-import { World } from '../src';
+import { Query, System, SystemParams } from '../system';
+import { Component } from '../component';
+import { World } from '../index';
 
 class TestComponent extends Component {
   msg!: string;

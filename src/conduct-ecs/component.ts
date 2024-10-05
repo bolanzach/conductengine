@@ -1,5 +1,3 @@
-import { Entity } from "./entity";
-
 export const COMPONENT_TYPE = Symbol('COMPONENT_TYPE');
 
 export type ComponentConstructor<T extends Component = Component> = new () => T;

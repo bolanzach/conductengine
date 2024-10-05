@@ -1,5 +1,6 @@
 import { Component, ComponentConstructor } from './component';
 import { Entity } from './entity';
+import { World } from './world';
 
 /**
  * Gets stored on each System to declare how the System should query Components.
@@ -56,27 +57,6 @@ function queryComponentsDecorator(query?: { Without: ComponentConstructor[] }) {
 
 export const Query = queryComponentsDecorator;
 export const SYSTEM_PARAMS = Symbol('SYSTEM_PARAMS');
-
-/**
- * How a System can interact with the World.
- */
-export interface World {
-  CreateEntity(): Entity;
-  AddEntityComponent<T extends Component>(entity: Entity, component: T): void;
-  
-  Query<A extends ComponentConstructor>(
-    include: [A],
-    exclude?: ComponentConstructor[]
-  ): Array<[Entity, InstanceType<A>[]]>;
-  Query<A extends ComponentConstructor, B extends ComponentConstructor>(
-    include: [A, B],
-    exclude?: ComponentConstructor[]
-  ): Array<[Entity, [InstanceType<A>, InstanceType<B>]]>;
-  Query<A extends ComponentConstructor, B extends ComponentConstructor, C extends ComponentConstructor>(
-    include: [A, B, C],
-    exclude?: ComponentConstructor[]
-  ): Array<[Entity, [InstanceType<A>, InstanceType<B>, InstanceType<C>]]>;
-}
 
 /**
  * The first parameter in each System Update call.

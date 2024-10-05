@@ -2,35 +2,18 @@
 
 #### Who says you can't have a game engine in Typescript
 
-Entity Component Systems are all the RAGE right now so I wanted to build a toy one. We'll see how far I take this.
+Fully networked 3D game engine that runs in your browser.
 
-## Usage
+## Getting Started
 
-Check out the [demo](./src/ecs/demo/index.ts).
-
-```ts
-// Define a component that holds data
-class MyComponent extends Component {
-  constructor(public msg: string) {
-    super();
-  }
-}
-
-// Define a System that operates on the data
-class MySystem implements System {
-  @Query()
-  Update({ entity, world }: SystemParams, myC: MyComponent) {
-    console.log('MySystem: ', entity, myC.msg);
-  }
-}
-
-// Setup your world with Entities
-const world = new World();
-world.RegisterSystem(new TestSystem())
-
-const entity = world.CreateEntity();
-world.AddEntityComponent(entity, new MyComponent("hello"));
-
-// Only a test for now
-world.TestStart();
+**We use `yarn`**
+```shell
+yarn install
 ```
+
+**Start a local development running game**
+```shell
+yarn dev
+```
+
+In a WebGPU supported browser (unfortunately, just Chrome) navigate to `localhost:6969`.

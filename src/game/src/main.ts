@@ -6,8 +6,8 @@ import {
   System,
   SystemParams,
   World,
+  WorldConfig,
 } from '../../conduct-ecs';
-import { WorldConfig } from '../../conduct-ecs/world';
 
 ////// MOVE THIS
 interface GameInstanceConfig extends WorldConfig {
@@ -32,8 +32,8 @@ export default function main(config: GameInstanceConfig): void {
   const w = new World(config).registerSystem(new TestSystem());
 
   const entity = w.createEntity();
-  w.AddEntityComponent(entity, new TestComponent());
+  w.addEntityComponent(entity, new TestComponent());
 
-  w.start();
+  //w.start();
   console.log('game started!');
 }

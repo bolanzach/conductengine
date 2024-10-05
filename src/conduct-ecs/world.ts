@@ -61,7 +61,7 @@ export class World {
    *
    * world.AddEntityComponent(entity, component);
    */
-  AddEntityComponent<T extends Component>(entity: Entity, component: T): void {
+  addEntityComponent<T extends Component>(entity: Entity, component: T): void {
     if (!this.#componentTable.has(component[COMPONENT_TYPE])) {
       this.#componentTable.set(
         component[COMPONENT_TYPE],

@@ -4,4 +4,4 @@ export {
   ComponentConstructors,
 } from './component';
 export { Query, System, SystemConstructor, SystemParams } from './system';
-export { World } from './world';
+export { World, WorldConfig } from './world';

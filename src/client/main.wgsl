@@ -2,7 +2,8 @@
 
 @vertex
 fn vmain(@location(0) pos: vec2f) -> @builtin(position) vec4f {
-  return vec4f(pos / grid, 0, 1);
+  let gridPos = (pos + 1) / grid - 1;
+  return vec4f(gridPos, 0, 1);
 
 }
 

@@ -1,6 +1,6 @@
 import mainwgsl from './main.wgsl';
 
-export function init() {
+export function startTestGpu() {
   console.log('webgpu init');
 
   if (!navigator.gpu) {
@@ -101,8 +101,20 @@ export function init() {
       },
     });
 
+    const bindGroup = device.createBindGroup({
+      label: '[bindgroup]',
+      layout: cellPipeline.getBindGroupLayout(0),
+      entries: [
+        {
+          binding: 0,
+          resource: { buffer: uniformBuffer },
+        },
+      ],
+    });
+
     pass.setPipeline(cellPipeline);
     pass.setVertexBuffer(0, vertexBuffer);
+    pass.setBindGroup(0, bindGroup);
     pass.draw(vertices.length / 2, 1, 0, 0);
 
     pass.end();

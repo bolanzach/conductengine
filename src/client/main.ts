@@ -1,8 +1,9 @@
 import main from '../game/src/main';
-import { init } from './gpu';
-import { renderSystem } from './renderSystem';
+import { startTestGpu } from './gpu';
 
-main({ gameHost: 'client', setup: renderSystem });
+function clientSetup() {
+  startTestGpu();
+}
 
 // Start the game on the client
-init();
+main({ gameHost: 'client', setup: clientSetup });

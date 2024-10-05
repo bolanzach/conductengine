@@ -1,10 +1,12 @@
 import 'reflect-metadata';
 
 import { Component, Query, System, SystemParams, World } from '../../conduct-ecs';
+import { WorldConfig } from '../../conduct-ecs/world';
 
 ////// MOVE THIS
-interface GameInstanceConfig {
-  gameHost: "client" | "server"
+interface GameInstanceConfig extends WorldConfig {
+  gameHost: "client" | "server",
+  setup: (w: World) => void,
 }
 
 class TestComponent extends Component {
@@ -14,26 +16,20 @@ class TestComponent extends Component {
 class TestSystem implements System {
   @Query()
   Update(params: SystemParams, td: TestComponent) {
-    console.log('System Update', td.name);
+    console.log('System Update', td.name, params.time.delta);
   }
 }
 
 
 export default function main(config: GameInstanceConfig): void {
-  console.log("game init");
+  console.log("game init >", config.gameHost);
 
-  if (config.gameHost === "client") {
-    console.log("client init");
-  } else if (config.gameHost === "server") {
-    console.log("server init");
-  }
-
-  const w = new World().RegisterSystem(new TestSystem());
+  const w = new World(config).RegisterSystem(new TestSystem());
 
   const entity = w.CreateEntity();
   w.AddEntityComponent(entity, new TestComponent());
 
-  w.TestStart();
+  w.start()
   console.log("game started!")
 }
 

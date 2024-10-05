@@ -64,6 +64,10 @@ export const SYSTEM_PARAMS = Symbol('SYSTEM_PARAMS');
 export interface SystemParams {
   entity: Entity;
   world: World;
+  time: {
+    delta: number;
+    timestamp: number;
+  }
 }
 
 /**

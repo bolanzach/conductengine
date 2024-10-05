@@ -1,13 +1,28 @@
+import raf from 'raf';
+
 import { COMPONENT_TYPE, Component, ComponentConstructor } from './component';
 import { Entity } from './entity';
 import { SYSTEM_PARAMS, System, SystemConstructor } from './system';
 
 type ComponentTable = Map<ComponentConstructor, Array<Component | null>>;
 
+export interface WorldConfig {
+  setup: (w: World) => void;
+  fps?: number;
+}
+
 export class World {
   #entityList: Array<Entity | null> = [];
   #systems: Map<SystemConstructor, System> = new Map();
   #componentTable: ComponentTable = new Map();
+
+  #fps: number;
+  #previousTimestamp = 0;
+
+  constructor(private config: WorldConfig) {
+    this.#fps = config.fps || 1;
+    this.config.setup(this);
+  }
 
   CreateEntity(): Entity {
     let entity = 0;
@@ -158,7 +173,11 @@ export class World {
     return componentInstances;
   }
 
-  TestStart() {
+  start(): void {
+    raf(this.update.bind(this));
+  }
+
+  private update(timestamp: number): void {
     this.#systems.forEach((system, scstr) => {
       const systemComponentTypes = scstr[
         SYSTEM_PARAMS
@@ -167,11 +186,25 @@ export class World {
         return;
       }
 
+      const secondsPassed = (timestamp - this.#previousTimestamp) / 1000;
+      this.#previousTimestamp = timestamp;
+
+      //const fps = Math.round(1 / secondsPassed);
+
       const results = this.Query((systemComponentTypes.queryWith as [ComponentConstructor]));
       for (let i = 0; i < results.length; i++) {
         const [entity, components] = results[i];
-        system.Update({ entity, world: this }, ...components);
+        system.Update({
+          entity,
+          world: this,
+          time: {
+            delta: secondsPassed,
+            timestamp,
+          },
+        }, ...components);
       }
     });
+
+    raf(this.update.bind(this));
   }
 }

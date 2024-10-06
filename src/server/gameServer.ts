@@ -2,10 +2,16 @@ import express from 'express';
 import path from 'path';
 import { WebSocket, WebSocketServer } from 'ws';
 
+interface WsMessage {
+  clientId: number;
+  data: any;
+}
+
 export class GameServer {
   private instance: express.Application;
   private wsServer: WebSocketServer;
   private clientSockets: WebSocket[] = [];
+  private wsMessageCb?: (message: WsMessage) => void;
 
   constructor() {
     this.instance = express();
@@ -33,6 +39,10 @@ export class GameServer {
     });
   }
 
+  public wsOnMessage(cb: (message: WsMessage) => void) {
+    this.wsMessageCb = cb;
+  }
+
   private routes() {
     this.instance.get('/', (req, res) => {
       // do other things
@@ -51,6 +61,9 @@ export class GameServer {
 
     client.on('message', (message: string) => {
       console.log('Message from client', message.toString());
+
+      const data = JSON.parse(message.toString());
+      this.wsMessageCb?.({ clientId: idx, data });
     });
 
     client.on('close', () => {

@@ -8,6 +8,15 @@ gameServer.start();
 
 function setup(w: World) {
   // Server specific setup
+
+  gameServer.wsOnMessage((message) => {
+    if (message.data.type === 'spawn') {
+      const networkComponent = message.data.components[0];
+      const bundle = networkComponent.bundle;
+      const idk = w.buildBundle(bundle, networkComponent);
+      console.log(idk);
+    }
+  });
 }
 
 // Start the game on the server

@@ -9,7 +9,7 @@ import {
   World,
   WorldConfig,
 } from '../../conduct-ecs';
-import { Bundle } from '../../conduct-ecs/bundle';
+import { BuildBundleData, Bundle } from '../../conduct-ecs/bundle';
 import { component } from '../../conduct-ecs/component';
 import { NetworkComponent } from '../../conduct-ecs/components/network';
 import { Entity } from '../../conduct-ecs/entity';
@@ -27,7 +27,7 @@ interface GameInstanceConfig extends WorldConfig {
 ////////////////////
 
 class TestComponent extends Component {
-  name = 'Test-Component';
+  name!: string;
 }
 
 class TestSystem implements System {
@@ -38,7 +38,7 @@ class TestSystem implements System {
 }
 
 class PlayerBundle implements Bundle {
-  build(w: World): Entity {
+  build(w: World, data: BuildBundleData): Entity {
     const player = w.createEntity();
     w.addEntityComponent(
       player,
@@ -46,8 +46,9 @@ class PlayerBundle implements Bundle {
         networkId: getNetworkId(),
         authority: 'client',
         bundle: PlayerBundle.name,
+        isSpawned: data.isSpawned ?? false,
       })
-    ).addEntityComponent(player, new NetworkedTransform());
+    ).addEntityComponent(player, component(TestComponent, { name: 'zach' }));
 
     return player;
   }
@@ -57,10 +58,11 @@ export default function main(config: GameInstanceConfig): void {
   console.log('game init >', config.gameHost);
 
   const w = new World(config)
+    .registerBundle(new PlayerBundle())
     .registerSystem(new TestSystem())
     .registerSystem(new NetworkSystem(config.wsConnection));
 
-  new PlayerBundle().build(w);
+  w.buildBundle(PlayerBundle);
 
   w.start();
   console.log('game started!');

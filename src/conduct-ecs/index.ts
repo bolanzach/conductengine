@@ -1,3 +1,4 @@
+export { Bundle, BundleConstructor } from './bundle';
 export {
   Component,
   ComponentConstructor,

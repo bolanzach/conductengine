@@ -1,5 +1,6 @@
 import raf from 'raf';
 
+import { BuildBundleData, Bundle, BundleConstructor } from './bundle';
 import { Component, COMPONENT_TYPE, ComponentConstructor } from './component';
 import { Entity } from './entity';
 import { System, SYSTEM_PARAMS, SystemConstructor, SystemInit } from './system';
@@ -17,6 +18,7 @@ export class World {
   #systems = new Map<SystemConstructor, System>();
   #componentTable: ComponentTable = new Map();
   #initSystems: SystemInit[] = [];
+  #bundles = new Map<string, Bundle>();
 
   #gameHost: 'client' | 'server';
   #fps: number;
@@ -144,6 +146,28 @@ export class World {
     }
     this.#initSystems.push(system);
     return this;
+  }
+
+  /**
+   * Might change this idk but easy for now
+   */
+  registerBundle(bundle: Bundle): World {
+    this.#bundles.set(bundle.constructor.name, bundle);
+    return this;
+  }
+
+  buildBundle(
+    bundle: BundleConstructor | string,
+    data: BuildBundleData = {}
+  ): Entity {
+    const key = typeof bundle === 'string' ? bundle : bundle.name;
+    const bundleInstance = this.#bundles.get(key);
+    if (!bundleInstance) {
+      console.error(`Bundle ${key} not found`);
+      return Infinity;
+    }
+
+    return bundleInstance.build(this, data);
   }
 
   Query<A extends ComponentConstructor>(

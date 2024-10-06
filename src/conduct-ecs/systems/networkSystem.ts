@@ -24,6 +24,8 @@ export default class NetworkSystem implements System {
 
     if (!networkComponent.isSpawned) {
       if (networkComponent.authority === getAuthority()) {
+        networkComponent.isSpawned = true;
+
         // Send spawn message
         this.wsConnection.send(
           JSON.stringify({
@@ -31,16 +33,22 @@ export default class NetworkSystem implements System {
             components: [networkComponent, ...networkedComponents],
           })
         );
-        networkComponent.isSpawned = true;
+      } else {
+        // Temporary - remove the Entity because this is not the authority
+        world.destroyEntity(entity);
       }
     } else {
-      // Send update message
-      this.wsConnection.send(
-        JSON.stringify({
-          type: 'update',
-          components: [networkComponent, ...networkedComponents],
-        })
-      );
+      // The object is spawned
+
+      if (networkComponent.authority === getAuthority()) {
+        // Send update message
+        this.wsConnection.send(
+          JSON.stringify({
+            type: 'update',
+            components: [networkComponent, ...networkedComponents],
+          })
+        );
+      }
     }
   }
 }

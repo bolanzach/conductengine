@@ -12,5 +12,5 @@ export default class Transform extends Component {
   rotation: Position = { x: 0, y: 0, z: 0 };
 }
 
-@Networked('SERVER')
-export class NetworkedTransform extends Transform {}
+@Networked
+export class NetworkedTransform extends Component {}

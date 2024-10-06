@@ -1,4 +1,4 @@
-import { Component } from './component';
+import { Component, ComponentConstructor } from './component';
 
 type NetworkControl = 'CLIENT' | 'SERVER';
 
@@ -26,29 +26,29 @@ export function isNetworkedComponent(component: Component) {
   return NETWORK_ID in component;
 }
 
-function networkedComponentDecorator(control: NetworkControl = 'SERVER') {
-  return function <T extends new (...args: any[]) => object>(cstr: T) {
-    return class extends cstr {
-      [NETWORK_ID]: number;
+function networkedComponentDecorator<T extends new (...args: any[]) => object>(
+  cstr: T
+) {
+  return class extends cstr {
+    [NETWORK_ID]: number;
 
-      constructor(..._: any[]) {
-        super();
-        this[NETWORK_ID] = networkIdCounter++;
+    constructor(..._: any[]) {
+      super();
+      this[NETWORK_ID] = networkIdCounter++;
 
-        if (control === getHost()) {
-          // @ts-expect-error this is a component
-          producerNetworkedComponents.set(this[NETWORK_ID], this);
-        } else {
-          // @ts-expect-error this is a component
-          consumerNetworkedComponents.set(this[NETWORK_ID], this);
-        }
-
-        console.log(
-          producerNetworkedComponents.size,
-          consumerNetworkedComponents.size
-        );
-      }
-    };
+      // if (control === getHost()) {
+      //   // @ts-expect-error this is a component
+      //   producerNetworkedComponents.set(this[NETWORK_ID], this);
+      // } else {
+      //   // @ts-expect-error this is a component
+      //   consumerNetworkedComponents.set(this[NETWORK_ID], this);
+      // }
+      //
+      // console.log(
+      //   producerNetworkedComponents.size,
+      //   consumerNetworkedComponents.size
+      // );
+    }
   };
 }
 

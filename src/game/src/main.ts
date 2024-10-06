@@ -2,6 +2,7 @@ import 'reflect-metadata';
 
 import {
   Component,
+  NetworkedTransform,
   Query,
   System,
   SystemParams,
@@ -13,13 +14,17 @@ import { component } from '../../conduct-ecs/component';
 import { NetworkComponent } from '../../conduct-ecs/components/network';
 import { Entity } from '../../conduct-ecs/entity';
 import { getNetworkId } from '../../conduct-ecs/network';
-import NetworkSystem from '../../conduct-ecs/systems/networkSystem';
+import NetworkSystem, {
+  WsConnection,
+} from '../../conduct-ecs/systems/networkSystem';
 
-////// MOVE THIS
+////////////////////
+////// MOVE THESE
 interface GameInstanceConfig extends WorldConfig {
-  gameHost: 'client' | 'server';
-  setup: (w: World) => void;
+  wsConnection: WsConnection;
 }
+
+////////////////////
 
 class TestComponent extends Component {
   name = 'Test-Component';
@@ -42,7 +47,7 @@ class PlayerBundle implements Bundle {
         authority: 'client',
         bundle: PlayerBundle.name,
       })
-    );
+    ).addEntityComponent(player, new NetworkedTransform());
 
     return player;
   }
@@ -53,7 +58,7 @@ export default function main(config: GameInstanceConfig): void {
 
   const w = new World(config)
     .registerSystem(new TestSystem())
-    .registerSystem(new NetworkSystem());
+    .registerSystem(new NetworkSystem(config.wsConnection));
 
   new PlayerBundle().build(w);
 

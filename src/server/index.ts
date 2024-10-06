@@ -11,4 +11,4 @@ function setup(w: World) {
 }
 
 // Start the game on the server
-main({ gameHost: 'server', setup });
+main({ gameHost: 'server', setup, wsConnection: gameServer });

@@ -2,11 +2,12 @@ import raf from 'raf';
 
 import { Component, COMPONENT_TYPE, ComponentConstructor } from './component';
 import { Entity } from './entity';
-import { System, SYSTEM_PARAMS, SystemConstructor } from './system';
+import { System, SYSTEM_PARAMS, SystemConstructor, SystemInit } from './system';
 
 type ComponentTable = Map<ComponentConstructor, (Component | null)[]>;
 
 export interface WorldConfig {
+  gameHost: 'client' | 'server';
   setup: (w: World) => void;
   fps?: number;
 }
@@ -15,15 +16,23 @@ export class World {
   #entityList: (Entity | null)[] = [];
   #systems = new Map<SystemConstructor, System>();
   #componentTable: ComponentTable = new Map();
+  #initSystems: SystemInit[] = [];
 
+  #gameHost: 'client' | 'server';
   #fps: number;
   #previousTimestamp = 0;
 
+  #gameStarted = false;
+
   constructor(private config: WorldConfig) {
+    this.#gameHost = config.gameHost;
     this.#fps = config.fps || 1;
     this.config.setup(this);
   }
 
+  /**
+   * Spawn a new Entity in this World.
+   */
   createEntity(): Entity {
     let entity = 0;
 
@@ -61,7 +70,7 @@ export class World {
    *
    * world.AddEntityComponent(entity, component);
    */
-  addEntityComponent<T extends Component>(entity: Entity, component: T): void {
+  addEntityComponent<T extends Component>(entity: Entity, component: T): World {
     if (!this.#componentTable.has(component[COMPONENT_TYPE])) {
       this.#componentTable.set(
         component[COMPONENT_TYPE],
@@ -71,10 +80,12 @@ export class World {
 
     const componentList = this.#componentTable.get(component[COMPONENT_TYPE]);
     if (!componentList) {
-      return;
+      return this;
     }
 
     componentList[entity] = component;
+
+    return this;
   }
 
   /**
@@ -105,8 +116,33 @@ export class World {
     return null;
   }
 
+  getAllComponentsForEntity(entity: Entity): Component[] {
+    const components: Component[] = [];
+    this.#componentTable.forEach((componentList) => {
+      const component = componentList[entity];
+      if (component) {
+        components.push(component);
+      }
+    });
+    return components;
+  }
+
+  /**
+   * Register a System to process Entities on each frame.
+   */
   registerSystem(system: System): World {
     this.#systems.set(system.constructor as SystemConstructor, system);
+    return this;
+  }
+
+  /**
+   * Register a System to run once at the start of the game.
+   */
+  registerSystemInit(system: SystemInit): World {
+    if (this.#gameStarted) {
+      console.error('Cannot register a SystemInit after the game has started');
+    }
+    this.#initSystems.push(system);
     return this;
   }
 
@@ -178,6 +214,10 @@ export class World {
   }
 
   start(): void {
+    this.#gameStarted = true;
+
+    this.#initSystems.forEach((initSystem) => initSystem.init(this));
+
     raf(this.update.bind(this));
   }
 
@@ -198,7 +238,7 @@ export class World {
       );
       for (let i = 0; i < results.length; i++) {
         const [entity, components] = results[i];
-        system.Update(
+        system.update(
           {
             entity,
             world: this,

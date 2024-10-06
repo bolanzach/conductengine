@@ -90,7 +90,11 @@ export interface SystemParams {
  * world.registerSystem(new LogSystem());
  */
 export interface System {
-  Update(params: SystemParams, ...components: Component[]): void;
+  update(params: SystemParams, ...components: Component[]): void;
+}
+
+export interface SystemInit {
+  init(world: World): void;
 }
 
 /**

@@ -3,5 +3,13 @@ export {
   ComponentConstructor,
   ComponentConstructors,
 } from './component';
-export { Query, System, SystemConstructor, SystemParams } from './system';
+export { NetworkedTransform } from './components/transform';
+export { NETWORK_ID, Networked } from './network';
+export {
+  Query,
+  System,
+  SystemConstructor,
+  SystemInit,
+  SystemParams,
+} from './system';
 export { World, WorldConfig } from './world';

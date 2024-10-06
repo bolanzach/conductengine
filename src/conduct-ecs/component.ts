@@ -12,6 +12,23 @@ export abstract class Component {
     .constructor as ComponentConstructor;
 }
 
+type DeleteFields<T, U> = {
+  [K in keyof T as T[K] extends U ? never : K]: T[K];
+};
+
+type DeleteFunctions<T> = DeleteFields<T, Function>;
+
+/**
+ * Create a new component instance with data.
+ */
+export function component<T extends ComponentConstructor>(
+  component: T,
+  data: DeleteFunctions<Omit<InstanceType<T>, 'COMPONENT_TYPE'>>
+): InstanceType<T> {
+  const instance = new component() as InstanceType<T>;
+  return Object.assign(instance, data);
+}
+
 type ComponentConstructors1<T extends [Component]> = [
   ComponentConstructor<T[0]>,
 ];

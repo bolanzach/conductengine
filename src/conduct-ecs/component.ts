@@ -1,3 +1,5 @@
+import { NETWORK_ID } from './components/network';
+
 export const COMPONENT_TYPE = Symbol('COMPONENT_TYPE');
 
 export type ComponentConstructor<T extends Component = Component> = new () => T;
@@ -23,7 +25,7 @@ type DeleteFunctions<T> = DeleteFields<T, Function>;
  */
 export function component<T extends ComponentConstructor>(
   component: T,
-  data: DeleteFunctions<Omit<InstanceType<T>, 'COMPONENT_TYPE'>>
+  data: DeleteFunctions<Omit<InstanceType<T>, typeof NETWORK_ID>>
 ): InstanceType<T> {
   const instance = new component() as InstanceType<T>;
   return Object.assign(instance, data);

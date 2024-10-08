@@ -47,7 +47,13 @@ function queryComponentsDecorator(query?: { Without: ComponentConstructor[] }) {
       target,
       key
     ) as ComponentConstructor[];
-    registerSystemComponents(cstr, { queryWith: paramTypes.slice(1) });
+    const componentTypes = paramTypes.slice(1);
+    if (componentTypes.some((fn) => fn.name.toLowerCase() === 'object')) {
+      throw new Error(
+        `System ${cstr.name} has an invalid component in @Query. A Component can not have a constructor.`
+      );
+    }
+    registerSystemComponents(cstr, { queryWith: componentTypes });
 
     if (query) {
       registerSystemComponents(cstr, { queryWithout: query.Without });

@@ -1,5 +1,5 @@
 import { Component } from '../component';
-import { Networked } from '../network';
+import { NetworkedComponent } from './network';
 
 export interface Position {
   x: number;
@@ -12,5 +12,4 @@ export default class Transform extends Component {
   rotation: Position = { x: 0, y: 0, z: 0 };
 }
 
-@Networked
-export class NetworkedTransform extends Component {}
+export class NetworkedTransform extends NetworkedComponent {}

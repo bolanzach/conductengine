@@ -4,8 +4,14 @@ export {
   ComponentConstructor,
   ComponentConstructors,
 } from './component';
+export {
+  getNextNetworkId,
+  Network,
+  NETWORK_ID,
+  NetworkAuthority,
+  NetworkedComponent,
+} from './components/network';
 export { NetworkedTransform } from './components/transform';
-export { NETWORK_ID, Networked } from './network';
 export {
   Query,
   System,

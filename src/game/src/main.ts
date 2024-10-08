@@ -2,7 +2,8 @@ import 'reflect-metadata';
 
 import {
   Component,
-  NetworkedTransform,
+  Network,
+  NETWORK_ID,
   Query,
   System,
   SystemParams,
@@ -11,9 +12,7 @@ import {
 } from '../../conduct-ecs';
 import { BuildBundleData, Bundle } from '../../conduct-ecs/bundle';
 import { component } from '../../conduct-ecs/component';
-import { NetworkComponent } from '../../conduct-ecs/components/network';
 import { Entity } from '../../conduct-ecs/entity';
-import { getNetworkId } from '../../conduct-ecs/network';
 import NetworkSystem, {
   WsConnection,
 } from '../../conduct-ecs/systems/networkSystem';
@@ -38,17 +37,16 @@ class TestSystem implements System {
 }
 
 class PlayerBundle implements Bundle {
-  build(w: World, data: BuildBundleData): Entity {
+  build(w: World): Entity {
     const player = w.createEntity();
     w.addEntityComponent(
       player,
-      component(NetworkComponent, {
-        networkId: getNetworkId(),
-        authority: 'client',
+      component(Network, {
+        // authority: 'client',
         bundle: PlayerBundle.name,
-        isSpawned: data.isSpawned ?? false,
+        // isSpawned: data.isSpawned ?? false,
       })
-    ).addEntityComponent(player, component(TestComponent, { name: 'zach' }));
+    );
 
     return player;
   }
@@ -60,7 +58,9 @@ export default function main(config: GameInstanceConfig): void {
   const w = new World(config)
     .registerBundle(new PlayerBundle())
     .registerSystem(new TestSystem())
-    .registerSystem(new NetworkSystem(config.wsConnection));
+    .registerSystem(
+      new NetworkSystem(config.wsConnection, config.gameHost === 'server')
+    );
 
   w.buildBundle(PlayerBundle);
 

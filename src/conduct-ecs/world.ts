@@ -66,7 +66,7 @@ export class World {
   }
 
   /**
-   * Assignes the `component` to the `entity`.
+   * Assigns the `component` to the `entity`.
    *
    * @example
    *

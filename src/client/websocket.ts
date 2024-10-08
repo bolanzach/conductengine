@@ -10,9 +10,9 @@ ws.addEventListener('message', (event) => {
   console.log('Message from server', event.data);
 });
 
-ws.addEventListener('message', (event) => {
-  console.log(event);
-});
+// ws.addEventListener('message', (event) => {
+//   console.log(event);
+// });
 
 // // satisfies the WsConnection interface
 // const websocketConnection = {

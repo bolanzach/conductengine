@@ -1,37 +1,49 @@
-import { WsConnection } from '../conduct-ecs/systems/networkSystem';
+import {
+  NetworkTransport,
+  TransportEvent,
+} from '../conduct-core/networkTransport';
 
-const ws = new WebSocket('ws://localhost:4242');
-
-ws.addEventListener('open', () => {
-  console.log('Connected to the server');
-});
-
-ws.addEventListener('message', (event) => {
-  console.log('Message from server', event.data);
-});
-
+// const ws = new WebSocket('ws://localhost:4242');
+//
+//
+//
 // ws.addEventListener('message', (event) => {
-//   console.log(event);
+//   console.log('Message from server', event.data);
 // });
 
-// // satisfies the WsConnection interface
-// const websocketConnection = {
-//   send(msg: string) {
-//     if (ws.readyState !== ws.OPEN) {
-//       setTimeout(() => {
-//         websocketConnection.send(msg);
-//       }, 100);
-//     } else {
-//       ws.send(msg);
-//     }
-//   },
-// };
+class ClientWebsocketTransport implements NetworkTransport {
+  private ws: WebSocket;
 
-export default async function initWebsocket(): Promise<WsConnection> {
+  constructor() {
+    this.ws = new WebSocket('ws://localhost:4242');
+
+    this.ws.addEventListener('open', () => {
+      console.log('Connected to the server');
+    });
+  }
+
+  produceNetworkEvent(message: TransportEvent) {
+    this.ws.send(message.toString());
+  }
+
+  registerNetworkHandler(cb: (message: TransportEvent) => void) {
+    this.ws.addEventListener('message', (event) => {
+      cb(event.data);
+    });
+  }
+
+  get readyState() {
+    return this.ws.readyState;
+  }
+}
+
+export default async function initNetworkTransport(): Promise<NetworkTransport> {
+  const connection = new ClientWebsocketTransport();
+
   return new Promise((resolve) => {
     (function checkConnection() {
-      if (ws.readyState === ws.OPEN) {
-        resolve(ws);
+      if (connection.readyState === WebSocket.OPEN) {
+        resolve(connection);
       } else {
         setTimeout(checkConnection, 100);
       }

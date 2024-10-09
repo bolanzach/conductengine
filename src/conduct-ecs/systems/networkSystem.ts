@@ -1,3 +1,4 @@
+import { NetworkTransport } from '../../conduct-core/networkTransport';
 import { Component } from '../component';
 import {
   getNextNetworkId,
@@ -16,28 +17,23 @@ const getAuthority = (): NetworkAuthority => {
   }
 };
 
-export interface WsConnection {
-  produceMessage(data: string): void;
-  consumeMessage(cb: (data: string) => void): void;
-}
-
-const count = 0;
-
 export default class NetworkSystem implements System {
   private componentUpdateBuffer: Record<number, object> = {};
 
   private count = 0;
 
   constructor(
-    private wsConnection: WsConnection,
+    private networkTransport: NetworkTransport,
     private isAuthority: boolean
   ) {
-    wsConnection.consumeMessage((message) => {
+    networkTransport.registerNetworkHandler((message) => {
+      console.dir(message);
       if (message.data.type === 'spawn') {
-        const networkComponent = message.data.components[0];
-        const bundle = networkComponent.bundle;
-        const idk = w.buildBundle(bundle, networkComponent);
-        console.log(idk);
+        console.log('spawn message');
+        // const networkComponent = message.data.components[0];
+        // const bundle = networkComponent.bundle;
+        // const idk = w.buildBundle(bundle, networkComponent);
+        // console.log(idk);
       }
     });
   }
@@ -62,12 +58,13 @@ export default class NetworkSystem implements System {
       });
 
     if (sendSpawnMessage) {
-      this.wsConnection.produceMessage(
-        JSON.stringify({
-          type: 'spawn',
-          components: [networkComponent],
-        })
-      );
+      this.networkTransport.produceNetworkEvent({
+        sender: 0,
+        type: 'spawn_network_component',
+        data: {
+          components: [networkComponent, ...networkedComponents],
+        },
+      });
     }
 
     // testing
@@ -156,7 +153,7 @@ export default class NetworkSystem implements System {
       type: 'update',
       components: this.componentUpdateBuffer,
     };
-    this.wsConnection.produceMessage(JSON.stringify(message));
+    //this.wsConnection.produceMessage(JSON.stringify(message));
     this.componentUpdateBuffer = {};
     // this.componentUpdateBuffer.forEach((data, networkId) => {
     //   console.log('Sending update for', networkId, data);

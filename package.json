@@ -8,7 +8,7 @@
     "clean": "rm -rf dist",
     "lint": "eslint src",
     "dev": "node_modules/nodemon/bin/nodemon.js --watch src --ext ts,wgsl --exec 'yarn clean && yarn server:compile & yarn client:compile && yarn server:start'",
-    "server:compile": "node_modules/@swc/cli/bin/swc.js src/server src/conduct-ecs src/game -d dist --config-file .swcrc",
+    "server:compile": "node_modules/@swc/cli/bin/swc.js src/conduct-core src/server src/conduct-ecs src/game -d dist --config-file .swcrc",
     "server:start": "node --enable-source-maps dist/src/server",
     "client:compile": "node_modules/webpack/bin/webpack.js --mode development && cp src/client/main.html dist/src/server/static/main.html"
   },

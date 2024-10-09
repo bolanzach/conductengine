@@ -9,7 +9,6 @@ type ComponentTable = Map<ComponentConstructor, (Component | null)[]>;
 
 export interface WorldConfig {
   gameHost: 'client' | 'server';
-  setup: (w: World) => void;
   fps?: number;
 }
 
@@ -29,7 +28,6 @@ export class World {
   constructor(private config: WorldConfig) {
     this.#gameHost = config.gameHost;
     this.#fps = config.fps || 1;
-    this.config.setup(this);
   }
 
   /**
@@ -70,9 +68,33 @@ export class World {
    *
    * @example
    *
-   * world.AddEntityComponent(entity, component);
+   * world.AddEntityComponent(entity, Component);
    */
-  addEntityComponent<T extends Component>(entity: Entity, component: T): World {
+  // addComponentToEntity<T extends Component>(
+  //   entity: Entity,
+  //   componentType: ComponentConstructor<T>
+  // ): World {
+  //   const component = new componentType();
+  //   if (!this.#componentTable.has(component[COMPONENT_TYPE])) {
+  //     this.#componentTable.set(
+  //       component[COMPONENT_TYPE],
+  //       new Array(this.#entityList.length).fill(null)
+  //     );
+  //   }
+  //
+  //   const componentList = this.#componentTable.get(component[COMPONENT_TYPE]);
+  //   if (!componentList) {
+  //     return this;
+  //   }
+  //
+  //   componentList[entity] = component;
+  //
+  //   return this;
+  // }
+  addComponentToEntity<T extends Component>(
+    entity: Entity,
+    component: T
+  ): World {
     if (!this.#componentTable.has(component[COMPONENT_TYPE])) {
       this.#componentTable.set(
         component[COMPONENT_TYPE],

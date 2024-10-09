@@ -1,15 +1,17 @@
-import main from '../game/src/main';
+import { World } from '../conduct-ecs';
+import NetworkSystem from '../conduct-ecs/systems/networkSystem';
+import MainGameStartSystem from '../game/src/main';
 import { startTestGpu } from './gpu';
-import initWebsocket from './websocket';
-
-function clientSetup() {
-  startTestGpu();
-}
+import initNetworkTransport from './websocket';
 
 // Start the game on the client
 (async function initClient() {
-  const wsConnection = await initWebsocket();
-  main({ gameHost: 'client', setup: clientSetup, wsConnection });
-})();
+  const networkTransport = await initNetworkTransport();
+  const world = new World({ gameHost: 'client' });
 
-// main({ gameHost: 'client', setup: clientSetup, wsConnection: ws });
+  startTestGpu();
+
+  world
+    .registerSystem(new NetworkSystem(networkTransport, false))
+    .registerSystemInit(new MainGameStartSystem('client'));
+})();

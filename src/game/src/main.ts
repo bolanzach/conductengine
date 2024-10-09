@@ -1,26 +1,27 @@
 import 'reflect-metadata';
 
+import { NetworkTransport } from '../../conduct-core/networkTransport';
 import {
   Component,
   Network,
   NETWORK_ID,
+  NetworkAuthority,
   Query,
   System,
+  SystemInit,
   SystemParams,
   World,
   WorldConfig,
 } from '../../conduct-ecs';
-import { BuildBundleData, Bundle } from '../../conduct-ecs/bundle';
+import { Bundle } from '../../conduct-ecs/bundle';
 import { component } from '../../conduct-ecs/component';
 import { Entity } from '../../conduct-ecs/entity';
-import NetworkSystem, {
-  WsConnection,
-} from '../../conduct-ecs/systems/networkSystem';
+import NetworkSystem from '../../conduct-ecs/systems/networkSystem';
 
 ////////////////////
 ////// MOVE THESE
 interface GameInstanceConfig extends WorldConfig {
-  wsConnection: WsConnection;
+  networkTransport: NetworkTransport;
 }
 
 ////////////////////
@@ -39,7 +40,7 @@ class TestSystem implements System {
 class PlayerBundle implements Bundle {
   build(w: World): Entity {
     const player = w.createEntity();
-    w.addEntityComponent(
+    w.addComponentToEntity(
       player,
       component(Network, {
         // authority: 'client',
@@ -52,18 +53,26 @@ class PlayerBundle implements Bundle {
   }
 }
 
-export default function main(config: GameInstanceConfig): void {
-  console.log('game init >', config.gameHost);
+export default class MainGameStartSystem implements SystemInit {
+  constructor(private gameHost: NetworkAuthority) {}
 
-  const w = new World(config)
-    .registerBundle(new PlayerBundle())
-    .registerSystem(new TestSystem())
-    .registerSystem(
-      new NetworkSystem(config.wsConnection, config.gameHost === 'server')
-    );
-
-  w.buildBundle(PlayerBundle);
-
-  w.start();
-  console.log('game started!');
+  init(world: World) {
+    console.log('game init >', this.gameHost);
+  }
 }
+
+// export default function main(world: World, config: GameInstanceConfig): void {
+//   console.log('game init >', config.gameHost);
+//
+//   world
+//     .registerBundle(new PlayerBundle())
+//     .registerSystem(new TestSystem())
+//     .registerSystem(
+//       new NetworkSystem(config.wsConnection, config.gameHost === 'server')
+//     );
+//
+//   world.buildBundle(PlayerBundle);
+//
+//   world.start();
+//   console.log('game started!');
+// }

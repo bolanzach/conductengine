@@ -2,16 +2,18 @@ import express from 'express';
 import path from 'path';
 import { WebSocket, WebSocketServer } from 'ws';
 
-interface WsMessage {
-  clientId: number;
-  data: any;
-}
+import {
+  NetworkTransport,
+  TransportEvent,
+} from '../conduct-core/networkTransport';
 
-export class GameServer {
+export class GameServer implements NetworkTransport {
   private instance: express.Application;
   private wsServer: WebSocketServer;
   private clientSockets: WebSocket[] = [];
-  private wsMessageCb?: (message: WsMessage) => void;
+
+  private networkEventHandler?: (message: TransportEvent) => void;
+  private clientConnectHandler?: (clientId: number) => void;
 
   constructor() {
     this.instance = express();
@@ -32,19 +34,23 @@ export class GameServer {
     });
   }
 
-  public send(message: string) {
-    const buff = Buffer.from(message);
+  produceNetworkEvent(message: TransportEvent) {
+    const buff = Buffer.from(message.toString());
     this.clientSockets.forEach((client) => {
       client.send(buff);
     });
   }
 
-  public wsOnMessage(cb: (message: WsMessage) => void) {
-    this.wsMessageCb = cb;
+  registerNetworkHandler(cb: (event: TransportEvent) => void) {
+    this.networkEventHandler = cb;
+  }
+
+  registerOnClientConnect(cb: (clientId: number) => void) {
+    this.clientConnectHandler = cb;
   }
 
   private routes() {
-    this.instance.get('/', (req, res) => {
+    this.instance.get('/', (_, res) => {
       // do other things
 
       res.sendFile(path.join(__dirname, '/static/main.html'));
@@ -59,11 +65,13 @@ export class GameServer {
     console.log('Client connected');
     const idx = this.clientSockets.push(client);
 
+    this.clientConnectHandler?.(idx);
+
     client.on('message', (message: string) => {
       console.log('Message from client', message.toString());
 
       const data = JSON.parse(message.toString());
-      this.wsMessageCb?.({ clientId: idx, data });
+      this.networkEventHandler?.(data);
     });
 
     client.on('close', () => {

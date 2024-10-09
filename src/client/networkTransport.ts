@@ -3,14 +3,6 @@ import {
   TransportEvent,
 } from '../conduct-core/networkTransport';
 
-// const ws = new WebSocket('ws://localhost:4242');
-//
-//
-//
-// ws.addEventListener('message', (event) => {
-//   console.log('Message from server', event.data);
-// });
-
 class ClientWebsocketTransport implements NetworkTransport {
   private ws: WebSocket;
 
@@ -23,12 +15,12 @@ class ClientWebsocketTransport implements NetworkTransport {
   }
 
   produceNetworkEvent(message: TransportEvent) {
-    this.ws.send(message.toString());
+    this.ws.send(JSON.stringify(message));
   }
 
   registerNetworkHandler(cb: (message: TransportEvent) => void) {
     this.ws.addEventListener('message', (event) => {
-      cb(event.data);
+      cb(JSON.parse(event.data));
     });
   }
 

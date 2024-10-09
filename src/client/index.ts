@@ -9,11 +9,11 @@ import initNetworkTransport from './networkTransport';
 // Start the game on the client
 (async function initClient() {
   const networkTransport = await initNetworkTransport();
-  const world = new World({ gameHost: 'client' });
+  const world = new World({ gameHost: 'client', networkTransport });
 
   startTestGpu();
 
   world
-    .registerSystem(new NetworkSystem(networkTransport, false))
-    .registerSystemInit(new MainGameStartSystem('client'), true);
+    .registerSystem(new NetworkSystem(world, networkTransport))
+    .registerSystemInit(new MainGameStartSystem(), true);
 })();

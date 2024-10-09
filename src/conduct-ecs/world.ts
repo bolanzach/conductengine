@@ -1,7 +1,9 @@
 import raf from 'raf';
 
+import { NetworkTransport } from '../conduct-core/networkTransport';
 import { BuildBundleData, Bundle, BundleConstructor } from './bundle';
 import { Component, COMPONENT_TYPE, ComponentConstructor } from './component';
+import { NetworkAuthority } from './components/network';
 import { Entity } from './entity';
 import { System, SYSTEM_PARAMS, SystemConstructor, SystemInit } from './system';
 
@@ -9,6 +11,7 @@ type ComponentTable = Map<ComponentConstructor, (Component | null)[]>;
 
 export interface WorldConfig {
   gameHost: 'client' | 'server';
+  networkTransport: NetworkTransport;
   fps?: number;
 }
 
@@ -19,15 +22,23 @@ export class World {
   #initSystems: SystemInit[] = [];
   #bundles = new Map<string, Bundle>();
 
-  #gameHost: 'client' | 'server';
-  #fps: number;
-  #previousTimestamp = 0;
+  // Config
 
+  #gameHost: NetworkAuthority;
+  #networkTransport: NetworkTransport;
+  #fps: number;
+
+  #previousTimestamp = 0;
   #gameStarted = false;
 
   constructor(private config: WorldConfig) {
     this.#gameHost = config.gameHost;
     this.#fps = config.fps || 1;
+    this.#networkTransport = config.networkTransport;
+  }
+
+  get gameHostType() {
+    return this.#gameHost;
   }
 
   /**
@@ -192,6 +203,19 @@ export class World {
     const bundleInstance = this.#bundles.get(key);
     if (!bundleInstance) {
       console.error(`Bundle ${key} not found`);
+      return Infinity;
+    }
+
+    if (this.#gameHost === 'client') {
+      // Send a network event to the server to spawn the bundle
+      // @todo I dont like this being here
+      this.#networkTransport.produceNetworkEvent({
+        data: {
+          bundle: key,
+        },
+        sender: 0,
+        eventType: 'spawn_request',
+      });
       return Infinity;
     }
 

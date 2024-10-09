@@ -53,14 +53,14 @@ class PlayerBundle implements Bundle {
 }
 
 export default class MainGameStartSystem implements SystemInit {
-  constructor(private gameHost: NetworkAuthority) {}
-
   init(world: World) {
-    console.log('GAME INIT >', this.gameHost);
+    console.log('GAME INIT >', world.gameHostType);
 
     world.registerBundle(new PlayerBundle()).registerSystem(new TestSystem());
 
-    world.spawnBundle(PlayerBundle);
+    if (world.gameHostType === 'client') {
+      world.spawnBundle(PlayerBundle);
+    }
 
     world.start();
   }

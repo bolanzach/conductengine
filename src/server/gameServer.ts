@@ -25,10 +25,6 @@ export class GameServer implements NetworkTransport {
 
     this.wsServer.on('connection', this.connectWsClient.bind(this));
 
-    // this.wsServer.on('message', (message: string) => {
-    //   console.log('Message from client', message);
-    // });
-
     this.instance.listen(6969, () => {
       console.log('GameServer is running on port :6969');
     });
@@ -43,10 +39,6 @@ export class GameServer implements NetworkTransport {
 
   registerNetworkHandler(cb: (event: TransportEvent) => void) {
     this.networkEventHandler = cb;
-  }
-
-  registerOnClientConnect(cb: (clientId: number) => void) {
-    this.clientConnectHandler = cb;
   }
 
   private routes() {
@@ -68,8 +60,6 @@ export class GameServer implements NetworkTransport {
     this.clientConnectHandler?.(idx);
 
     client.on('message', (message: string) => {
-      console.log('Message from client', message.toString());
-
       const data = JSON.parse(message.toString());
       this.networkEventHandler?.(data);
     });

@@ -8,9 +8,12 @@ import { GameServer } from './gameServer';
 (function () {
   const gameServer = new GameServer();
   gameServer.start();
-  const world = new World({ gameHost: 'server' });
+  const world = new World({
+    gameHost: 'server',
+    networkTransport: gameServer,
+  });
 
   world
-    .registerSystem(new NetworkSystem(gameServer, true))
-    .registerSystemInit(new MainGameStartSystem('server'), true);
+    .registerSystem(new NetworkSystem(world, gameServer))
+    .registerSystemInit(new MainGameStartSystem(), true);
 })();

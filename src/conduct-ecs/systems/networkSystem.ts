@@ -1,4 +1,7 @@
-import { NetworkTransport } from '../../conduct-core/networkTransport';
+import {
+  NetworkTransport,
+  TransportEvent,
+} from '../../conduct-core/networkTransport';
 import { Component } from '../component';
 import {
   getNextNetworkId,
@@ -7,15 +10,44 @@ import {
   NetworkAuthority,
   NetworkedComponent,
 } from '../components/network';
-import { Query, System, SystemParams } from '../system';
+import { Query, System, SystemInit, SystemParams } from '../system';
+import { World } from '../world';
 
-const getAuthority = (): NetworkAuthority => {
-  try {
-    return process && process.env ? 'server' : 'client';
-  } catch (_) {
-    return 'client';
-  }
-};
+// const getAuthority = (): NetworkAuthority => {
+//   try {
+//     return process && process.env ? 'server' : 'client';
+//   } catch (_) {
+//     return 'client';
+//   }
+// };
+
+// export class NetworkTransportSystemInit
+//   implements SystemInit, NetworkTransport
+// {
+//   constructor(
+//     private networkTransport: NetworkTransport,
+//     private isAuthority: boolean
+//   ) {
+//     networkTransport.registerNetworkHandler((message) => {
+//       console.dir(message);
+//       // if (message.data.type === 'spawn') {
+//       //   console.log('spawn message');
+//       //   // const networkComponent = message.data.components[0];
+//       //   // const bundle = networkComponent.bundle;
+//       //   // const idk = w.buildBundle(bundle, networkComponent);
+//       //   // console.log(idk);
+//       // }
+//     });
+//   }
+//
+//   init(_: World) {
+//     //
+//   }
+//
+//   produceNetworkEvent(message: TransportEvent): void {}
+//
+//   registerNetworkHandler(cb: (message: TransportEvent) => void): void {}
+// }
 
 export default class NetworkSystem implements System {
   private componentUpdateBuffer: Record<number, object> = {};
@@ -23,18 +55,23 @@ export default class NetworkSystem implements System {
   private count = 0;
 
   constructor(
-    private networkTransport: NetworkTransport,
-    private isAuthority: boolean
+    private world: World,
+    private networkTransport: NetworkTransport
   ) {
     networkTransport.registerNetworkHandler((message) => {
       console.dir(message);
-      // if (message.data.type === 'spawn') {
-      //   console.log('spawn message');
-      //   // const networkComponent = message.data.components[0];
-      //   // const bundle = networkComponent.bundle;
-      //   // const idk = w.buildBundle(bundle, networkComponent);
-      //   // console.log(idk);
-      // }
+      const matchEventType: Record<
+        TransportEvent['eventType'],
+        (evt: TransportEvent) => void
+      > = {
+        spawn(evt: TransportEvent): void {},
+        spawn_request(evt: TransportEvent): void {
+          const bundle = evt.data.bundle;
+          world.spawnBundle(bundle);
+        },
+        update(evt: TransportEvent): void {},
+      };
+      matchEventType[message.eventType](message);
     });
   }
 
@@ -46,7 +83,8 @@ export default class NetworkSystem implements System {
     ) as NetworkedComponent[];
 
     const sendSpawnMessage =
-      networkComponent[NETWORK_ID] === Infinity && this.isAuthority;
+      networkComponent[NETWORK_ID] === Infinity &&
+      world.gameHostType === 'server';
 
     // Register any new networked components
     networkedComponents
@@ -58,12 +96,13 @@ export default class NetworkSystem implements System {
       });
 
     if (sendSpawnMessage) {
+      // Send a network event to the client to spawn the bundle
       this.networkTransport.produceNetworkEvent({
-        sender: 0,
-        type: 'spawn_network_component',
         data: {
-          components: [networkComponent, ...networkedComponents],
+          bundle: networkComponent.bundle,
         },
+        sender: 0,
+        eventType: 'spawn',
       });
     }
 
@@ -149,10 +188,10 @@ export default class NetworkSystem implements System {
   }
 
   publishNetworkUpdates() {
-    const message = {
-      type: 'update',
-      components: this.componentUpdateBuffer,
-    };
+    // const message = {
+    //   type: 'update',
+    //   components: this.componentUpdateBuffer,
+    // };
     //this.wsConnection.produceMessage(JSON.stringify(message));
     this.componentUpdateBuffer = {};
     // this.componentUpdateBuffer.forEach((data, networkId) => {

@@ -1,3 +1,5 @@
+import 'reflect-metadata';
+
 import { World } from '../conduct-ecs';
 import NetworkSystem from '../conduct-ecs/systems/networkSystem';
 import MainGameStartSystem from '../game/src/main';

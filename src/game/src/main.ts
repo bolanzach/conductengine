@@ -40,12 +40,11 @@ class TestSystem implements System {
 class PlayerBundle implements Bundle {
   build(w: World): Entity {
     const player = w.createEntity();
+
     w.addComponentToEntity(
       player,
       component(Network, {
-        // authority: 'client',
         bundle: PlayerBundle.name,
-        // isSpawned: data.isSpawned ?? false,
       })
     );
 
@@ -57,7 +56,13 @@ export default class MainGameStartSystem implements SystemInit {
   constructor(private gameHost: NetworkAuthority) {}
 
   init(world: World) {
-    console.log('game init >', this.gameHost);
+    console.log('GAME INIT >', this.gameHost);
+
+    world.registerBundle(new PlayerBundle()).registerSystem(new TestSystem());
+
+    world.spawnBundle(PlayerBundle);
+
+    world.start();
   }
 }
 

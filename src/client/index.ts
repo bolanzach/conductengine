@@ -4,7 +4,7 @@ import { World } from '../conduct-ecs';
 import NetworkSystem from '../conduct-ecs/systems/networkSystem';
 import MainGameStartSystem from '../game/src/main';
 import { startTestGpu } from './gpu';
-import initNetworkTransport from './websocket';
+import initNetworkTransport from './networkTransport';
 
 // Start the game on the client
 (async function initClient() {
@@ -15,5 +15,5 @@ import initNetworkTransport from './websocket';
 
   world
     .registerSystem(new NetworkSystem(networkTransport, false))
-    .registerSystemInit(new MainGameStartSystem('client'));
+    .registerSystemInit(new MainGameStartSystem('client'), true);
 })();

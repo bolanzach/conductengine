@@ -160,11 +160,17 @@ export class World {
   }
 
   /**
-   * Register a System to run once at the start of the game.
+   * Register a System to run once.
    */
-  registerSystemInit(system: SystemInit): World {
+  registerSystemInit(system: SystemInit, runImmediate = false): World {
+    if (runImmediate) {
+      system.init(this);
+      return this;
+    }
+
     if (this.#gameStarted) {
       console.error('Cannot register a SystemInit after the game has started');
+      return this;
     }
     this.#initSystems.push(system);
     return this;
@@ -178,7 +184,7 @@ export class World {
     return this;
   }
 
-  buildBundle(
+  spawnBundle(
     bundle: BundleConstructor | string,
     data: BuildBundleData = {}
   ): Entity {

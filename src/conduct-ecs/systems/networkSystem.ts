@@ -28,13 +28,13 @@ export default class NetworkSystem implements System {
   ) {
     networkTransport.registerNetworkHandler((message) => {
       console.dir(message);
-      if (message.data.type === 'spawn') {
-        console.log('spawn message');
-        // const networkComponent = message.data.components[0];
-        // const bundle = networkComponent.bundle;
-        // const idk = w.buildBundle(bundle, networkComponent);
-        // console.log(idk);
-      }
+      // if (message.data.type === 'spawn') {
+      //   console.log('spawn message');
+      //   // const networkComponent = message.data.components[0];
+      //   // const bundle = networkComponent.bundle;
+      //   // const idk = w.buildBundle(bundle, networkComponent);
+      //   // console.log(idk);
+      // }
     });
   }
 

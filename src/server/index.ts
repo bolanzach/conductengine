@@ -12,5 +12,5 @@ import { GameServer } from './gameServer';
 
   world
     .registerSystem(new NetworkSystem(gameServer, true))
-    .registerSystemInit(new MainGameStartSystem('server'));
+    .registerSystemInit(new MainGameStartSystem('server'), true);
 })();

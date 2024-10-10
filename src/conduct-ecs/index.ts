@@ -5,7 +5,6 @@ export {
   ComponentConstructors,
 } from './component';
 export {
-  getNextNetworkId,
   Network,
   NETWORK_ID,
   NetworkAuthority,

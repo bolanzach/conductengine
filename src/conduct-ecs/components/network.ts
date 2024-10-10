@@ -4,10 +4,16 @@ export type NetworkAuthority = 'client' | 'server';
 
 export const NETWORK_ID = Symbol('NETWORK_ID');
 
-let networkIdCounter = 0;
+const networkIdCounter = 0;
 
-export function getNextNetworkId() {
-  return networkIdCounter++;
+export function isNetworkedComponent(
+  component: Component
+): component is NetworkedComponent {
+  return NETWORK_ID in component;
+}
+
+export function isNetworkComponent(component: Component): component is Network {
+  return component instanceof Network;
 }
 
 export abstract class NetworkedComponent extends Component {
@@ -15,7 +21,5 @@ export abstract class NetworkedComponent extends Component {
 }
 
 export class Network extends NetworkedComponent {
-  // readonly authority!: NetworkAuthority;
   readonly bundle!: string;
-  // isSpawned = false;
 }

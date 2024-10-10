@@ -2,6 +2,7 @@ import {
   NetworkTransport,
   TransportEvent,
 } from '../../conduct-core/networkTransport';
+import { isNetworkComponent, NETWORK_ID } from '../components/network';
 import { SystemInit } from '../system';
 import { World } from '../world';
 
@@ -16,9 +17,17 @@ export default class ClientNetworkSystem implements SystemInit {
         (evt: TransportEvent) => void
       > = {
         spawn(evt: TransportEvent): void {
-          console.log('Client got spawn message', evt);
-          networkTransport.setNetworked(evt.data.networkId);
-          world.spawnBundle(evt.data.bundle);
+          //networkTransport.setNetworked(evt.data.networkId);
+
+          const entity = world.spawnBundle(evt.data.bundle);
+          const components = world.getAllComponentsForEntity(entity);
+
+          components.forEach((component) => {
+            if (isNetworkComponent(component)) {
+              // @ts-expect-error we have to update the network_id here
+              component[NETWORK_ID] = evt.data.networkId;
+            }
+          });
         },
         update(evt: TransportEvent): void {
           // client should get update messages

@@ -5,7 +5,8 @@ import {
 
 class ClientWebsocketTransport implements NetworkTransport {
   private ws: WebSocket;
-  private networkIds: number[] = [];
+
+  private networkMapping: Record<number, number> = {};
 
   constructor() {
     this.ws = new WebSocket('ws://localhost:4242');
@@ -30,18 +31,17 @@ class ClientWebsocketTransport implements NetworkTransport {
     });
   }
 
-  generateNetworkId(): number {
-    // Client cannot generate network ids
-    return Infinity;
-  }
-
-  setNetworked(id: number) {
-    this.networkIds.push(id);
-  }
-
-  isNetworked(id: number): boolean {
-    return this.networkIds.includes(id);
-  }
+  // generateNetworkId(): number {
+  //   // Client does not generate network ids
+  //   return Infinity;
+  // }
+  //
+  // getNetworkEntityMapping(req: {
+  //   networkId?: number;
+  //   entity?: number;
+  // }): [number, number] | null {
+  //   return undefined;
+  // }
 }
 
 export default async function initNetworkTransport(): Promise<NetworkTransport> {

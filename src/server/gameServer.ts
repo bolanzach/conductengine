@@ -12,7 +12,6 @@ export class GameServer implements NetworkTransport {
   private wsServer: WebSocketServer;
   private clientSockets: WebSocket[] = [];
 
-  private networkId = 0;
   private networkEventHandlers: ((message: TransportEvent) => void)[] = [];
 
   constructor() {
@@ -40,18 +39,6 @@ export class GameServer implements NetworkTransport {
 
   registerNetworkHandler(cb: (event: TransportEvent) => void) {
     this.networkEventHandlers.push(cb);
-  }
-
-  generateNetworkId(): number {
-    return this.networkId++;
-  }
-
-  setNetworked(_: number) {
-    // Not a valid operation on the server
-  }
-
-  isNetworked(id: number): boolean {
-    return this.networkId > id;
   }
 
   private routes() {

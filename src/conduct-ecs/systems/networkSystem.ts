@@ -17,10 +17,10 @@ import { Query, System, SystemParams } from '../system';
 // };
 
 export default class NetworkSystem implements System {
-  private componentUpdateBuffer: Record<number, object> = {};
+  private componentUpdateBuffer: Record<number, Record<string, object>> = {};
   private static networkIdCounter = 0;
 
-  private count = 0;
+  private lastUpdate = 0;
 
   constructor(private networkTransport: NetworkTransport) {}
 
@@ -29,40 +29,38 @@ export default class NetworkSystem implements System {
   }
 
   @Query()
-  update({ entity, world }: SystemParams, networkComponent: Network) {
+  update({ entity, time, world }: SystemParams, networkComponent: Network) {
     const isServer = world.gameHostType === 'server';
 
-    if (!isServer && networkComponent[NETWORK_ID] === Infinity) {
-      // Client cannot spawn networked components. Request the server to spawn it.
-      this.networkTransport.produceNetworkEvent({
-        data: {
-          bundle: networkComponent.bundle,
-        },
-        sender: 0,
-        eventType: 'spawn_request',
-      });
+    if (!isServer) {
+      if (networkComponent[NETWORK_ID] === Infinity) {
+        // Client cannot spawn networked components. Request the server to spawn it.
+        this.networkTransport.produceNetworkEvent({
+          data: {
+            bundle: networkComponent.bundle,
+          },
+          sender: 0,
+          eventType: 'spawn_request',
+        });
 
-      world.destroyEntity(entity);
+        world.destroyEntity(entity);
+      }
+
       return;
     }
 
+    /* Everything below here is server-side logic */
+
+    let networkId = networkComponent[NETWORK_ID];
     const components = world.getAllComponentsForEntity(entity);
     const networkedComponents = components.filter(isNetworkedComponent);
-    const sendSpawnMessage =
-      networkComponent[NETWORK_ID] === Infinity && isServer;
 
-    // Register any new networked components
-    if (isServer) {
-      networkedComponents
-        .filter((c) => c[NETWORK_ID] === Infinity)
-        .forEach((c) => {
-          // @ts-expect-error we have to assign the network id
-          c[NETWORK_ID] = NetworkSystem.generateNextNetworkId();
-          this.registerNetworkComponent(c);
-        });
-    }
+    // Set up the new networked component
+    if (networkId === Infinity) {
+      networkId = NetworkSystem.generateNextNetworkId();
+      // @ts-expect-error we have to assign the network id
+      networkComponent[NETWORK_ID] = networkId;
 
-    if (sendSpawnMessage) {
       // Send a network event to the client to spawn the bundle
       this.networkTransport.produceNetworkEvent({
         data: {
@@ -74,16 +72,26 @@ export default class NetworkSystem implements System {
       });
     }
 
-    // Maybe temporary
-    // Could move this to a worker
-    if (this.count >= 50) {
+    // Register any new networked components
+    networkedComponents
+      .filter((c) => c[NETWORK_ID] === Infinity)
+      .forEach((c) => {
+        // @ts-expect-error we have to assign the network id
+        c[NETWORK_ID] = NetworkSystem.generateNextNetworkId();
+        this.registerNetworkComponent(networkId, c);
+      });
+
+    // Send update events for all networked components
+    if (time.timestamp - this.lastUpdate >= 100) {
       this.publishNetworkUpdates();
-      this.count = 0;
+      this.lastUpdate = time.timestamp;
     }
-    this.count++;
   }
 
-  private registerNetworkComponent(component: NetworkedComponent) {
+  private registerNetworkComponent(
+    networkId: number,
+    component: NetworkedComponent
+  ) {
     let { handleInternalNetworkPropertyChange } = this;
     handleInternalNetworkPropertyChange =
       handleInternalNetworkPropertyChange.bind(this);
@@ -102,7 +110,8 @@ export default class NetworkSystem implements System {
           if (newValue !== value) {
             value = newValue;
             handleInternalNetworkPropertyChange(
-              component[NETWORK_ID],
+              //component[NETWORK_ID],
+              networkId,
               component[COMPONENT_TYPE].name,
               key,
               value,
@@ -121,13 +130,17 @@ export default class NetworkSystem implements System {
     _: any,
     newValue: any
   ) {
-    const prevState = this.componentUpdateBuffer[networkId] || {
-      ___componentName: componentName,
-    };
-    this.componentUpdateBuffer[networkId] = {
+    const prevState = this.componentUpdateBuffer[networkId] || {};
+    const prevComponentState = prevState[componentName] || {};
+    const updatedState = {
       ...prevState,
-      [key]: newValue,
+      [componentName]: {
+        ...prevComponentState,
+        [key]: newValue,
+      },
     };
+
+    this.componentUpdateBuffer[networkId] = updatedState;
   }
 
   private publishNetworkUpdates() {

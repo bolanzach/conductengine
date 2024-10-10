@@ -45,10 +45,17 @@ class TestSystem implements System {
 class TestNetworkSystem implements System {
   counter = 0;
   @Query()
-  update(params: SystemParams, networkComponent: TestNetworkComponent) {
+  update({ world }: SystemParams, networkComponent: TestNetworkComponent) {
+    if (world.gameHostType === 'client') {
+      console.log(Date.now().toString(), networkComponent.name);
+
+      return;
+    }
+
     this.counter++;
     if (this.counter >= 100) {
       networkComponent.name = Date.now().toString();
+      this.counter = 0;
     }
   }
 }
@@ -87,19 +94,3 @@ export default class MainGameStartSystem implements SystemInit {
     world.start();
   }
 }
-
-// export default function main(world: World, config: GameInstanceConfig): void {
-//   console.log('game init >', config.gameHost);
-//
-//   world
-//     .registerBundle(new PlayerBundle())
-//     .registerSystem(new TestSystem())
-//     .registerSystem(
-//       new NetworkSystem(config.wsConnection, config.gameHost === 'server')
-//     );
-//
-//   world.buildBundle(PlayerBundle);
-//
-//   world.start();
-//   console.log('game started!');
-// }

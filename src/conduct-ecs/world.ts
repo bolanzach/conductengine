@@ -11,7 +11,6 @@ type ComponentTable = Map<ComponentConstructor, (Component | null)[]>;
 
 export interface WorldConfig {
   gameHost: 'client' | 'server';
-  networkTransport: NetworkTransport;
   fps?: number;
 }
 
@@ -25,7 +24,6 @@ export class World {
   // Config
 
   #gameHost: NetworkAuthority;
-  #networkTransport: NetworkTransport;
   #fps: number;
 
   #previousTimestamp = 0;
@@ -34,7 +32,6 @@ export class World {
   constructor(private config: WorldConfig) {
     this.#gameHost = config.gameHost;
     this.#fps = config.fps || 1;
-    this.#networkTransport = config.networkTransport;
   }
 
   get gameHostType() {

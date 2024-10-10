@@ -11,7 +11,6 @@ import { GameServer } from './gameServer';
   gameServer.start();
   const world = new World({
     gameHost: 'server',
-    networkTransport: gameServer,
   });
 
   world

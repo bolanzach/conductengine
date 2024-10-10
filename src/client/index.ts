@@ -10,7 +10,7 @@ import initNetworkTransport from './networkTransport';
 // Start the game on the client
 (async function initClient() {
   const networkTransport = await initNetworkTransport();
-  const world = new World({ gameHost: 'client', networkTransport });
+  const world = new World({ gameHost: 'client' });
 
   startTestGpu();
 

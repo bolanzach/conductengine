@@ -1,4 +1,5 @@
 import { NetworkTransport } from '../../conduct-core/networkTransport';
+import { COMPONENT_TYPE } from '../component';
 import {
   isNetworkedComponent,
   Network,
@@ -29,10 +30,9 @@ export default class NetworkSystem implements System {
 
   @Query()
   update({ entity, world }: SystemParams, networkComponent: Network) {
-    if (
-      world.gameHostType === 'client' &&
-      networkComponent[NETWORK_ID] === Infinity
-    ) {
+    const isServer = world.gameHostType === 'server';
+
+    if (!isServer && networkComponent[NETWORK_ID] === Infinity) {
       // Client cannot spawn networked components. Request the server to spawn it.
       this.networkTransport.produceNetworkEvent({
         data: {
@@ -49,11 +49,10 @@ export default class NetworkSystem implements System {
     const components = world.getAllComponentsForEntity(entity);
     const networkedComponents = components.filter(isNetworkedComponent);
     const sendSpawnMessage =
-      networkComponent[NETWORK_ID] === Infinity &&
-      world.gameHostType === 'server';
+      networkComponent[NETWORK_ID] === Infinity && isServer;
 
     // Register any new networked components
-    if (world.gameHostType === 'server') {
+    if (isServer) {
       networkedComponents
         .filter((c) => c[NETWORK_ID] === Infinity)
         .forEach((c) => {
@@ -75,7 +74,8 @@ export default class NetworkSystem implements System {
       });
     }
 
-    // testing
+    // Maybe temporary
+    // Could move this to a worker
     if (this.count >= 50) {
       this.publishNetworkUpdates();
       this.count = 0;
@@ -92,7 +92,6 @@ export default class NetworkSystem implements System {
     Object.keys(component).forEach((key) => {
       // @ts-expect-error this is fine.
       let value = component[key];
-      const networkId = component[NETWORK_ID];
 
       // Define a getter and setter for the property to capture changes
       Object.defineProperty(component, key, {
@@ -103,7 +102,8 @@ export default class NetworkSystem implements System {
           if (newValue !== value) {
             value = newValue;
             handleInternalNetworkPropertyChange(
-              networkId,
+              component[NETWORK_ID],
+              component[COMPONENT_TYPE].name,
               key,
               value,
               newValue
@@ -116,11 +116,14 @@ export default class NetworkSystem implements System {
 
   private handleInternalNetworkPropertyChange(
     networkId: number,
+    componentName: string,
     key: string,
     _: any,
     newValue: any
   ) {
-    const prevState = this.componentUpdateBuffer[networkId] || {};
+    const prevState = this.componentUpdateBuffer[networkId] || {
+      ___componentName: componentName,
+    };
     this.componentUpdateBuffer[networkId] = {
       ...prevState,
       [key]: newValue,
@@ -128,24 +131,18 @@ export default class NetworkSystem implements System {
   }
 
   private publishNetworkUpdates() {
-    // const message = {
-    //   type: 'update',
-    //   components: this.componentUpdateBuffer,
-    // };
-    //this.wsConnection.produceMessage(JSON.stringify(message));
+    if (Object.keys(this.componentUpdateBuffer).length === 0) {
+      return;
+    }
+
+    this.networkTransport.produceNetworkEvent({
+      eventType: 'update',
+      sender: 0,
+      data: this.componentUpdateBuffer,
+    });
+
     this.componentUpdateBuffer = {};
-    // this.componentUpdateBuffer.forEach((data, networkId) => {
-    //   console.log('Sending update for', networkId, data);
-    //   // const componentUpdateBuffer = this.componentUpdateBuffer.get(networkId);
-    //   // if (component) {
-    //   //   this.wsConnection.send(
-    //   //     JSON.stringify({
-    //   //       type: 'update',
-    //   //       networkId,
-    //   //       component,
-    //   //     })
-    //   //   );
-    //   // }
-    // });
+
+    // or do we send each one individually?
   }
 }

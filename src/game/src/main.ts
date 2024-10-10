@@ -6,6 +6,7 @@ import {
   Network,
   NETWORK_ID,
   NetworkAuthority,
+  NetworkedComponent,
   Query,
   System,
   SystemInit,
@@ -30,10 +31,25 @@ class TestComponent extends Component {
   name!: string;
 }
 
+class TestNetworkComponent extends NetworkedComponent {
+  name!: string;
+}
+
 class TestSystem implements System {
   @Query()
   update(params: SystemParams, td: TestComponent) {
     console.log('System Update', td.name, params.time.delta);
+  }
+}
+
+class TestNetworkSystem implements System {
+  counter = 0;
+  @Query()
+  update(params: SystemParams, networkComponent: TestNetworkComponent) {
+    this.counter++;
+    if (this.counter >= 100) {
+      networkComponent.name = Date.now().toString();
+    }
   }
 }
 
@@ -46,6 +62,9 @@ class PlayerBundle implements Bundle {
       component(Network, {
         bundle: PlayerBundle.name,
       })
+    ).addComponentToEntity(
+      player,
+      component(TestNetworkComponent, { name: 'player' })
     );
 
     return player;
@@ -56,7 +75,10 @@ export default class MainGameStartSystem implements SystemInit {
   init(world: World) {
     console.log('GAME INIT >', world.gameHostType);
 
-    world.registerBundle(new PlayerBundle()).registerSystem(new TestSystem());
+    world
+      .registerBundle(new PlayerBundle())
+      .registerSystem(new TestSystem())
+      .registerSystem(new TestNetworkSystem());
 
     if (world.gameHostType === 'client') {
       world.spawnBundle(PlayerBundle);

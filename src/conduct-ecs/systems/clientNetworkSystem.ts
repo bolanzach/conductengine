@@ -30,7 +30,7 @@ export default class ClientNetworkSystem implements SystemInit {
           });
         },
         update(evt: TransportEvent): void {
-          // client should get update messages
+          console.dir(evt.data);
         },
         spawn_request(_: TransportEvent): void {
           // client should not get spawn requests

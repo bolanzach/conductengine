@@ -2,6 +2,7 @@ import 'reflect-metadata';
 
 import { World } from '../conduct-ecs';
 import NetworkSystem from '../conduct-ecs/systems/networkSystem';
+import { ServerNetworkSystem } from '../conduct-ecs/systems/serverNetworkSystem';
 import MainGameStartSystem from '../game/src/main';
 import { GameServer } from './gameServer';
 
@@ -14,6 +15,7 @@ import { GameServer } from './gameServer';
   });
 
   world
-    .registerSystem(new NetworkSystem(world, gameServer))
+    .registerSystem(new NetworkSystem(gameServer))
+    .registerSystemInit(new ServerNetworkSystem(gameServer))
     .registerSystemInit(new MainGameStartSystem(), true);
 })();

@@ -12,8 +12,8 @@ export class GameServer implements NetworkTransport {
   private wsServer: WebSocketServer;
   private clientSockets: WebSocket[] = [];
 
-  private networkEventHandler?: (message: TransportEvent) => void;
-  private clientConnectHandler?: (clientId: number) => void;
+  private networkId = 0;
+  private networkEventHandlers: ((message: TransportEvent) => void)[] = [];
 
   constructor() {
     this.instance = express();
@@ -31,14 +31,27 @@ export class GameServer implements NetworkTransport {
   }
 
   produceNetworkEvent(message: TransportEvent) {
-    const buff = Buffer.from(message.toString());
+    const buff = JSON.stringify(message);
+    console.log('Producing network event', message);
     this.clientSockets.forEach((client) => {
-      client.send(buff);
+      client.send(buff, { binary: true });
     });
   }
 
   registerNetworkHandler(cb: (event: TransportEvent) => void) {
-    this.networkEventHandler = cb;
+    this.networkEventHandlers.push(cb);
+  }
+
+  generateNetworkId(): number {
+    return this.networkId++;
+  }
+
+  setNetworked(_: number) {
+    // Not a valid operation on the server
+  }
+
+  isNetworked(id: number): boolean {
+    return this.networkId > id;
   }
 
   private routes() {
@@ -57,11 +70,9 @@ export class GameServer implements NetworkTransport {
     console.log('Client connected');
     const idx = this.clientSockets.push(client);
 
-    this.clientConnectHandler?.(idx);
-
     client.on('message', (message: string) => {
       const data = JSON.parse(message.toString());
-      this.networkEventHandler?.(data);
+      this.networkEventHandlers.forEach((cb) => cb(data));
     });
 
     client.on('close', () => {

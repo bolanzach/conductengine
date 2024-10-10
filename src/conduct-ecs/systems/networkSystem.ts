@@ -1,17 +1,12 @@
-import {
-  NetworkTransport,
-  TransportEvent,
-} from '../../conduct-core/networkTransport';
+import { NetworkTransport } from '../../conduct-core/networkTransport';
 import { Component } from '../component';
 import {
   getNextNetworkId,
   Network,
   NETWORK_ID,
-  NetworkAuthority,
   NetworkedComponent,
 } from '../components/network';
-import { Query, System, SystemInit, SystemParams } from '../system';
-import { World } from '../world';
+import { Query, System, SystemParams } from '../system';
 
 // const getAuthority = (): NetworkAuthority => {
 //   try {
@@ -21,24 +16,8 @@ import { World } from '../world';
 //   }
 // };
 
-// export class NetworkTransportSystemInit
-//   implements SystemInit, NetworkTransport
-// {
-//   constructor(
-//     private networkTransport: NetworkTransport,
-//     private isAuthority: boolean
-//   ) {
-//     networkTransport.registerNetworkHandler((message) => {
-//       console.dir(message);
-//       // if (message.data.type === 'spawn') {
-//       //   console.log('spawn message');
-//       //   // const networkComponent = message.data.components[0];
-//       //   // const bundle = networkComponent.bundle;
-//       //   // const idk = w.buildBundle(bundle, networkComponent);
-//       //   // console.log(idk);
-//       // }
-//     });
-//   }
+// export class NetworkSystemInit implements SystemInit {
+//   constructor(private networkTransport: NetworkTransport) {}
 //
 //   init(_: World) {
 //     //
@@ -54,29 +33,26 @@ export default class NetworkSystem implements System {
 
   private count = 0;
 
-  constructor(
-    private world: World,
-    private networkTransport: NetworkTransport
-  ) {
-    networkTransport.registerNetworkHandler((message) => {
-      console.dir(message);
-      const matchEventType: Record<
-        TransportEvent['eventType'],
-        (evt: TransportEvent) => void
-      > = {
-        spawn(evt: TransportEvent): void {},
-        spawn_request(evt: TransportEvent): void {
-          const bundle = evt.data.bundle;
-          world.spawnBundle(bundle);
-        },
-        update(evt: TransportEvent): void {},
-      };
-      matchEventType[message.eventType](message);
-    });
-  }
+  constructor(private networkTransport: NetworkTransport) {}
 
   @Query()
   update({ entity, world }: SystemParams, networkComponent: Network) {
+    if (
+      world.gameHostType === 'client' &&
+      !this.networkTransport.isNetworked(networkComponent[NETWORK_ID])
+    ) {
+      // Client cannot spawn networked components. Request the server to spawn it.
+      this.networkTransport.produceNetworkEvent({
+        data: {
+          bundle: networkComponent.bundle,
+        },
+        sender: 0,
+        eventType: 'spawn_request',
+      });
+      world.destroyEntity(entity);
+      return;
+    }
+
     const components = world.getAllComponentsForEntity(entity);
     const networkedComponents = components.filter(
       NetworkSystem.isNetworkedComponent
@@ -100,6 +76,7 @@ export default class NetworkSystem implements System {
       this.networkTransport.produceNetworkEvent({
         data: {
           bundle: networkComponent.bundle,
+          networkId: networkComponent[NETWORK_ID],
         },
         sender: 0,
         eventType: 'spawn',
@@ -143,7 +120,7 @@ export default class NetworkSystem implements System {
     // }
   }
 
-  registerNetworkComponent(component: NetworkedComponent) {
+  private registerNetworkComponent(component: NetworkedComponent) {
     let { handleInternalNetworkPropertyChange } = this;
     handleInternalNetworkPropertyChange =
       handleInternalNetworkPropertyChange.bind(this);
@@ -174,7 +151,7 @@ export default class NetworkSystem implements System {
     });
   }
 
-  handleInternalNetworkPropertyChange(
+  private handleInternalNetworkPropertyChange(
     networkId: number,
     key: string,
     _: any,
@@ -187,7 +164,7 @@ export default class NetworkSystem implements System {
     };
   }
 
-  publishNetworkUpdates() {
+  private publishNetworkUpdates() {
     // const message = {
     //   type: 'update',
     //   components: this.componentUpdateBuffer,

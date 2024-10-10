@@ -5,6 +5,7 @@ import {
 
 class ClientWebsocketTransport implements NetworkTransport {
   private ws: WebSocket;
+  private networkIds: number[] = [];
 
   constructor() {
     this.ws = new WebSocket('ws://localhost:4242');
@@ -14,18 +15,32 @@ class ClientWebsocketTransport implements NetworkTransport {
     });
   }
 
+  get readyState() {
+    return this.ws.readyState;
+  }
+
   produceNetworkEvent(message: TransportEvent) {
     this.ws.send(JSON.stringify(message));
   }
 
   registerNetworkHandler(cb: (message: TransportEvent) => void) {
-    this.ws.addEventListener('message', (event) => {
-      cb(JSON.parse(event.data));
+    this.ws.addEventListener('message', async (event) => {
+      const txt = await event.data.text();
+      cb(JSON.parse(txt));
     });
   }
 
-  get readyState() {
-    return this.ws.readyState;
+  generateNetworkId(): number {
+    // Client cannot generate network ids
+    return Infinity;
+  }
+
+  setNetworked(id: number) {
+    this.networkIds.push(id);
+  }
+
+  isNetworked(id: number): boolean {
+    return this.networkIds.includes(id);
   }
 }
 

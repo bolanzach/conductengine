@@ -206,18 +206,18 @@ export class World {
       return Infinity;
     }
 
-    if (this.#gameHost === 'client') {
-      // Send a network event to the server to spawn the bundle
-      // @todo I dont like this being here
-      this.#networkTransport.produceNetworkEvent({
-        data: {
-          bundle: key,
-        },
-        sender: 0,
-        eventType: 'spawn_request',
-      });
-      return Infinity;
-    }
+    // if (this.#gameHost === 'client') {
+    //   // Send a network event to the server to spawn the bundle
+    //   // @todo I dont like this being here
+    //   this.#networkTransport.produceNetworkEvent({
+    //     data: {
+    //       bundle: key,
+    //     },
+    //     sender: 0,
+    //     eventType: 'spawn_request',
+    //   });
+    //   return Infinity;
+    // }
 
     return bundleInstance.build(this, data);
   }

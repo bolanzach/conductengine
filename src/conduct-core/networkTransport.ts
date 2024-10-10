@@ -8,4 +8,8 @@ export interface TransportEvent {
 export interface NetworkTransport {
   produceNetworkEvent(message: TransportEvent): void;
   registerNetworkHandler(cb: (message: TransportEvent) => void): void;
+
+  generateNetworkId(): number;
+  setNetworked(id: number): void;
+  isNetworked(id: number): boolean;
 }

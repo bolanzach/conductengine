@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 
 import { World } from '../conduct-ecs';
+import ClientNetworkSystem from '../conduct-ecs/systems/clientNetworkSystem';
 import NetworkSystem from '../conduct-ecs/systems/networkSystem';
 import MainGameStartSystem from '../game/src/main';
 import { startTestGpu } from './gpu';
@@ -14,6 +15,7 @@ import initNetworkTransport from './networkTransport';
   startTestGpu();
 
   world
-    .registerSystem(new NetworkSystem(world, networkTransport))
+    .registerSystem(new NetworkSystem(networkTransport))
+    .registerSystemInit(new ClientNetworkSystem(networkTransport))
     .registerSystemInit(new MainGameStartSystem(), true);
 })();

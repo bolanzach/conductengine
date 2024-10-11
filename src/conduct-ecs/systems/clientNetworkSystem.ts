@@ -15,6 +15,21 @@ export default class ClientNetworkSystem implements SystemInit {
   constructor(private networkTransport: NetworkTransport) {}
 
   init(world: World) {
+    const canvas = document.getElementById('canvas');
+    if (!canvas) {
+      throw new Error('Canvas not found');
+    }
+
+    canvas.addEventListener('mousedown', (e) => {
+      this.networkTransport.produceNetworkEvent({
+        eventType: 'input',
+        sender: 0,
+        data: {
+          input: 'mousedown',
+        },
+      });
+    });
+
     const { networkTransport, networkEntityMapping } = this;
     networkTransport.registerNetworkHandler((message) => {
       const matchEventType: Record<
@@ -62,6 +77,9 @@ export default class ClientNetworkSystem implements SystemInit {
               }
             );
           });
+        },
+        input(_: TransportEvent): void {
+          // client should not get input events
         },
         spawn_request(_: TransportEvent): void {
           // client should not get spawn requests

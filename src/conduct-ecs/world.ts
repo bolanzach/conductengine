@@ -1,8 +1,14 @@
 import raf from 'raf';
 
 import { Bundle, BundleConstructor } from './bundle';
-import { Component, COMPONENT_TYPE, ComponentConstructor } from './component';
-import { NetworkAuthority } from './components/network';
+import {
+  Component,
+  component,
+  COMPONENT_TYPE,
+  ComponentConstructor,
+  DeleteFunctions,
+} from './component';
+import { NETWORK_ID, NetworkAuthority } from './components/network';
 import { Entity } from './entity';
 import { System, SYSTEM_PARAMS, SystemConstructor, SystemInit } from './system';
 
@@ -82,46 +88,29 @@ export class World {
    *
    * @example
    *
-   * world.AddEntityComponent(entity, Component);
+   * world.AddEntityComponent(123, Component, { key: 'value' });
    */
-  // addComponentToEntity<T extends Component>(
-  //   entity: Entity,
-  //   componentType: ComponentConstructor<T>
-  // ): World {
-  //   const component = new componentType();
-  //   if (!this.#componentTable.has(component[COMPONENT_TYPE])) {
-  //     this.#componentTable.set(
-  //       component[COMPONENT_TYPE],
-  //       new Array(this.#entityList.length).fill(null)
-  //     );
-  //   }
-  //
-  //   const componentList = this.#componentTable.get(component[COMPONENT_TYPE]);
-  //   if (!componentList) {
-  //     return this;
-  //   }
-  //
-  //   componentList[entity] = component;
-  //
-  //   return this;
-  // }
-  addComponentToEntity<T extends Component>(
+  addComponentToEntity<T extends ComponentConstructor>(
     entity: Entity,
-    component: T
+    componentType: T,
+    data: DeleteFunctions<Omit<InstanceType<T>, typeof NETWORK_ID>>
   ): World {
-    if (!this.#componentTable.has(component[COMPONENT_TYPE])) {
+    const componentInstance = component(componentType, data);
+    if (!this.#componentTable.has(componentInstance[COMPONENT_TYPE])) {
       this.#componentTable.set(
-        component[COMPONENT_TYPE],
+        componentInstance[COMPONENT_TYPE],
         new Array(this.#entityList.length).fill(null)
       );
     }
 
-    const componentList = this.#componentTable.get(component[COMPONENT_TYPE]);
+    const componentList = this.#componentTable.get(
+      componentInstance[COMPONENT_TYPE]
+    );
     if (!componentList) {
       return this;
     }
 
-    componentList[entity] = component;
+    componentList[entity] = componentInstance;
 
     return this;
   }

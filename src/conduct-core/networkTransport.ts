@@ -1,7 +1,7 @@
 export interface TransportEvent {
   sender: number;
   receiver?: number;
-  eventType: 'spawn_request' | 'spawn' | 'update';
+  eventType: 'spawn_request' | 'spawn' | 'update' | 'input';
   data: any;
 }
 

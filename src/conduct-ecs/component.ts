@@ -14,11 +14,11 @@ export abstract class Component {
     .constructor as ComponentConstructor;
 }
 
-type DeleteFields<T, U> = {
+export type DeleteFields<T, U> = {
   [K in keyof T as T[K] extends U ? never : K]: T[K];
 };
 
-type DeleteFunctions<T> = DeleteFields<T, Function>;
+export type DeleteFunctions<T> = DeleteFields<T, Function>;
 
 /**
  * Create a new component instance with data.

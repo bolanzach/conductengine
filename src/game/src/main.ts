@@ -1,31 +1,18 @@
 import 'reflect-metadata';
 
-import { NetworkTransport } from '../../conduct-core/networkTransport';
 import {
   Component,
   Network,
-  NETWORK_ID,
-  NetworkAuthority,
   NetworkedComponent,
   Query,
   System,
   SystemInit,
   SystemParams,
   World,
-  WorldConfig,
 } from '../../conduct-ecs';
 import { Bundle } from '../../conduct-ecs/bundle';
 import { component } from '../../conduct-ecs/component';
 import { Entity } from '../../conduct-ecs/entity';
-import NetworkSystem from '../../conduct-ecs/systems/networkSystem';
-
-////////////////////
-////// MOVE THESE
-interface GameInstanceConfig extends WorldConfig {
-  networkTransport: NetworkTransport;
-}
-
-////////////////////
 
 class TestComponent extends Component {
   name!: string;
@@ -61,9 +48,7 @@ class TestNetworkSystem implements System {
 }
 
 class PlayerBundle implements Bundle {
-  build(w: World): Entity {
-    const player = w.createEntity();
-
+  build(player: Entity, w: World): Entity {
     w.addComponentToEntity(
       player,
       component(Network, {

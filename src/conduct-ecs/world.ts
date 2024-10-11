@@ -1,13 +1,17 @@
 import raf from 'raf';
 
-import { NetworkTransport } from '../conduct-core/networkTransport';
-import { BuildBundleData, Bundle, BundleConstructor } from './bundle';
+import { Bundle, BundleConstructor } from './bundle';
 import { Component, COMPONENT_TYPE, ComponentConstructor } from './component';
 import { NetworkAuthority } from './components/network';
 import { Entity } from './entity';
 import { System, SYSTEM_PARAMS, SystemConstructor, SystemInit } from './system';
 
 type ComponentTable = Map<ComponentConstructor, (Component | null)[]>;
+
+const EntityStateSpawning = 0;
+const EntityStateActive = 1;
+
+type EntityState = typeof EntityStateSpawning | typeof EntityStateActive;
 
 export interface WorldConfig {
   gameHost: 'client' | 'server';
@@ -18,6 +22,7 @@ export class World {
   #entityList: (Entity | null)[] = [];
   #systems = new Map<SystemConstructor, System>();
   #componentTable: ComponentTable = new Map();
+  #entityState: EntityState[] = [];
   #initSystems: SystemInit[] = [];
   #bundles = new Map<string, Bundle>();
 
@@ -55,6 +60,7 @@ export class World {
     }
 
     this.#entityList[entity] = entity;
+    this.#entityState[entity] = EntityStateSpawning;
 
     this.#componentTable.forEach((componentList) => {
       componentList.push(null);
@@ -192,10 +198,7 @@ export class World {
     return this;
   }
 
-  spawnBundle(
-    bundle: BundleConstructor | string,
-    data: BuildBundleData = {}
-  ): Entity {
+  spawnBundle(bundle: BundleConstructor | string): Entity {
     const key = typeof bundle === 'string' ? bundle : bundle.name;
     const bundleInstance = this.#bundles.get(key);
     if (!bundleInstance) {
@@ -203,20 +206,8 @@ export class World {
       return Infinity;
     }
 
-    // if (this.#gameHost === 'client') {
-    //   // Send a network event to the server to spawn the bundle
-    //   // @todo I dont like this being here
-    //   this.#networkTransport.produceNetworkEvent({
-    //     data: {
-    //       bundle: key,
-    //     },
-    //     sender: 0,
-    //     eventType: 'spawn_request',
-    //   });
-    //   return Infinity;
-    // }
-
-    return bundleInstance.build(this, data);
+    const entity = this.createEntity();
+    return bundleInstance.build(entity, this);
   }
 
   Query<A extends ComponentConstructor>(
@@ -250,6 +241,12 @@ export class World {
       // Flip to FALSE whenever a condition fails. This must be TRUE in order for this
       // entity's components to be added
       let querySuccess = true;
+
+      // Check that the entity is active
+      if (this.#entityState[entity] !== EntityStateActive) {
+        querySuccess = false;
+        continue;
+      }
 
       const components = new Array(include.length) as typeof include;
 
@@ -295,6 +292,13 @@ export class World {
   }
 
   private update(timestamp: number): void {
+    // Resolve entity states
+    for (let i = 0; i < this.#entityState.length; i++) {
+      if (this.#entityState[i] === EntityStateSpawning) {
+        this.#entityState[i] = EntityStateActive;
+      }
+    }
+
     this.#systems.forEach((system, scstr) => {
       const systemComponentTypes = scstr[SYSTEM_PARAMS];
       if (!systemComponentTypes) {
@@ -307,7 +311,8 @@ export class World {
       //const fps = Math.round(1 / secondsPassed);
 
       const results = this.Query(
-        systemComponentTypes.queryWith as [ComponentConstructor]
+        systemComponentTypes.queryWith as [ComponentConstructor],
+        systemComponentTypes.queryWithout
       );
       for (let i = 0; i < results.length; i++) {
         const [entity, components] = results[i];

@@ -1,52 +1,51 @@
-import raf from 'raf';
+import raf from "raf";
 
-import { Bundle, BundleConstructor } from './bundle';
+import { Bundle, BundleConstructor } from "./bundle";
 import {
   Component,
   component,
   COMPONENT_TYPE,
   ComponentConstructor,
   DeleteFunctions,
-} from './component';
-import { NETWORK_ID, NetworkAuthority } from './components/network';
-import { Entity } from './entity';
-import { System, SYSTEM_PARAMS, SystemConstructor, SystemInit } from './system';
+} from "./component";
+import { NETWORK_ID } from "./components/network";
+import { Entity } from "./entity";
+import { System, SYSTEM_PARAMS, SystemConstructor, SystemInit } from "./system";
 
 type ComponentTable = Map<ComponentConstructor, (Component | null)[]>;
 
-const EntityStateSpawning = 0;
-const EntityStateActive = 1;
-
-type EntityState = typeof EntityStateSpawning | typeof EntityStateActive;
+const EntityStateInactive = 0;
+const EntityStateSpawning = 1;
+const EntityStateActive = 2;
 
 export interface WorldConfig {
-  gameHost: 'client' | 'server';
+  gameHost: "client" | "server";
   fps?: number;
 }
 
 export class World {
-  #entityList: (Entity | null)[] = [];
-  #systems = new Map<SystemConstructor, System>();
-  #componentTable: ComponentTable = new Map();
-  #entityState: EntityState[] = [];
-  #initSystems: SystemInit[] = [];
-  #bundles = new Map<string, Bundle>();
+  // The index is the entity ID and the value is the entity state.
+  private entityList = new Int32Array(1000);
+  private queryEntityLength = 0;
 
-  // Config
+  // Registered systems
+  private systems = new Map<SystemConstructor, System>();
+  // Systems that run once
+  private initSystems: SystemInit[] = [];
 
-  #gameHost: NetworkAuthority;
-  #fps: number;
+  // Lookup of component to entity
+  private componentTable: ComponentTable = new Map();
+
+  // Registered bundles
+  private bundles = new Map<string, Bundle>();
 
   #previousTimestamp = 0;
   #gameStarted = false;
 
-  constructor(private config: WorldConfig) {
-    this.#gameHost = config.gameHost;
-    this.#fps = config.fps || 1;
-  }
+  constructor(private config: WorldConfig) {}
 
   get gameHostType() {
-    return this.#gameHost;
+    return this.config.gameHost;
   }
 
   /**
@@ -55,32 +54,30 @@ export class World {
   createEntity(): Entity {
     let entity = 0;
 
-    while (entity <= this.#entityList.length) {
-      if (
-        this.#entityList[entity] === null ||
-        this.#entityList[entity] === undefined
-      ) {
+    while (entity <= this.entityList.length) {
+      if (this.entityList[entity] === 0) {
         break;
       }
       entity++;
     }
 
-    this.#entityList[entity] = entity;
-    this.#entityState[entity] = EntityStateSpawning;
+    this.entityList[entity] = EntityStateSpawning;
 
-    this.#componentTable.forEach((componentList) => {
-      componentList.push(null);
+    // Set all components to null for this entity
+    // Takes advantage of javascript's dynamic arrays
+    this.componentTable.forEach((componentList) => {
+      componentList[entity] = null;
     });
 
     return entity;
   }
 
   destroyEntity(entity: Entity): void {
-    this.#componentTable.forEach((componentList) => {
+    this.componentTable.forEach((componentList) => {
       componentList[entity] = null;
     });
 
-    this.#entityList[entity] = null;
+    this.entityList[entity] = EntityStateInactive;
   }
 
   /**
@@ -96,14 +93,14 @@ export class World {
     data: DeleteFunctions<Omit<InstanceType<T>, typeof NETWORK_ID>>
   ): World {
     const componentInstance = component(componentType, data);
-    if (!this.#componentTable.has(componentInstance[COMPONENT_TYPE])) {
-      this.#componentTable.set(
+    if (!this.componentTable.has(componentInstance[COMPONENT_TYPE])) {
+      this.componentTable.set(
         componentInstance[COMPONENT_TYPE],
-        new Array(this.#entityList.length).fill(null)
+        new Array(this.entityList.length).fill(null)
       );
     }
 
-    const componentList = this.#componentTable.get(
+    const componentList = this.componentTable.get(
       componentInstance[COMPONENT_TYPE]
     );
     if (!componentList) {
@@ -127,7 +124,7 @@ export class World {
     entity: Entity,
     component: TComponent
   ): InstanceType<TComponent> | null {
-    const componentList = this.#componentTable.get(component);
+    const componentList = this.componentTable.get(component);
 
     if (componentList) {
       const foundComponent = componentList[entity];
@@ -145,7 +142,7 @@ export class World {
 
   getAllComponentsForEntity(entity: Entity): Component[] {
     const components: Component[] = [];
-    this.#componentTable.forEach((componentList) => {
+    this.componentTable.forEach((componentList) => {
       const component = componentList[entity];
       if (component) {
         components.push(component);
@@ -158,7 +155,7 @@ export class World {
    * Register a System to process Entities on each frame.
    */
   registerSystem(system: System): World {
-    this.#systems.set(system.constructor as SystemConstructor, system);
+    this.systems.set(system.constructor as SystemConstructor, system);
     return this;
   }
 
@@ -172,10 +169,10 @@ export class World {
     }
 
     if (this.#gameStarted) {
-      console.error('Cannot register a SystemInit after the game has started');
+      console.error("Cannot register a SystemInit after the game has started");
       return this;
     }
-    this.#initSystems.push(system);
+    this.initSystems.push(system);
     return this;
   }
 
@@ -183,13 +180,13 @@ export class World {
    * Might change this idk but easy for now
    */
   registerBundle(bundle: Bundle): World {
-    this.#bundles.set(bundle.constructor.name, bundle);
+    this.bundles.set(bundle.constructor.name, bundle);
     return this;
   }
 
   spawnBundle(bundle: BundleConstructor | string): Entity {
-    const key = typeof bundle === 'string' ? bundle : bundle.name;
-    const bundleInstance = this.#bundles.get(key);
+    const key = typeof bundle === "string" ? bundle : bundle.name;
+    const bundleInstance = this.bundles.get(key);
     if (!bundleInstance) {
       console.error(`Bundle ${key} not found`);
       return Infinity;
@@ -226,13 +223,13 @@ export class World {
     // This is what we're trying to build up to
     const componentInstances: [Entity, typeof include][] = [];
 
-    for (let entity = 0; entity < this.#entityList.length; entity++) {
+    for (let entity = 0; entity < this.queryEntityLength; entity++) {
       // Flip to FALSE whenever a condition fails. This must be TRUE in order for this
       // entity's components to be added
       let querySuccess = true;
 
       // Check that the entity is active
-      if (this.#entityState[entity] !== EntityStateActive) {
+      if (this.entityList[entity] === EntityStateInactive) {
         querySuccess = false;
         continue;
       }
@@ -275,20 +272,41 @@ export class World {
   start(): void {
     this.#gameStarted = true;
 
-    this.#initSystems.forEach((initSystem) => initSystem.init(this));
+    this.initSystems.forEach((initSystem) => initSystem.init(this));
+    this.initSystems = [];
 
     raf(this.update.bind(this));
   }
 
   private update(timestamp: number): void {
-    // Resolve entity states
-    for (let i = 0; i < this.#entityState.length; i++) {
-      if (this.#entityState[i] === EntityStateSpawning) {
-        this.#entityState[i] = EntityStateActive;
+    // Reverse iterate over entities to find the first (last) active entity
+    // Additionally, we can flip entity states while iterating
+    const length = this.entityList.length;
+    let activeIdxMax = length;
+    let entitiesCount = 0;
+    for (let i = length - 1; i >= 0; i--) {
+      const entityState = this.entityList[i];
+      if (!entitiesCount && entityState === EntityStateInactive) {
+        activeIdxMax = i;
+        continue;
+      }
+
+      entitiesCount++;
+
+      // Activate spawning entities
+      if (entityState === EntityStateSpawning) {
+        this.entityList[i] = EntityStateActive;
       }
     }
 
-    this.#systems.forEach((system, scstr) => {
+    const isSparseEntities = length > 100 && entitiesCount < length / 2;
+    if (isSparseEntities) {
+      console.log("Sparse entities", entitiesCount, length);
+    }
+
+    this.queryEntityLength = activeIdxMax;
+
+    this.systems.forEach((system, scstr) => {
       const systemComponentTypes = scstr[SYSTEM_PARAMS];
       if (!systemComponentTypes) {
         return;

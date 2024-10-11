@@ -1,9 +1,9 @@
 import {
   NetworkTransport,
   TransportEvent,
-} from '../../conduct-core/networkTransport';
-import { SystemInit } from '../system';
-import { World } from '../world';
+} from "../../conduct-core/networkTransport";
+import { SystemInit } from "../system";
+import { World } from "../world";
 
 export class ServerNetworkSystem implements SystemInit {
   constructor(private networkTransport: NetworkTransport) {}
@@ -11,7 +11,7 @@ export class ServerNetworkSystem implements SystemInit {
   init(world: World) {
     this.networkTransport.registerNetworkHandler((message) => {
       const matchEventType: Record<
-        TransportEvent['eventType'],
+        TransportEvent["eventType"],
         (evt: TransportEvent) => void
       > = {
         spawn_request(evt: TransportEvent): void {
@@ -19,7 +19,7 @@ export class ServerNetworkSystem implements SystemInit {
           world.spawnBundle(bundle);
         },
         input(evt: TransportEvent): void {
-          console.log('input', evt);
+          console.log("input", evt);
         },
         spawn(_: TransportEvent): void {
           // server should not get spawn messages

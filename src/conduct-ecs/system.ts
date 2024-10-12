@@ -1,6 +1,6 @@
-import { Component, ComponentConstructor } from './component';
-import { Entity } from './entity';
-import { World } from './world';
+import { Component, COMPONENT_ID, ComponentConstructor } from "./component";
+import { Entity } from "./entity";
+import { World } from "./world";
 
 /**
  * Gets stored on each System to declare how the System should query Components.
@@ -10,11 +10,26 @@ interface SystemComponentDeps {
   queryWithout: ComponentConstructor[];
 }
 
+let componentIdCounter = 1;
+
+/**
+ * Every Component Type gets assigned a unique ID.
+ */
+function registerComponentIds(componentCstrs: ComponentConstructor[]) {
+  componentCstrs.forEach((cstr) => {
+    // @ts-expect-error we have to assign the component id
+    if (!cstr[COMPONENT_ID]) {
+      // @ts-expect-error we have to assign the component id
+      cstr[COMPONENT_ID] = componentIdCounter++;
+    }
+  });
+}
+
 function registerSystemComponents(
   system: SystemConstructor,
   components:
-    | Pick<SystemComponentDeps, 'queryWith'>
-    | Pick<SystemComponentDeps, 'queryWithout'>
+    | Pick<SystemComponentDeps, "queryWith">
+    | Pick<SystemComponentDeps, "queryWithout">
 ) {
   let deps: SystemComponentDeps | undefined = system[SYSTEM_PARAMS];
   if (!deps) {
@@ -36,6 +51,8 @@ function registerSystemComponents(
     }
   });
 
+  registerComponentIds([...deps.queryWith, ...deps.queryWithout]);
+
   system[SYSTEM_PARAMS] = deps;
 }
 
@@ -43,12 +60,12 @@ function queryComponentsDecorator(query?: { Without: ComponentConstructor[] }) {
   return function (target: any, key: any): any {
     const cstr = target.constructor;
     const paramTypes = Reflect.getMetadata(
-      'design:paramtypes',
+      "design:paramtypes",
       target,
       key
     ) as ComponentConstructor[];
     const componentTypes = paramTypes.slice(1);
-    if (componentTypes.some((fn) => fn.name.toLowerCase() === 'object')) {
+    if (componentTypes.some((fn) => fn.name.toLowerCase() === "object")) {
       throw new Error(
         `System ${cstr.name} has an invalid component in @Query. A Component can not have a constructor.`
       );
@@ -62,15 +79,22 @@ function queryComponentsDecorator(query?: { Without: ComponentConstructor[] }) {
 }
 
 export const Query = queryComponentsDecorator;
-export const SYSTEM_PARAMS = Symbol('SYSTEM_PARAMS');
+export const SYSTEM_PARAMS = Symbol("SYSTEM_PARAMS");
 
 /**
  * The first parameter in each System Update call.
  */
 export interface SystemParams {
+  /**
+   * The Entity that the System is currently operating on.
+   */
   entity: Entity;
   world: World;
   time: {
+    /**
+     * The current cycle, incremented each frame.
+     */
+    tick: number;
     delta: number;
     timestamp: number;
   };

@@ -39,6 +39,7 @@ export class World {
   // Registered bundles
   private bundles = new Map<string, Bundle>();
 
+  private tick = 0;
   #previousTimestamp = 0;
   #gameStarted = false;
 
@@ -279,6 +280,8 @@ export class World {
   }
 
   private update(timestamp: number): void {
+    this.tick++;
+
     // Reverse iterate over entities to find the first (last) active entity
     // Additionally, we can flip entity states while iterating
     const length = this.entityList.length;
@@ -299,10 +302,10 @@ export class World {
       }
     }
 
-    const isSparseEntities = length > 100 && entitiesCount < length / 2;
-    if (isSparseEntities) {
-      console.log("Sparse entities", entitiesCount, length);
-    }
+    // const isSparseEntities = length > 1000 && entitiesCount < length / 2;
+    // if (isSparseEntities) {
+    //   console.log("Sparse entities", entitiesCount, length);
+    // }
 
     this.queryEntityLength = activeIdxMax;
 
@@ -328,6 +331,7 @@ export class World {
             entity,
             world: this,
             time: {
+              tick: this.tick,
               delta: secondsPassed,
               timestamp,
             },

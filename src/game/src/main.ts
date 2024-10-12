@@ -1,4 +1,4 @@
-import 'reflect-metadata';
+import "reflect-metadata";
 
 import {
   NetworkedComponent,
@@ -7,8 +7,9 @@ import {
   SystemInit,
   SystemParams,
   World,
-} from '../../conduct-ecs';
-import PlayerBundle from './bundles/player';
+} from "../../conduct-ecs";
+import PlayerBundle from "./bundles/player";
+import PlayerSystem from "./systems/playerSystem";
 
 // class TestNetworkComponent extends NetworkedComponent {
 //   name!: string;
@@ -34,11 +35,11 @@ import PlayerBundle from './bundles/player';
 
 export default class MainGameStartSystem implements SystemInit {
   init(world: World) {
-    console.log('GAME INIT >', world.gameHostType);
+    console.log("GAME INIT >", world.gameHostType);
 
-    world.registerBundle(new PlayerBundle());
+    world.registerBundle(new PlayerBundle()).registerSystem(new PlayerSystem());
 
-    if (world.gameHostType === 'client') {
+    if (world.gameHostType === "client") {
       world.spawnBundle(PlayerBundle);
     }
 

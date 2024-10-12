@@ -1,3 +1,5 @@
-import { Component } from '../component';
+import { Component } from "../component";
 
-export default class Input extends Component {}
+export default class Input extends Component {
+  event?: any;
+}

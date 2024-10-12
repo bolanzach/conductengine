@@ -19,7 +19,7 @@ export class ServerNetworkSystem implements SystemInit {
           world.spawnBundle(bundle);
         },
         input(evt: TransportEvent): void {
-          console.log("input", evt);
+          // handled in serverInputSystem
         },
         spawn(_: TransportEvent): void {
           // server should not get spawn messages

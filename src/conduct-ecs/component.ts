@@ -1,6 +1,7 @@
-import { NETWORK_ID } from './components/network';
+import { NETWORK_ID } from "./components/network";
 
-export const COMPONENT_TYPE = Symbol('COMPONENT_TYPE');
+export const COMPONENT_TYPE = Symbol("COMPONENT_TYPE");
+export const COMPONENT_ID = Symbol("COMPONENT_ID");
 
 export type ComponentConstructor<T extends Component = Component> = new () => T;
 
@@ -8,8 +9,8 @@ export type ComponentConstructor<T extends Component = Component> = new () => T;
  * A Component is struct that contains only data and no behaviors.
  */
 export abstract class Component {
-  // Typescript is structurally typed, so we add a protected readonly property defined as a sybmol
-  // so that this class must be inherited.
+  // Typescript is structurally typed, so we add a protected readonly property
+  // defined as a symbol so that this class must be inherited.
   protected readonly [COMPONENT_TYPE]: ComponentConstructor = this
     .constructor as ComponentConstructor;
 }

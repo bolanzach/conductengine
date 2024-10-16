@@ -3,7 +3,8 @@ import { NETWORK_ID } from "./components/network";
 export const COMPONENT_TYPE = Symbol("COMPONENT_TYPE");
 export const COMPONENT_ID = Symbol("COMPONENT_ID");
 
-export type ComponentConstructor<T extends Component = Component> = new () => T;
+export type ComponentConstructor<T extends Component = Component> =
+  (new () => T) & { [COMPONENT_ID]?: number };
 
 /**
  * A Component is struct that contains only data and no behaviors.

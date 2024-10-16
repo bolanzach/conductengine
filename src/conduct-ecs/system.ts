@@ -1,13 +1,19 @@
+import { Signature } from "./archetype";
 import { Component, COMPONENT_ID, ComponentConstructor } from "./component";
 import { Entity } from "./entity";
 import { World } from "./world";
 
 /**
- * Gets stored on each System to declare how the System should query Components.
+ * Stored on each System to declare how the System should query Components.
  */
 interface SystemComponentDeps {
   queryWith: ComponentConstructor[];
   queryWithout: ComponentConstructor[];
+}
+
+interface SystemSignature {
+  queryWith: Signature;
+  queryWithout: Signature;
 }
 
 let componentIdCounter = 1;
@@ -17,9 +23,7 @@ let componentIdCounter = 1;
  */
 function registerComponentIds(componentCstrs: ComponentConstructor[]) {
   componentCstrs.forEach((cstr) => {
-    // @ts-expect-error we have to assign the component id
     if (!cstr[COMPONENT_ID]) {
-      // @ts-expect-error we have to assign the component id
       cstr[COMPONENT_ID] = componentIdCounter++;
     }
   });
@@ -54,6 +58,14 @@ function registerSystemComponents(
   registerComponentIds([...deps.queryWith, ...deps.queryWithout]);
 
   system[SYSTEM_PARAMS] = deps;
+  system[SYSTEM_SIGNATURE] = {
+    queryWith: deps.queryWith
+      .map((cstr) => cstr[COMPONENT_ID] as number)
+      .sort(),
+    queryWithout: deps.queryWithout
+      .map((cstr) => cstr[COMPONENT_ID] as number)
+      .sort(),
+  };
 }
 
 function queryComponentsDecorator(query?: { Without: ComponentConstructor[] }) {
@@ -80,6 +92,7 @@ function queryComponentsDecorator(query?: { Without: ComponentConstructor[] }) {
 
 export const Query = queryComponentsDecorator;
 export const SYSTEM_PARAMS = Symbol("SYSTEM_PARAMS");
+export const SYSTEM_SIGNATURE = Symbol("SYSTEM_SIG");
 
 /**
  * The first parameter in each System Update call.
@@ -132,4 +145,5 @@ export interface SystemInit {
  */
 export type SystemConstructor = Function & {
   [SYSTEM_PARAMS]: SystemComponentDeps;
+  [SYSTEM_SIGNATURE]: SystemSignature;
 };

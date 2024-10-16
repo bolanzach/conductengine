@@ -1,16 +1,24 @@
 import raf from "raf";
 
+import Archetype, { signatureCompare } from "./archetype";
 import { Bundle, BundleConstructor } from "./bundle";
 import {
   Component,
   component,
+  COMPONENT_ID,
   COMPONENT_TYPE,
   ComponentConstructor,
   DeleteFunctions,
 } from "./component";
 import { NETWORK_ID } from "./components/network";
 import { Entity } from "./entity";
-import { System, SYSTEM_PARAMS, SystemConstructor, SystemInit } from "./system";
+import {
+  System,
+  SYSTEM_PARAMS,
+  SYSTEM_SIGNATURE,
+  SystemConstructor,
+  SystemInit,
+} from "./system";
 
 type ComponentTable = Map<ComponentConstructor, (Component | null)[]>;
 
@@ -30,8 +38,12 @@ export class World {
 
   // Registered systems
   private systems = new Map<SystemConstructor, System>();
-  // Systems that run once
+  // Systems that run once, when the game starts
   private initSystems: SystemInit[] = [];
+
+  private archetypes: Archetype[] = [];
+
+  private modifiedEntities = new Map<Entity, [number, Component[]]>();
 
   // Lookup of component to entity
   private componentTable: ComponentTable = new Map();
@@ -70,6 +82,8 @@ export class World {
       componentList[entity] = null;
     });
 
+    this.modifiedEntities.set(entity, [1, []]);
+
     return entity;
   }
 
@@ -94,21 +108,23 @@ export class World {
     data: DeleteFunctions<Omit<InstanceType<T>, typeof NETWORK_ID>>
   ): World {
     const componentInstance = component(componentType, data);
-    if (!this.componentTable.has(componentInstance[COMPONENT_TYPE])) {
-      this.componentTable.set(
-        componentInstance[COMPONENT_TYPE],
-        new Array(this.entityList.length).fill(null)
-      );
-    }
-
-    const componentList = this.componentTable.get(
-      componentInstance[COMPONENT_TYPE]
-    );
-    if (!componentList) {
-      return this;
-    }
-
-    componentList[entity] = componentInstance;
+    const [_, modified] = this.modifiedEntities.get(entity) ?? [];
+    this.modifiedEntities.set(entity, [1, [...modified, componentInstance]]);
+    // if (!this.componentTable.has(componentInstance[COMPONENT_TYPE])) {
+    //   this.componentTable.set(
+    //     componentInstance[COMPONENT_TYPE],
+    //     new Array(this.entityList.length).fill(null)
+    //   );
+    // }
+    //
+    // const componentList = this.componentTable.get(
+    //   componentInstance[COMPONENT_TYPE]
+    // );
+    // if (!componentList) {
+    //   return this;
+    // }
+    //
+    // componentList[entity] = componentInstance;
 
     return this;
   }
@@ -282,65 +298,95 @@ export class World {
   private update(timestamp: number): void {
     this.tick++;
 
-    // Reverse iterate over entities to find the first (last) active entity
-    // Additionally, we can flip entity states while iterating
-    const length = this.entityList.length;
-    let activeIdxMax = length;
-    let entitiesCount = 0;
-    for (let i = length - 1; i >= 0; i--) {
-      const entityState = this.entityList[i];
-      if (!entitiesCount && entityState === EntityStateInactive) {
-        activeIdxMax = i;
-        continue;
-      }
-
-      entitiesCount++;
-
-      // Activate spawning entities
-      if (entityState === EntityStateSpawning) {
-        this.entityList[i] = EntityStateActive;
-      }
-    }
-
-    // const isSparseEntities = length > 1000 && entitiesCount < length / 2;
-    // if (isSparseEntities) {
-    //   console.log("Sparse entities", entitiesCount, length);
-    // }
-
-    this.queryEntityLength = activeIdxMax;
-
-    this.systems.forEach((system, scstr) => {
-      const systemComponentTypes = scstr[SYSTEM_PARAMS];
-      if (!systemComponentTypes) {
+    this.modifiedEntities.forEach((modification, entity) => {
+      const [action, components] = modification;
+      const entitySignature = components
+        .map((c) => c[COMPONENT_TYPE][COMPONENT_ID])
+        .filter((id) => id !== undefined)
+        .sort();
+      if (!entitySignature.length) {
         return;
       }
 
-      const secondsPassed = (timestamp - this.#previousTimestamp) / 1000;
-      this.#previousTimestamp = timestamp;
+      // @todo this can be optimized
+      const archetype = this.archetypes.find((a) => {
+        return entitySignature.every((id) => a.signature.includes(id));
+      });
 
-      //const fps = Math.round(1 / secondsPassed);
-
-      const results = this.Query(
-        systemComponentTypes.queryWith as [ComponentConstructor],
-        systemComponentTypes.queryWithout
-      );
-      for (let i = 0; i < results.length; i++) {
-        const [entity, components] = results[i];
-        system.update(
-          {
-            entity,
-            world: this,
-            time: {
-              tick: this.tick,
-              delta: secondsPassed,
-              timestamp,
-            },
-          },
-          ...components
-        );
+      if (archetype) {
+        archetype.entities.push(entity);
+        components.forEach((component, i) => {
+          archetype.components
+            .get(components[i][COMPONENT_TYPE])
+            ?.push(component);
+        });
+        return;
       }
+
+      const newArchetype: Archetype = {
+        signature: entitySignature as number[],
+        components: new Map(components.map((c) => [c[COMPONENT_TYPE], [c]])),
+        entities: [entity],
+      };
+      this.archetypes.push(newArchetype);
     });
 
+    this.modifiedEntities.clear();
+
+    this.updateSystems(timestamp);
+
     raf(this.update.bind(this));
+  }
+
+  private updateSystems(timestamp: number) {
+    const secondsPassed = (timestamp - this.#previousTimestamp) / 1000;
+    this.#previousTimestamp = timestamp;
+
+    // Update all systems
+    this.systems.forEach((system, systemType) => {
+      const systemComponentTypes = systemType[SYSTEM_PARAMS];
+      const systemSignature = systemType[SYSTEM_SIGNATURE];
+
+      // Find all archetypes that match the system signature
+      for (let i = 0; i < this.archetypes.length; i++) {
+        const archetype = this.archetypes[i];
+
+        if (!signatureCompare(systemSignature.queryWith, archetype.signature)) {
+          // Signature does not match, skip this archetype
+          continue;
+        }
+
+        const archetypeComponents = archetype.components;
+        const archetypeEntities = archetype.entities;
+
+        // Each entity in the archetype will be processed
+        for (let e = 0; e < archetypeEntities.length; e++) {
+          const components: Component[] = [];
+
+          // Collect the components based on the system's requirements
+          for (let j = 0; j < systemComponentTypes.queryWith.length; j++) {
+            const systemComponentType = systemComponentTypes.queryWith[j];
+            const systemComponents = archetypeComponents.get(
+              systemComponentType
+            ) as Component[];
+            components.push(systemComponents[e]);
+          }
+
+          // Update the system with the queried params
+          system.update(
+            {
+              entity: archetypeEntities[e],
+              world: this,
+              time: {
+                tick: this.tick,
+                delta: secondsPassed,
+                timestamp,
+              },
+            },
+            ...components
+          );
+        }
+      }
+    });
   }
 }

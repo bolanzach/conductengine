@@ -1,6 +1,6 @@
-import { Signature } from "./archetype";
 import { Component, COMPONENT_ID, ComponentConstructor } from "./component";
 import { Entity } from "./entity";
+import { createSignature, Signature } from "./signature";
 import { World } from "./world";
 
 /**
@@ -59,12 +59,12 @@ function registerSystemComponents(
 
   system[SYSTEM_PARAMS] = deps;
   system[SYSTEM_SIGNATURE] = {
-    queryWith: deps.queryWith
-      .map((cstr) => cstr[COMPONENT_ID] as number)
-      .sort(),
-    queryWithout: deps.queryWithout
-      .map((cstr) => cstr[COMPONENT_ID] as number)
-      .sort(),
+    queryWith: createSignature(
+      deps.queryWith.map((cstr) => cstr[COMPONENT_ID] as number)
+    ),
+    queryWithout: createSignature(
+      deps.queryWithout.map((cstr) => cstr[COMPONENT_ID] as number)
+    ),
   };
 }
 

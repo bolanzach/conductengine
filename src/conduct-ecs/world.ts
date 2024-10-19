@@ -1,6 +1,6 @@
 import raf from "raf";
 
-import Archetype, { signatureCompare } from "./archetype";
+import { Archetype, createArchetype, updateArchetype } from "./archetype";
 import { Bundle, BundleConstructor } from "./bundle";
 import {
   Component,
@@ -13,6 +13,11 @@ import {
 import { NETWORK_ID } from "./components/network";
 import { Entity } from "./entity";
 import {
+  createSignature,
+  signatureContains,
+  signatureEquals,
+} from "./signature";
+import {
   System,
   SYSTEM_PARAMS,
   SYSTEM_SIGNATURE,
@@ -23,34 +28,39 @@ import {
 type ComponentTable = Map<ComponentConstructor, (Component | null)[]>;
 
 const EntityStateInactive = 0;
-const EntityStateSpawning = 1;
-const EntityStateActive = 2;
+const EntityStateDestroying = 1;
+const EntityStateSpawning = 2;
+const EntityStateActive = 3;
 
-const EntityEventAddComponent = 1;
-const EntityEventRemoveComponent = 2;
-const EntityEventDestroy = 3;
+const EntityEventCreate = 1;
+const EntityEventAddComponent = 2;
+const EntityEventRemoveComponent = 3;
+const EntityEventDestroy = 4;
 
 export interface WorldConfig {
   gameHost: "client" | "server";
   fps?: number;
 }
 
+let LAST_RUN_TIME = Date.now();
+
 export class World {
   // The index is the entity ID and the value is the entity state.
-  private entityList = new Int32Array(1000);
-  private queryEntityLength = 0;
+  private entityList = new Int32Array(10_000);
 
-  // Registered systems
-  private systems = new Map<SystemConstructor, System>();
-  // Systems that run once, when the game starts
-  private initSystems: SystemInit[] = [];
-
+  // All archetypes
   private archetypes: Archetype[] = [];
 
-  private modifiedEntities = new Map<Entity, [number, Component[]]>();
+  // Maps entity (index) to archetype (value)
+  private mapEntityToArchetype: number[] = [];
 
-  // Lookup of component to entity
-  private componentTable: ComponentTable = new Map();
+  // Registered systems
+  private systems: System[] = [];
+
+  // Systems that run a single time when the game starts
+  private initSystems: SystemInit[] = [];
+
+  private internalEntityEvents = new Map<Entity, [number, Component[]]>();
 
   // Registered bundles
   private bundles = new Map<string, Bundle>();
@@ -72,22 +82,22 @@ export class World {
     let entity = 0;
 
     while (entity <= this.entityList.length) {
-      if (this.entityList[entity] === 0) {
+      if (this.entityList[entity] === EntityStateInactive) {
         break;
       }
       entity++;
     }
 
     this.entityList[entity] = EntityStateSpawning;
-    this.modifiedEntities.set(entity, [EntityEventAddComponent, []]);
+    this.internalEntityEvents.set(entity, [EntityEventCreate, []]);
 
     return entity;
   }
 
   destroyEntity(entity: Entity): void {
     if (this.entityList[entity]) {
-      this.modifiedEntities.set(entity, [EntityEventDestroy, []]);
-      this.entityList[entity] = EntityStateInactive;
+      this.internalEntityEvents.set(entity, [EntityEventDestroy, []]);
+      this.entityList[entity] = EntityStateDestroying;
     }
   }
 
@@ -103,57 +113,39 @@ export class World {
     componentType: T,
     data: DeleteFunctions<Omit<InstanceType<T>, typeof NETWORK_ID>>
   ): World {
-    if (!this.entityList[entity]) {
+    if (this.entityList[entity] <= EntityStateDestroying) {
       console.error("Cannot add component to inactive entity");
       return this;
     }
 
-    const componentInstance = component(componentType, data);
-    const [_, modified] = this.modifiedEntities.get(entity) ?? [];
+    if (componentType[COMPONENT_ID] === undefined) {
+      return this;
+    }
 
-    this.modifiedEntities.set(entity, [
+    const componentInstance = component(componentType, data);
+    const [evt, modified] = this.internalEntityEvents.get(entity) || [
       EntityEventAddComponent,
-      [...(modified || []), componentInstance],
+      [],
+    ];
+
+    this.internalEntityEvents.set(entity, [
+      Math.min(evt, EntityEventAddComponent),
+      [...modified, componentInstance],
     ]);
 
     return this;
   }
 
-  /**
-   * Retrieves the instance of the `component` assigned to the `entity`. If the `entity`
-   * does *NOT* have a component of type `component` assigned to it, then `null` is returned.
-   *
-   * @example
-   *
-   * const c = world.GetEntityComponent(entity, SomeComponentType);
-   */
-  getEntityComponent<TComponent extends ComponentConstructor>(
-    entity: Entity,
-    component: TComponent
-  ): InstanceType<TComponent> | null {
-    const componentList = this.componentTable.get(component);
-
-    if (componentList) {
-      const foundComponent = componentList[entity];
-      if (
-        foundComponent !== null &&
-        foundComponent[COMPONENT_TYPE] === component
-      ) {
-        // We now know the foundComponent instance has a constructor of type TComponent so this is safe
-        return foundComponent as InstanceType<TComponent>;
-      }
+  getAllComponentsForEntity(entity: Entity): Component[] | null {
+    if (this.entityList[entity] <= EntityStateDestroying) {
+      return null;
     }
 
-    return null;
-  }
-
-  getAllComponentsForEntity(entity: Entity): Component[] {
+    const archetype = this.archetypes[this.mapEntityToArchetype[entity]];
     const components: Component[] = [];
-    this.componentTable.forEach((componentList) => {
-      const component = componentList[entity];
-      if (component) {
-        components.push(component);
-      }
+
+    archetype.components.forEach((componentList) => {
+      components.push(componentList[entity]);
     });
     return components;
   }
@@ -162,7 +154,12 @@ export class World {
    * Register a System to process Entities on each frame.
    */
   registerSystem(system: System): World {
-    this.systems.set(system.constructor as SystemConstructor, system);
+    const found = this.systems.find(
+      (s) => s.constructor === system.constructor
+    );
+    if (!found) {
+      this.systems.push(system);
+    }
     return this;
   }
 
@@ -183,9 +180,6 @@ export class World {
     return this;
   }
 
-  /**
-   * Might change this idk but easy for now
-   */
   registerBundle(bundle: Bundle): World {
     this.bundles.set(bundle.constructor.name, bundle);
     return this;
@@ -203,79 +197,6 @@ export class World {
     return bundleInstance.build(entity, this);
   }
 
-  Query<A extends ComponentConstructor>(
-    include: [A],
-    exclude?: ComponentConstructor[]
-  ): [Entity, InstanceType<A>[]][];
-  Query<A extends ComponentConstructor, B extends ComponentConstructor>(
-    include: [A, B],
-    exclude?: ComponentConstructor[]
-  ): [Entity, [InstanceType<A>, InstanceType<B>]][];
-  Query<
-    A extends ComponentConstructor,
-    B extends ComponentConstructor,
-    C extends ComponentConstructor,
-  >(
-    include: [A, B, C],
-    exclude?: ComponentConstructor[]
-  ): [Entity, [InstanceType<A>, InstanceType<B>, InstanceType<C>]][];
-  Query<
-    A extends ComponentConstructor,
-    B extends ComponentConstructor,
-    C extends ComponentConstructor,
-  >(
-    include: [A] | [A, B] | [A, B, C],
-    exclude: ComponentConstructor[] = []
-  ): [Entity, [A] | [A, B] | [A, B, C]][] {
-    // This is what we're trying to build up to
-    const componentInstances: [Entity, typeof include][] = [];
-
-    for (let entity = 0; entity < this.queryEntityLength; entity++) {
-      // Flip to FALSE whenever a condition fails. This must be TRUE in order for this
-      // entity's components to be added
-      let querySuccess = true;
-
-      // Check that the entity is active
-      if (this.entityList[entity] === EntityStateInactive) {
-        querySuccess = false;
-        continue;
-      }
-
-      const components = new Array(include.length) as typeof include;
-
-      // Check that the entity has all the components that are to be queried
-      for (let i = 0; i < include.length; i++) {
-        const component = this.getEntityComponent(entity, include[i]);
-        if (!component) {
-          // The component instance is null for this entity, so the entity does not have the component and should be excluded
-          querySuccess = false;
-          break;
-        }
-
-        // @ts-expect-error we know what we're doing here
-        components[i] = component;
-      }
-
-      if (querySuccess) {
-        // All components were found for this entity, so now check if the entity has any of the components that are to be excluded
-        for (let i = 0; i < exclude.length; i++) {
-          const component = this.getEntityComponent(entity, exclude[i]);
-          if (component) {
-            // The instance is NOT null, so the entity has the component and should be excluded
-            querySuccess = false;
-            break;
-          }
-        }
-      }
-
-      if (querySuccess) {
-        componentInstances.push([entity, components]);
-      }
-    }
-
-    return componentInstances;
-  }
-
   start(): void {
     this.#gameStarted = true;
 
@@ -288,51 +209,56 @@ export class World {
   private update(timestamp: number): void {
     this.tick++;
 
-    this.modifiedEntities.forEach((modification, entity) => {
-      const [action, components] = modification;
+    console.log(
+      this.tick,
+      " | LAST RUN TIME DIFF MS",
+      Date.now() - LAST_RUN_TIME
+    );
+    LAST_RUN_TIME = Date.now();
 
-      if (action === EntityEventAddComponent) {
-        // @todo fix this
-        const entitySignature = components
-          .map((c) => c[COMPONENT_TYPE][COMPONENT_ID])
-          .filter((id) => id !== undefined)
-          .sort();
-        if (!entitySignature.length) {
-          return;
-        }
-
-        // @todo this can be optimized
-        const archetype = this.archetypes.find((a) => {
-          return entitySignature.every((id) => a.signature.includes(id));
-        });
-
-        if (archetype) {
-          archetype.entities.push(entity);
-          components.forEach((component, i) => {
-            archetype.components
-              .get(components[i][COMPONENT_TYPE])
-              ?.push(component);
-          });
-        } else {
-          const newArchetype: Archetype = {
-            signature: entitySignature as number[],
-            components: new Map(
-              components.map((c) => [c[COMPONENT_TYPE], [c]])
-            ),
-            entities: [entity],
-          };
-          this.archetypes.push(newArchetype);
-        }
-      } else if (action === 3) {
-        //
-      }
-    });
-
-    this.modifiedEntities.clear();
+    this.handleEntityEvents();
 
     this.runUpdateSystems(timestamp);
 
     raf(this.update.bind(this));
+  }
+
+  private handleEntityEvents() {
+    this.internalEntityEvents.forEach((modification, entity) => {
+      const [action, components] = modification;
+
+      if (action === EntityEventCreate) {
+        this.entityList[entity] = EntityStateActive;
+
+        const entitySignature = createSignature(
+          components.map((c) => c[COMPONENT_TYPE][COMPONENT_ID] as number)
+        );
+        const archetypeIdx = this.archetypes.findIndex((a) =>
+          signatureEquals(a.signature, entitySignature)
+        );
+
+        if (archetypeIdx !== -1) {
+          const archetype = this.archetypes[archetypeIdx];
+          updateArchetype(archetype, components, entity);
+          this.mapEntityToArchetype[entity] = archetypeIdx;
+        } else {
+          const newArchetype = createArchetype(
+            new Map(components.map((c) => [c[COMPONENT_TYPE], [c]])),
+            [entity]
+          );
+          const len = this.archetypes.push(newArchetype);
+          this.mapEntityToArchetype[entity] = len - 1;
+        }
+      } else if (action === EntityEventAddComponent) {
+        // @todo
+      } else if (action === EntityEventRemoveComponent) {
+        // @todo
+      } else if (action === EntityEventDestroy) {
+        // @todo
+      }
+    });
+
+    this.internalEntityEvents.clear();
   }
 
   private runUpdateSystems(timestamp: number) {
@@ -346,15 +272,19 @@ export class World {
     };
 
     // Update all systems
-    this.systems.forEach((system, systemType) => {
+    for (let s = 0; s < this.systems.length; s++) {
+      const system = this.systems[s];
+      const systemType = system.constructor as SystemConstructor;
       const systemComponentTypes = systemType[SYSTEM_PARAMS];
       const systemSignature = systemType[SYSTEM_SIGNATURE];
 
       // Find all archetypes that match the system signature
-      for (let i = 0; i < this.archetypes.length; i++) {
-        const archetype = this.archetypes[i];
+      for (let a = 0; a < this.archetypes.length; a++) {
+        const archetype = this.archetypes[a];
 
-        if (!signatureCompare(systemSignature.queryWith, archetype.signature)) {
+        if (
+          !signatureContains(systemSignature.queryWith, archetype.signature)
+        ) {
           // Signature does not match, skip this archetype
           continue;
         }
@@ -367,8 +297,8 @@ export class World {
           const componentParams: Component[] = [];
 
           // Collect the components based on the system's requirements
-          for (let c = 0; c < systemComponentTypes.queryWith.length; c++) {
-            const systemComponentType = systemComponentTypes.queryWith[c];
+          for (let i = 0; i < systemComponentTypes.queryWith.length; i++) {
+            const systemComponentType = systemComponentTypes.queryWith[i];
             const components = archetypeComponents.get(
               systemComponentType
             ) as Component[];
@@ -386,6 +316,6 @@ export class World {
           );
         }
       }
-    });
+    }
   }
 }

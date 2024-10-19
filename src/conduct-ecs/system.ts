@@ -103,14 +103,14 @@ export interface SystemParams {
    */
   entity: Entity;
   world: World;
-  time: {
+  time: Readonly<{
     /**
      * The current cycle, incremented each frame.
      */
     tick: number;
     delta: number;
     timestamp: number;
-  };
+  }>;
 }
 
 /**

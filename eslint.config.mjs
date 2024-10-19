@@ -19,6 +19,7 @@ export default tseslint.config(
       "simple-import-sort/exports": "error",
       "typescript-eslint/no-unused-vars": "off",
       "@typescript-eslint/no-unsafe-function-types": "off",
+      "@typescript-eslint/prefer-for-of": "off",  // normal for-loop is faster
       "@typescript-eslint/no-extraneous-class": "off",
       "@typescript-eslint/no-unused-vars": [
         "error",

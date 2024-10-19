@@ -26,6 +26,10 @@ const EntityStateInactive = 0;
 const EntityStateSpawning = 1;
 const EntityStateActive = 2;
 
+const EntityEventAddComponent = 1;
+const EntityEventRemoveComponent = 2;
+const EntityEventDestroy = 3;
+
 export interface WorldConfig {
   gameHost: "client" | "server";
   fps?: number;
@@ -75,24 +79,16 @@ export class World {
     }
 
     this.entityList[entity] = EntityStateSpawning;
-
-    // Set all components to null for this entity
-    // Takes advantage of javascript's dynamic arrays
-    this.componentTable.forEach((componentList) => {
-      componentList[entity] = null;
-    });
-
-    this.modifiedEntities.set(entity, [1, []]);
+    this.modifiedEntities.set(entity, [EntityEventAddComponent, []]);
 
     return entity;
   }
 
   destroyEntity(entity: Entity): void {
-    this.componentTable.forEach((componentList) => {
-      componentList[entity] = null;
-    });
-
-    this.entityList[entity] = EntityStateInactive;
+    if (this.entityList[entity]) {
+      this.modifiedEntities.set(entity, [EntityEventDestroy, []]);
+      this.entityList[entity] = EntityStateInactive;
+    }
   }
 
   /**
@@ -107,24 +103,18 @@ export class World {
     componentType: T,
     data: DeleteFunctions<Omit<InstanceType<T>, typeof NETWORK_ID>>
   ): World {
+    if (!this.entityList[entity]) {
+      console.error("Cannot add component to inactive entity");
+      return this;
+    }
+
     const componentInstance = component(componentType, data);
     const [_, modified] = this.modifiedEntities.get(entity) ?? [];
-    this.modifiedEntities.set(entity, [1, [...modified, componentInstance]]);
-    // if (!this.componentTable.has(componentInstance[COMPONENT_TYPE])) {
-    //   this.componentTable.set(
-    //     componentInstance[COMPONENT_TYPE],
-    //     new Array(this.entityList.length).fill(null)
-    //   );
-    // }
-    //
-    // const componentList = this.componentTable.get(
-    //   componentInstance[COMPONENT_TYPE]
-    // );
-    // if (!componentList) {
-    //   return this;
-    // }
-    //
-    // componentList[entity] = componentInstance;
+
+    this.modifiedEntities.set(entity, [
+      EntityEventAddComponent,
+      [...(modified || []), componentInstance],
+    ]);
 
     return this;
   }
@@ -300,47 +290,60 @@ export class World {
 
     this.modifiedEntities.forEach((modification, entity) => {
       const [action, components] = modification;
-      const entitySignature = components
-        .map((c) => c[COMPONENT_TYPE][COMPONENT_ID])
-        .filter((id) => id !== undefined)
-        .sort();
-      if (!entitySignature.length) {
-        return;
-      }
 
-      // @todo this can be optimized
-      const archetype = this.archetypes.find((a) => {
-        return entitySignature.every((id) => a.signature.includes(id));
-      });
+      if (action === EntityEventAddComponent) {
+        // @todo fix this
+        const entitySignature = components
+          .map((c) => c[COMPONENT_TYPE][COMPONENT_ID])
+          .filter((id) => id !== undefined)
+          .sort();
+        if (!entitySignature.length) {
+          return;
+        }
 
-      if (archetype) {
-        archetype.entities.push(entity);
-        components.forEach((component, i) => {
-          archetype.components
-            .get(components[i][COMPONENT_TYPE])
-            ?.push(component);
+        // @todo this can be optimized
+        const archetype = this.archetypes.find((a) => {
+          return entitySignature.every((id) => a.signature.includes(id));
         });
-        return;
-      }
 
-      const newArchetype: Archetype = {
-        signature: entitySignature as number[],
-        components: new Map(components.map((c) => [c[COMPONENT_TYPE], [c]])),
-        entities: [entity],
-      };
-      this.archetypes.push(newArchetype);
+        if (archetype) {
+          archetype.entities.push(entity);
+          components.forEach((component, i) => {
+            archetype.components
+              .get(components[i][COMPONENT_TYPE])
+              ?.push(component);
+          });
+        } else {
+          const newArchetype: Archetype = {
+            signature: entitySignature as number[],
+            components: new Map(
+              components.map((c) => [c[COMPONENT_TYPE], [c]])
+            ),
+            entities: [entity],
+          };
+          this.archetypes.push(newArchetype);
+        }
+      } else if (action === 3) {
+        //
+      }
     });
 
     this.modifiedEntities.clear();
 
-    this.updateSystems(timestamp);
+    this.runUpdateSystems(timestamp);
 
     raf(this.update.bind(this));
   }
 
-  private updateSystems(timestamp: number) {
+  private runUpdateSystems(timestamp: number) {
     const secondsPassed = (timestamp - this.#previousTimestamp) / 1000;
     this.#previousTimestamp = timestamp;
+
+    const time = {
+      tick: this.tick,
+      delta: secondsPassed,
+      timestamp,
+    };
 
     // Update all systems
     this.systems.forEach((system, systemType) => {
@@ -361,15 +364,15 @@ export class World {
 
         // Each entity in the archetype will be processed
         for (let e = 0; e < archetypeEntities.length; e++) {
-          const components: Component[] = [];
+          const componentParams: Component[] = [];
 
           // Collect the components based on the system's requirements
-          for (let j = 0; j < systemComponentTypes.queryWith.length; j++) {
-            const systemComponentType = systemComponentTypes.queryWith[j];
-            const systemComponents = archetypeComponents.get(
+          for (let c = 0; c < systemComponentTypes.queryWith.length; c++) {
+            const systemComponentType = systemComponentTypes.queryWith[c];
+            const components = archetypeComponents.get(
               systemComponentType
             ) as Component[];
-            components.push(systemComponents[e]);
+            componentParams.push(components[e]);
           }
 
           // Update the system with the queried params
@@ -377,13 +380,9 @@ export class World {
             {
               entity: archetypeEntities[e],
               world: this,
-              time: {
-                tick: this.tick,
-                delta: secondsPassed,
-                timestamp,
-              },
+              time,
             },
-            ...components
+            ...componentParams
           );
         }
       }

@@ -44,6 +44,7 @@ class TestComponentTwo extends Component {
 class TestComponentThree extends Component {
   value!: number;
 }
+class TestComponentFour extends Component {}
 
 class TestSystemOne implements System {
   @Query()
@@ -75,6 +76,13 @@ class TestSystemOneTwoThree implements System {
   }
 }
 
+class TestSystemFour implements System {
+  @Query()
+  update(_: SystemParams, abc: TestComponentFour) {
+    //
+  }
+}
+
 export default class MainGameStartSystem implements SystemInit {
   init(world: World) {
     console.log("GAME INIT >", world.gameHostType);
@@ -86,25 +94,26 @@ export default class MainGameStartSystem implements SystemInit {
       // testing
       .registerSystem(new TestSystemOne())
       .registerSystem(new TestSystemOneTwo())
-      .registerSystem(new TestSystemOneTwoThree());
+      .registerSystem(new TestSystemOneTwoThree())
+      .registerSystem(new TestSystemFour());
 
     // if (world.gameHostType === "client") {
     //   world.spawnBundle(PlayerBundle);
     // }
 
-    // const a = world.createEntity();
-    // world.addComponentToEntity(a, TestComponentOne, {});
-    //
-    // const b = world.createEntity();
-    // world.addComponentToEntity(b, TestComponentOne, {});
-    // world.addComponentToEntity(b, TestComponentTwo, {});
+    const a = world.createEntity();
+    world.addComponentToEntity(a, TestComponentOne, { value: 1 });
 
-    // const e = world.createEntity();
-    // world.addComponentToEntity(e, TestComponentThree, {});
-    //
-    // const c = world.createEntity();
-    // world.addComponentToEntity(c, TestComponentOne, {});
-    // world.addComponentToEntity(c, TestComponentTwo, {});
+    const b = world.createEntity();
+    world.addComponentToEntity(b, TestComponentOne, { value: 1 });
+    world.addComponentToEntity(b, TestComponentTwo, { value: 1 });
+
+    const e = world.createEntity();
+    world.addComponentToEntity(e, TestComponentThree, { value: 1 });
+
+    const c = world.createEntity();
+    world.addComponentToEntity(c, TestComponentOne, { value: 1 });
+    world.addComponentToEntity(c, TestComponentTwo, { value: 1 });
 
     for (let i = 0; i < 9999; i++) {
       const entity = world.createEntity();
@@ -114,6 +123,10 @@ export default class MainGameStartSystem implements SystemInit {
     }
 
     world.start();
+
+    setTimeout(() => {
+      world.addComponentToEntity(10, TestComponentFour, {});
+    }, 2000);
 
     // const d = world.createEntity();
     // world.addComponentToEntity(d, TestComponentOne, {});

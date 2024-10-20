@@ -25,8 +25,6 @@ import {
   SystemInit,
 } from "./system";
 
-type ComponentTable = Map<ComponentConstructor, (Component | null)[]>;
-
 const EntityStateInactive = 0;
 const EntityStateDestroying = 1;
 const EntityStateSpawning = 2;
@@ -42,11 +40,14 @@ export interface WorldConfig {
   fps?: number;
 }
 
-let LAST_RUN_TIME = Date.now();
+const LAST_RUN_TIME = Date.now();
 
 export class World {
   // The index is the entity ID and the value is the entity state.
   private entityList = new Int32Array(10_000);
+
+  // Buffer events for entities
+  private internalEntityEvents = new Map<Entity, [number, Component[]]>();
 
   // All archetypes
   private archetypes: Archetype[] = [];
@@ -59,8 +60,6 @@ export class World {
 
   // Systems that run a single time when the game starts
   private initSystems: SystemInit[] = [];
-
-  private internalEntityEvents = new Map<Entity, [number, Component[]]>();
 
   // Registered bundles
   private bundles = new Map<string, Bundle>();
@@ -136,13 +135,14 @@ export class World {
     return this;
   }
 
-  getAllComponentsForEntity(entity: Entity): Component[] | null {
+  getAllComponentsForEntity(entity: Entity): Component[] {
+    const components: Component[] = [];
+
     if (this.entityList[entity] <= EntityStateDestroying) {
-      return null;
+      return components;
     }
 
     const archetype = this.archetypes[this.mapEntityToArchetype[entity]];
-    const components: Component[] = [];
 
     archetype.components.forEach((componentList) => {
       components.push(componentList[entity]);
@@ -176,6 +176,7 @@ export class World {
       console.error("Cannot register a SystemInit after the game has started");
       return this;
     }
+
     this.initSystems.push(system);
     return this;
   }
@@ -209,48 +210,46 @@ export class World {
   private update(timestamp: number): void {
     this.tick++;
 
-    console.log(
-      this.tick,
-      " | LAST RUN TIME DIFF MS",
-      Date.now() - LAST_RUN_TIME
-    );
-    LAST_RUN_TIME = Date.now();
+    // console.log(
+    //   this.tick,
+    //   " | LAST RUN TIME DIFF MS",
+    //   Date.now() - LAST_RUN_TIME
+    // );
+    // LAST_RUN_TIME = Date.now();
 
-    this.handleEntityEvents();
+    this.#handleEntityEvents();
 
-    this.runUpdateSystems(timestamp);
+    this.#runUpdateSystems(timestamp);
 
     raf(this.update.bind(this));
   }
 
-  private handleEntityEvents() {
+  #handleEntityEvents() {
     this.internalEntityEvents.forEach((modification, entity) => {
       const [action, components] = modification;
 
       if (action === EntityEventCreate) {
         this.entityList[entity] = EntityStateActive;
-
-        const entitySignature = createSignature(
-          components.map((c) => c[COMPONENT_TYPE][COMPONENT_ID] as number)
-        );
-        const archetypeIdx = this.archetypes.findIndex((a) =>
-          signatureEquals(a.signature, entitySignature)
-        );
-
-        if (archetypeIdx !== -1) {
-          const archetype = this.archetypes[archetypeIdx];
-          updateArchetype(archetype, components, entity);
-          this.mapEntityToArchetype[entity] = archetypeIdx;
-        } else {
-          const newArchetype = createArchetype(
-            new Map(components.map((c) => [c[COMPONENT_TYPE], [c]])),
-            [entity]
-          );
-          const len = this.archetypes.push(newArchetype);
-          this.mapEntityToArchetype[entity] = len - 1;
-        }
+        this.#addOrUpdateArchetype(entity, components);
       } else if (action === EntityEventAddComponent) {
-        // @todo
+        const archetype = this.archetypes[this.mapEntityToArchetype[entity]];
+        if (!archetype) {
+          // @todo
+          return;
+        }
+
+        // Remove the entity from the old archetype
+        const entityIdx = archetype.entities.findIndex((e) => e === entity);
+        archetype.entities = archetype.entities.filter((e) => e !== entity);
+
+        // Remove the components from the old archetype
+        const existingComponents: Component[] = [];
+        archetype.components.forEach((componentList) => {
+          existingComponents.push(...componentList.splice(entityIdx, 1));
+        });
+
+        const allComponents = [...existingComponents, ...components];
+        this.#addOrUpdateArchetype(entity, allComponents);
       } else if (action === EntityEventRemoveComponent) {
         // @todo
       } else if (action === EntityEventDestroy) {
@@ -261,7 +260,29 @@ export class World {
     this.internalEntityEvents.clear();
   }
 
-  private runUpdateSystems(timestamp: number) {
+  #addOrUpdateArchetype(entity: Entity, components: Component[]) {
+    const entitySignature = createSignature(
+      components.map((c) => c[COMPONENT_TYPE][COMPONENT_ID] as number)
+    );
+    const archetypeIdx = this.archetypes.findIndex((a) =>
+      signatureEquals(a.signature, entitySignature)
+    );
+
+    if (archetypeIdx !== -1) {
+      const archetype = this.archetypes[archetypeIdx];
+      updateArchetype(archetype, components, entity);
+      this.mapEntityToArchetype[entity] = archetypeIdx;
+    } else {
+      const archetype = createArchetype(
+        new Map(components.map((c) => [c[COMPONENT_TYPE], [c]])),
+        [entity]
+      );
+      const len = this.archetypes.push(archetype);
+      this.mapEntityToArchetype[entity] = len - 1;
+    }
+  }
+
+  #runUpdateSystems(timestamp: number) {
     const secondsPassed = (timestamp - this.#previousTimestamp) / 1000;
     this.#previousTimestamp = timestamp;
 

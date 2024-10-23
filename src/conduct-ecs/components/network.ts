@@ -1,8 +1,8 @@
-import { Component } from '../component';
+import { Component } from "../component";
 
-export type NetworkAuthority = 'client' | 'server';
+export type NetworkAuthority = "client" | "server";
 
-export const NETWORK_ID = Symbol('NETWORK_ID');
+export const NETWORK_ID = Symbol("NETWORK_ID");
 
 const networkIdCounter = 0;
 
@@ -21,5 +21,5 @@ export abstract class NetworkedComponent extends Component {
 }
 
 export class Network extends NetworkedComponent {
-  readonly bundle!: string;
+  readonly bundle: string = "";
 }

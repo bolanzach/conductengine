@@ -1,5 +1,5 @@
-import { Component } from '../component';
-import { NetworkedComponent } from './network';
+import { Component } from "../component";
+import { NetworkedComponent } from "./network";
 
 export interface Position {
   x: number;
@@ -8,8 +8,10 @@ export interface Position {
 }
 
 export default class Transform2D extends Component {
-  position: Position = { x: 0, y: 0 };
-  rotation: Position = { x: 0, y: 0 };
+  x = 0;
+  y = 0;
+  rx = 0;
+  ry = 0;
 }
 
 export class NetworkedTransform extends NetworkedComponent {}

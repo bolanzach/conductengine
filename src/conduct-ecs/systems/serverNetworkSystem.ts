@@ -18,7 +18,7 @@ export class ServerNetworkSystem implements SystemInit {
           const bundle = evt.data.bundle;
           world.spawnBundle(bundle);
         },
-        input(evt: TransportEvent): void {
+        input(_: TransportEvent): void {
           // handled in serverInputSystem
         },
         spawn(_: TransportEvent): void {

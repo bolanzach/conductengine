@@ -13,6 +13,14 @@ import {
 import { NETWORK_ID } from "./components/network";
 import { Entity } from "./entity";
 import {
+  EVENT_COMPONENT_ADDED,
+  EVENT_ENTITY_CREATED,
+  EVENT_ENTITY_DESTROY,
+  EVENT_ENTITY_SPAWNED,
+  EventEmitter,
+  EventReceiver,
+} from "./event";
+import {
   createSignature,
   signatureContains,
   signatureEquals,
@@ -37,10 +45,11 @@ const EntityEventDestroy = 4;
 
 export interface WorldConfig {
   gameHost: "client" | "server";
+  events: EventEmitter & EventReceiver;
   fps?: number;
 }
 
-const LAST_RUN_TIME = Date.now();
+let LAST_RUN_TIME = performance.now();
 
 export class World {
   // The index is the entity ID and the value is the entity state.
@@ -68,7 +77,13 @@ export class World {
   #previousTimestamp = 0;
   #gameStarted = false;
 
-  constructor(private config: WorldConfig) {}
+  constructor(private config: WorldConfig) {
+    config.events.subscribe(({ event, data }) => {
+      if (event === EVENT_ENTITY_DESTROY) {
+        this.destroyEntity(data);
+      }
+    });
+  }
 
   get gameHostType() {
     return this.config.gameHost;
@@ -80,7 +95,7 @@ export class World {
   createEntity(): Entity {
     let entity = 0;
 
-    while (entity <= this.entityList.length) {
+    while (entity < this.entityList.length) {
       if (this.entityList[entity] === EntityStateInactive) {
         break;
       }
@@ -89,6 +104,11 @@ export class World {
 
     this.entityList[entity] = EntityStateSpawning;
     this.internalEntityEvents.set(entity, [EntityEventCreate, []]);
+
+    this.config.events.publish({
+      event: EVENT_ENTITY_CREATED,
+      data: entity,
+    });
 
     return entity;
   }
@@ -131,6 +151,11 @@ export class World {
       Math.min(evt, EntityEventAddComponent),
       [...modified, componentInstance],
     ]);
+
+    this.config.events.publish({
+      event: EVENT_COMPONENT_ADDED,
+      data: { entity, component: componentInstance },
+    });
 
     return this;
   }
@@ -210,12 +235,12 @@ export class World {
   private update(timestamp: number): void {
     this.tick++;
 
-    // console.log(
-    //   this.tick,
-    //   " | LAST RUN TIME DIFF MS",
-    //   Date.now() - LAST_RUN_TIME
-    // );
-    // LAST_RUN_TIME = Date.now();
+    console.log(
+      this.tick,
+      " | LAST RUN TIME DIFF MS",
+      performance.now() - LAST_RUN_TIME
+    );
+    LAST_RUN_TIME = performance.now();
 
     this.#handleEntityEvents();
 
@@ -229,8 +254,12 @@ export class World {
       const [action, components] = modification;
 
       if (action === EntityEventCreate) {
-        this.entityList[entity] = EntityStateActive;
         this.#addOrUpdateArchetype(entity, components);
+        this.entityList[entity] = EntityStateActive;
+        this.config.events.publish({
+          event: EVENT_ENTITY_SPAWNED,
+          data: entity,
+        });
       } else if (action === EntityEventAddComponent) {
         const archetype = this.archetypes[this.mapEntityToArchetype[entity]];
         if (!archetype) {
@@ -249,6 +278,7 @@ export class World {
         });
 
         const allComponents = [...existingComponents, ...components];
+
         this.#addOrUpdateArchetype(entity, allComponents);
       } else if (action === EntityEventRemoveComponent) {
         // @todo
@@ -269,8 +299,7 @@ export class World {
     );
 
     if (archetypeIdx !== -1) {
-      const archetype = this.archetypes[archetypeIdx];
-      updateArchetype(archetype, components, entity);
+      updateArchetype(this.archetypes[archetypeIdx], components, entity);
       this.mapEntityToArchetype[entity] = archetypeIdx;
     } else {
       const archetype = createArchetype(

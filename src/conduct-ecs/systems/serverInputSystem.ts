@@ -2,7 +2,7 @@ import {
   NetworkTransport,
   TransportEvent,
 } from "../../conduct-core/networkTransport";
-import Input from "../components/input";
+import Input, { INPUT_EVENT } from "../components/input";
 import { Query, System, SystemParams } from "../system";
 
 export default class ServerInputSystem implements System {
@@ -31,6 +31,6 @@ export default class ServerInputSystem implements System {
       this.currentEvent = this.eventBuffer.shift();
     }
 
-    input.event = this.currentEvent?.data;
+    input[INPUT_EVENT] = this.currentEvent?.data;
   }
 }

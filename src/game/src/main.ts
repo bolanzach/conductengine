@@ -10,6 +10,7 @@ import {
   SystemParams,
   World,
 } from "../../conduct-ecs";
+import { EventEmitter } from "../../conduct-ecs/event";
 import PlayerBundle from "./bundles/player";
 import PlayerSystem from "./systems/playerSystem";
 
@@ -35,8 +36,10 @@ import PlayerSystem from "./systems/playerSystem";
 //   }
 // }
 
+// class TestSpawn extends Component {}
+
 class TestComponentOne extends Component {
-  value!: number;
+  value = 0;
 }
 class TestComponentTwo extends Component {
   value!: number;
@@ -46,10 +49,28 @@ class TestComponentThree extends Component {
 }
 class TestComponentFour extends Component {}
 
+// class TestSpawnSystem implements System {
+//   @Query()
+//   update({ world }: SystemParams, _: TestSpawn) {
+//     const e = world.createEntity();
+//     world.addComponentToEntity(e, TestComponentOne, {
+//       value: 0,
+//     });
+//
+//     const ee = world.createEntity();
+//     world.addComponentToEntity(ee, TestComponentOne, {
+//       value: 0,
+//     });
+//     world.addComponentToEntity(ee, TestComponentTwo, {
+//       value: 1,
+//     });
+//   }
+// }
+
 class TestSystemOne implements System {
   @Query()
   update({ world }: SystemParams, one: TestComponentOne) {
-    //
+    one.value++;
   }
 }
 
@@ -84,55 +105,23 @@ class TestSystemFour implements System {
 }
 
 export default class MainGameStartSystem implements SystemInit {
+  constructor(private events: EventEmitter) {}
+
   init(world: World) {
     console.log("GAME INIT >", world.gameHostType);
 
-    world
-      .registerBundle(new PlayerBundle())
-      .registerSystem(new PlayerSystem())
+    world.registerBundle(new PlayerBundle()).registerSystem(new PlayerSystem());
 
-      // testing
-      .registerSystem(new TestSystemOne())
-      .registerSystem(new TestSystemOneTwo())
-      .registerSystem(new TestSystemOneTwoThree())
-      .registerSystem(new TestSystemFour());
+    // testing
+    // .registerSystem(new TestSystemOne())
+    // .registerSystem(new TestSystemOneTwo())
+    // .registerSystem(new TestSystemOneTwoThree())
+    // .registerSystem(new TestSystemFour());
 
-    // if (world.gameHostType === "client") {
-    //   world.spawnBundle(PlayerBundle);
-    // }
-
-    const a = world.createEntity();
-    world.addComponentToEntity(a, TestComponentOne, { value: 1 });
-
-    const b = world.createEntity();
-    world.addComponentToEntity(b, TestComponentOne, { value: 1 });
-    world.addComponentToEntity(b, TestComponentTwo, { value: 1 });
-
-    const e = world.createEntity();
-    world.addComponentToEntity(e, TestComponentThree, { value: 1 });
-
-    const c = world.createEntity();
-    world.addComponentToEntity(c, TestComponentOne, { value: 1 });
-    world.addComponentToEntity(c, TestComponentTwo, { value: 1 });
-
-    for (let i = 0; i < 9999; i++) {
-      const entity = world.createEntity();
-      world.addComponentToEntity(entity, TestComponentOne, { value: i });
-      world.addComponentToEntity(entity, TestComponentTwo, { value: i });
-      world.addComponentToEntity(entity, TestComponentThree, { value: 0 });
+    if (world.gameHostType === "client") {
+      world.spawnBundle(PlayerBundle);
     }
 
     world.start();
-
-    setTimeout(() => {
-      world.addComponentToEntity(10, TestComponentFour, {});
-    }, 2000);
-
-    // const d = world.createEntity();
-    // world.addComponentToEntity(d, TestComponentOne, {});
-    // world.addComponentToEntity(d, TestComponentTwo, {});
-    //
-    // const f = world.createEntity();
-    // world.addComponentToEntity(f, TestComponentThree, {});
   }
 }

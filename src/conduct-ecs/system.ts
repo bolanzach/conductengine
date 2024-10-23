@@ -136,8 +136,21 @@ export interface System {
   update(params: SystemParams, ...components: Component[]): void;
 }
 
+/**
+ * A System that is called a single time, when the World is initialized.
+ */
 export interface SystemInit {
   init(world: World): void;
+}
+
+/**
+ * WIP DO NOT USE
+ *
+ * Can experiment with marking a System as Read-Only to prevent it from
+ * modifying data. This could open up possible multi-threading optimizations.
+ */
+export interface ReadSystem extends System {
+  update(params: SystemParams, ...components: Readonly<Component>[]): void;
 }
 
 /**

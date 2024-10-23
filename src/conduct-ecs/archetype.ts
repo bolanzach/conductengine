@@ -13,7 +13,6 @@ export interface Archetype {
   signature: Signature;
   components: ComponentTable;
   entities: Entity[];
-  //systems: Map<SystemConstructor, boolean>;
 }
 
 export function createArchetype(
@@ -29,7 +28,6 @@ export function createArchetype(
     signature,
     components,
     entities,
-    //systems: new Map(),
   };
 }
 

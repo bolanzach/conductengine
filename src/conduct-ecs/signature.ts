@@ -1,7 +1,13 @@
+/**
+ * A bit mask signature for a set of components.
+ */
 export type Signature = number[];
 
 const BIT_CHUNK_SIZE = 32;
 
+/**
+ * Constructs a signature from a list of component ids.
+ */
 export function createSignature(components: number[]): Signature {
   if (!components.length) {
     return [];
@@ -31,6 +37,9 @@ export function signatureContains(sig: Signature, other: Signature): boolean {
   });
 }
 
+/**
+ * Checks whether the two signatures are equivalent.
+ */
 export function signatureEquals(sig: Signature, other: Signature): boolean {
   if (sig.length !== other.length) {
     return false;

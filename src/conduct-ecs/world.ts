@@ -1,5 +1,12 @@
 import raf from "raf";
 
+import {
+  System,
+  SYSTEM_PARAMS,
+  SYSTEM_SIGNATURE,
+  SystemUpdate,
+} from "@/conduct-ecs/system";
+
 import { Archetype, createArchetype, updateArchetype } from "./archetype";
 import { Bundle, BundleConstructor } from "./bundle";
 import {
@@ -25,13 +32,6 @@ import {
   signatureContains,
   signatureEquals,
 } from "./signature";
-import {
-  System,
-  SYSTEM_PARAMS,
-  SYSTEM_SIGNATURE,
-  SystemConstructor,
-  SystemInit,
-} from "./system";
 
 const EntityStateInactive = 0;
 const EntityStateDestroying = 1;
@@ -65,10 +65,26 @@ export class World {
   private mapEntityToArchetype: number[] = [];
 
   // Registered systems
-  private systems: System[] = [];
+  private systems_legacy: System[] = [];
+
+  // Registered systems
+  private systems: SystemUpdate<
+    never,
+    never,
+    never,
+    never,
+    never,
+    never,
+    never,
+    never,
+    never,
+    never,
+    never,
+    never
+  >[] = [];
 
   // Systems that run a single time when the game starts
-  private initSystems: SystemInit[] = [];
+  private initSystems: typeof this.systems = [];
 
   // Registered bundles
   private bundles = new Map<string, Bundle>();
@@ -76,6 +92,8 @@ export class World {
   private tick = 0;
   #previousTimestamp = 0;
   #gameStarted = false;
+
+  private global = new Map<any, any>();
 
   constructor(private config: WorldConfig) {
     config.events.subscribe(({ event, data }) => {
@@ -178,25 +196,54 @@ export class World {
   /**
    * Register a System to process Entities on each frame.
    */
-  registerSystem(system: System): World {
-    const found = this.systems.find(
-      (s) => s.constructor === system.constructor
-    );
+  registerSystem<
+    A extends Component,
+    B extends Component,
+    C extends Component,
+    D extends Component,
+    E extends Component,
+    F extends Component,
+    G extends Component,
+    H extends Component,
+    I extends Component,
+    J extends Component,
+    K extends Component,
+    L extends Component,
+  >(system: SystemUpdate<A, B, C, D, E, F, G, H, I, J, K, L>): World {
+    const found = this.systems.find((s) => s === system);
     if (!found) {
       this.systems.push(system);
     }
     return this;
   }
 
-  /**
-   * Register a System to run once.
-   */
-  registerSystemInit(system: SystemInit, runImmediate = false): World {
+  registerSystemInit<
+    A extends Component,
+    B extends Component,
+    C extends Component,
+    D extends Component,
+    E extends Component,
+    F extends Component,
+    G extends Component,
+    H extends Component,
+    I extends Component,
+    J extends Component,
+    K extends Component,
+    L extends Component,
+  >(
+    system: SystemUpdate<A, B, C, D, E, F, G, H, I, J, K, L>,
+    runImmediate = false
+  ): World {
     if (runImmediate) {
-      system.init(this);
+      const time = {
+        tick: this.tick,
+        delta: 0,
+        timestamp: Date.now(),
+      };
+      // @ts-expect-error A function that runs immediately consumes no components
+      system({ entity: Infinity, world: this, time });
       return this;
     }
-
     if (this.#gameStarted) {
       console.error("Cannot register a SystemInit after the game has started");
       return this;
@@ -223,10 +270,20 @@ export class World {
     return bundleInstance.build(entity, this);
   }
 
+  setGlobal<T>(value: T): World {
+    this.global.set(value, value);
+    return this;
+  }
+
+  getGlobal<T>(value: T): T {
+    return this.global.get(value);
+  }
+
   start(): void {
     this.#gameStarted = true;
 
-    this.initSystems.forEach((initSystem) => initSystem.init(this));
+    // @ts-expect-error Init systems are not run with any components
+    this.initSystems.forEach((init) => init(this));
     this.initSystems = [];
 
     raf(this.update.bind(this));
@@ -235,12 +292,12 @@ export class World {
   private update(timestamp: number): void {
     this.tick++;
 
-    console.log(
-      this.tick,
-      " | LAST RUN TIME DIFF MS",
-      performance.now() - LAST_RUN_TIME
-    );
-    LAST_RUN_TIME = performance.now();
+    // console.log(
+    //   this.tick,
+    //   " | LAST RUN TIME DIFF MS",
+    //   performance.now() - LAST_RUN_TIME
+    // );
+    // LAST_RUN_TIME = performance.now();
 
     this.#handleEntityEvents();
 
@@ -277,9 +334,9 @@ export class World {
           existingComponents.push(...componentList.splice(entityIdx, 1));
         });
 
-        const allComponents = [...existingComponents, ...components];
+        existingComponents.push(...components);
 
-        this.#addOrUpdateArchetype(entity, allComponents);
+        this.#addOrUpdateArchetype(entity, existingComponents);
       } else if (action === EntityEventRemoveComponent) {
         // @todo
       } else if (action === EntityEventDestroy) {
@@ -312,6 +369,8 @@ export class World {
   }
 
   #runUpdateSystems(timestamp: number) {
+    LAST_RUN_TIME = performance.now();
+
     const secondsPassed = (timestamp - this.#previousTimestamp) / 1000;
     this.#previousTimestamp = timestamp;
 
@@ -324,9 +383,11 @@ export class World {
     // Update all systems
     for (let s = 0; s < this.systems.length; s++) {
       const system = this.systems[s];
-      const systemType = system.constructor as SystemConstructor;
-      const systemComponentTypes = systemType[SYSTEM_PARAMS];
-      const systemSignature = systemType[SYSTEM_SIGNATURE];
+
+      // @ts-expect-error The system has a Definition
+      const systemComponentTypes = system[SYSTEM_PARAMS];
+      // @ts-expect-error The system has a Signature
+      const systemSignature = system[SYSTEM_SIGNATURE];
 
       // Find all archetypes that match the system signature
       for (let a = 0; a < this.archetypes.length; a++) {
@@ -356,16 +417,26 @@ export class World {
           }
 
           // Update the system with the queried params
-          system.update(
-            {
-              entity: archetypeEntities[e],
-              world: this,
-              time,
-            },
-            ...componentParams
-          );
+
+          system.bind(this);
+
+          // system(
+          //   {
+          //     entity: archetypeEntities[e],
+          //     world: this,
+          //     time,
+          //   },
+          //   // @ts-expect-error This is cheating
+          //   ...componentParams
+          // );
         }
       }
     }
+
+    console.log(
+      this.tick,
+      " | LAST RUN TIME DIFF MS",
+      performance.now() - LAST_RUN_TIME
+    );
   }
 }

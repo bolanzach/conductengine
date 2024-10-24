@@ -7,10 +7,12 @@
   "scripts": {
     "clean": "rm -rf dist",
     "lint": "eslint src",
-    "dev": "node_modules/nodemon/bin/nodemon.js --watch src --ext ts,wgsl --exec 'yarn clean && yarn server:compile & yarn client:compile && yarn server:start'",
+    "dev": "node_modules/nodemon/bin/nodemon.js --watch src --ext ts,wgsl --ignore **/*systemDefinitions.ts --exec 'yarn clean && yarn cli:run && yarn server:compile & yarn client:compile && yarn server:start'",
     "server:compile": "node_modules/@swc/cli/bin/swc.js src/conduct-core src/server src/conduct-ecs src/game -d dist --config-file .swcrc",
     "server:start": "node --enable-source-maps dist/src/server",
-    "client:compile": "node_modules/webpack/bin/webpack.js --mode development && cp src/client/main.html dist/src/server/static/main.html"
+    "client:compile": "node_modules/webpack/bin/webpack.js --mode development && cp src/client/main.html dist/src/server/static/main.html",
+    "cli:compile": "node_modules/typescript/bin/tsc cli/main.ts",
+    "cli:run": "node cli/main.js"
   },
   "dependencies": {
     "@webgpu/types": "^0.1.48",

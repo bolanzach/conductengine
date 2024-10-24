@@ -18,8 +18,10 @@ import initNetworkTransport from "./networkTransport";
   startTestGpu();
 
   world
-    .registerSystem(new EventSystem(events))
-    .registerSystem(new NetworkSystem(networkTransport, false, events))
-    .registerSystemInit(new ClientNetworkSystem(networkTransport))
-    .registerSystemInit(new MainGameStartSystem(events), true);
+    .setGlobal(events)
+    .setGlobal(networkTransport)
+    .registerSystem(EventSystem)
+    //.registerSystem(new NetworkSystem(networkTransport, false, events))
+    //.registerSystemInit(new ClientNetworkSystem(networkTransport))
+    .registerSystemInit(MainGameStartSystem, true);
 })();

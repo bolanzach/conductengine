@@ -1,7 +1,115 @@
+import * as SYSTEM_DEFINITIONS from "@/conduct-ecs/systemDefinitions";
+
 import { Component, COMPONENT_ID, ComponentConstructor } from "./component";
 import { Entity } from "./entity";
 import { createSignature, Signature } from "./signature";
 import { World } from "./world";
+
+export const SYSTEM_PARAMS = Symbol("SYSTEM_PARAMS");
+export const SYSTEM_SIGNATURE = Symbol("SYSTEM_SIG");
+
+export type SystemUpdate<A, B, C, D, E, F, G, H, I, J, K, L> =
+  | ((params: SystemParams, a: A) => void)
+  | ((params: SystemParams, a: A, b: B) => void)
+  | ((params: SystemParams, a: A, b: B, c: C) => void)
+  | ((params: SystemParams, a: A, b: B, c: C, d: D) => void)
+  | ((params: SystemParams, a: A, b: B, c: C, d: D, e: E) => void)
+  | ((params: SystemParams, a: A, b: B, c: C, d: D, e: E, f: F) => void)
+  | ((params: SystemParams, a: A, b: B, c: C, d: D, e: E, f: F, g: G) => void)
+  | ((
+      params: SystemParams,
+      a: A,
+      b: B,
+      c: C,
+      d: D,
+      e: E,
+      f: F,
+      g: G,
+      h: H
+    ) => void)
+  | ((
+      params: SystemParams,
+      a: A,
+      b: B,
+      c: C,
+      d: D,
+      e: E,
+      f: F,
+      g: G,
+      h: H,
+      i: I
+    ) => void)
+  | ((
+      params: SystemParams,
+      a: A,
+      b: B,
+      c: C,
+      d: D,
+      e: E,
+      f: F,
+      g: G,
+      h: H,
+      i: I,
+      j: J
+    ) => void)
+  | ((
+      params: SystemParams,
+      a: A,
+      b: B,
+      c: C,
+      d: D,
+      e: E,
+      f: F,
+      g: G,
+      h: H,
+      i: I,
+      j: J,
+      k: K
+    ) => void)
+  | ((
+      params: SystemParams,
+      a: A,
+      b: B,
+      c: C,
+      d: D,
+      e: E,
+      f: F,
+      g: G,
+      h: H,
+      i: I,
+      j: J,
+      k: K,
+      l: L
+    ) => void);
+
+let componentIdCounter = 1;
+
+(function registerSystemDefinitions() {
+  Object.values(SYSTEM_DEFINITIONS).forEach((systemDef) => {
+    const { system, queryWith } = systemDef;
+
+    // Add a Component ID to each Component Constructor
+    queryWith.forEach((cstr) => {
+      if (!cstr[COMPONENT_ID]) {
+        cstr[COMPONENT_ID] = componentIdCounter++;
+      }
+    });
+
+    // @ts-expect-error adds metadata to the System function
+    system[SYSTEM_PARAMS] = {
+      queryWith,
+      queryWithout: [],
+    };
+
+    // @ts-expect-error adds metadata to the System function
+    system[SYSTEM_SIGNATURE] = {
+      queryWith: createSignature(
+        queryWith.map((cstr) => cstr[COMPONENT_ID] as number)
+      ),
+      queryWithout: createSignature([]),
+    };
+  });
+})();
 
 /**
  * Stored on each System to declare how the System should query Components.
@@ -15,8 +123,6 @@ interface SystemSignature {
   queryWith: Signature;
   queryWithout: Signature;
 }
-
-let componentIdCounter = 1;
 
 /**
  * Every Component Type gets assigned a unique ID.
@@ -91,8 +197,6 @@ function queryComponentsDecorator(query?: { Without: ComponentConstructor[] }) {
 }
 
 export const Query = queryComponentsDecorator;
-export const SYSTEM_PARAMS = Symbol("SYSTEM_PARAMS");
-export const SYSTEM_SIGNATURE = Symbol("SYSTEM_SIG");
 
 /**
  * The first parameter in each System Update call.

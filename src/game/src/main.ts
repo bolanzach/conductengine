@@ -1,127 +1,40 @@
 import "reflect-metadata";
 
-import {
-  Component,
-  Network,
-  NetworkedComponent,
-  Query,
-  System,
-  SystemInit,
-  SystemParams,
-  World,
-} from "../../conduct-ecs";
-import { EventEmitter } from "../../conduct-ecs/event";
-import PlayerBundle from "./bundles/player";
-import PlayerSystem from "./systems/playerSystem";
+import { ComponentType, SystemParams } from "@/conduct-ecs";
+import TestComponent from "@/game/src/components/testComponent";
+import TestTwoComponent from "@/game/src/components/testTwoComponent";
+import TestSystem from "@/game/src/systems/testSystem";
+import TestTwoSystem from "@/game/src/systems/testSystemTwo";
 
-// class TestNetworkComponent extends NetworkedComponent {
-//   name!: string;
-// }
-//
-// class TestNetworkSystem implements System {
-//   counter = 0;
-//
-//   @Query()
-//   update({ world }: SystemParams, networkComponent: TestNetworkComponent) {
-//     if (world.gameHostType === 'client') {
-//       console.log(Date.now().toString(), networkComponent.name);
-//       return;
-//     }
-//
-//     this.counter++;
-//     if (this.counter >= 100) {
-//       networkComponent.name = Date.now().toString();
-//       this.counter = 0;
-//     }
-//   }
-// }
+export default function MainGameStartSystem({ world }: SystemParams) {
+  console.log("GAME INIT");
 
-// class TestSpawn extends Component {}
+  const e = world.createEntity();
+  world.addComponentToEntity(e, TestComponent, {
+    value: 0,
+  });
 
-class TestComponentOne extends Component {
-  value = 0;
-}
-class TestComponentTwo extends Component {
-  value!: number;
-}
-class TestComponentThree extends Component {
-  value!: number;
-}
-class TestComponentFour extends Component {}
+  world.registerSystem(TestSystem).registerSystem(TestTwoSystem);
 
-// class TestSpawnSystem implements System {
-//   @Query()
-//   update({ world }: SystemParams, _: TestSpawn) {
-//     const e = world.createEntity();
-//     world.addComponentToEntity(e, TestComponentOne, {
-//       value: 0,
-//     });
-//
-//     const ee = world.createEntity();
-//     world.addComponentToEntity(ee, TestComponentOne, {
-//       value: 0,
-//     });
-//     world.addComponentToEntity(ee, TestComponentTwo, {
-//       value: 1,
-//     });
-//   }
-// }
+  // for (let i = 0; i < 1000; i++) {
+  //   const ee = world.createEntity();
+  //   world.addComponentToEntity(ee, TestComponent, {
+  //     value: 0,
+  //   });
+  //   world.addComponentToEntity(ee, TestTwoComponent, { value: i });
+  // }
 
-class TestSystemOne implements System {
-  @Query()
-  update({ world }: SystemParams, one: TestComponentOne) {
-    one.value++;
-  }
-}
+  // world.registerBundle(new PlayerBundle());
 
-class TestSystemOneTwo implements System {
-  @Query()
-  update(
-    { entity }: SystemParams,
-    one: TestComponentOne,
-    two: TestComponentTwo
-  ) {
-    one.value += two.value;
-  }
-}
+  world.start();
 
-class TestSystemOneTwoThree implements System {
-  @Query()
-  update(
-    { entity }: SystemParams,
-    one: TestComponentOne,
-    two: TestComponentTwo,
-    three: TestComponentThree
-  ) {
-    three.value += one.value - two.value;
-  }
-}
-
-class TestSystemFour implements System {
-  @Query()
-  update(_: SystemParams, abc: TestComponentFour) {
-    //
-  }
-}
-
-export default class MainGameStartSystem implements SystemInit {
-  constructor(private events: EventEmitter) {}
-
-  init(world: World) {
-    console.log("GAME INIT >", world.gameHostType);
-
-    world.registerBundle(new PlayerBundle()).registerSystem(new PlayerSystem());
-
-    // testing
-    // .registerSystem(new TestSystemOne())
-    // .registerSystem(new TestSystemOneTwo())
-    // .registerSystem(new TestSystemOneTwoThree())
-    // .registerSystem(new TestSystemFour());
-
-    if (world.gameHostType === "client") {
-      world.spawnBundle(PlayerBundle);
+  setTimeout(() => {
+    for (let i = 0; i < 10000; i++) {
+      const ee = world.createEntity();
+      world.addComponentToEntity(ee, TestComponent, {
+        value: 0,
+      });
+      world.addComponentToEntity(ee, TestTwoComponent, { value: i });
     }
-
-    world.start();
-  }
+  }, 1000);
 }

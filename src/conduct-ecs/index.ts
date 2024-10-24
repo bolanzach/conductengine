@@ -1,21 +1,22 @@
-export { Bundle, BundleConstructor } from './bundle';
+export { Bundle, BundleConstructor } from "./bundle";
 export {
   Component,
   ComponentConstructor,
   ComponentConstructors,
-} from './component';
+  ComponentType,
+} from "./component";
 export {
   Network,
   NETWORK_ID,
   NetworkAuthority,
   NetworkedComponent,
-} from './components/network';
-export { NetworkedTransform } from './components/transform';
+} from "./components/network";
+export { NetworkedTransform } from "./components/transform";
 export {
   Query,
   System,
   SystemConstructor,
   SystemInit,
   SystemParams,
-} from './system';
-export { World, WorldConfig } from './world';
+} from "./system";
+export { World, WorldConfig } from "./world";

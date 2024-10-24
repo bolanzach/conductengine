@@ -1,31 +1,26 @@
-import Events, { EVENTS } from "../components/events";
-import { ConductEvent, EventReceiver } from "../event";
-import { Query, System, SystemParams } from "../system";
+import EventComponent, {
+  EVENTS,
+} from "@/conduct-ecs/components/eventComponent";
+import { ConductEvent } from "@/conduct-ecs/event";
+import { SystemParams } from "@/conduct-ecs/system";
 
-export default class EventSystem implements System {
-  private lastTick = -Infinity;
+let lastTick = -Infinity;
+const currentEvents = new Map<number, any[]>();
+let futureEvents: ConductEvent[] = [];
 
-  private currentEvents = new Map<number, any[]>();
-  private futureEvents: ConductEvent[] = [];
-
-  constructor(eventReceiver: EventReceiver) {
-    eventReceiver.subscribe((event) => {
-      this.futureEvents.push(event);
+export default function EventSystem(
+  { time }: SystemParams,
+  events: EventComponent
+) {
+  if (time.tick > lastTick) {
+    lastTick = time.tick;
+    currentEvents.clear();
+    futureEvents.forEach((event) => {
+      const existing = currentEvents.get(event.event) ?? [];
+      currentEvents.set(event.event, [...existing, event.data]);
     });
+    futureEvents = [];
   }
 
-  @Query()
-  update({ time }: SystemParams, events: Events) {
-    if (time.tick > this.lastTick) {
-      this.lastTick = time.tick;
-      this.currentEvents.clear();
-      this.futureEvents.forEach((event) => {
-        const existing = this.currentEvents.get(event.event) ?? [];
-        this.currentEvents.set(event.event, [...existing, event.data]);
-      });
-      this.futureEvents = [];
-    }
-
-    events[EVENTS] = this.currentEvents;
-  }
+  events[EVENTS] = currentEvents;
 }

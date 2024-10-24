@@ -1,13 +1,13 @@
-import { Component } from "../component";
+import { Component } from "@/conduct-ecs/component";
 
-export const EVENTS = Symbol("EVENTS");
+export const EVENTS = Symbol("Events");
 
-export default class Events extends Component {
+export default class EventComponent extends Component {
   [EVENTS]? = new Map<number, any[]>();
 }
 
 export function eventsSubscribe(
-  eventComponent: Events,
+  eventComponent: EventComponent,
   event: number,
   cb: (data: any) => void
 ): void {

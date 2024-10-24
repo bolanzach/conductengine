@@ -6,6 +6,10 @@ export const COMPONENT_ID = Symbol("COMPONENT_ID");
 export type ComponentConstructor<T extends Component = Component> =
   (new () => T) & { [COMPONENT_ID]?: number };
 
+export type ComponentType<T extends Component = Component> = (new () => T) & {
+  [COMPONENT_ID]?: number;
+};
+
 /**
  * A Component is struct that contains only data and no behaviors.
  */

@@ -16,6 +16,10 @@
     "emitDecoratorMetadata": true,
     "allowSyntheticDefaultImports": true,
 
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+
     "typeRoots": [
       "./node_modules/@webgpu/types",
       "./node_modules/@types"

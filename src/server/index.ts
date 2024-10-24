@@ -20,9 +20,10 @@ import { GameServer } from "./gameServer";
   });
 
   world
-    .registerSystem(new EventSystem(events))
-    .registerSystem(new NetworkSystem(gameServer, true, events))
-    .registerSystem(new ServerInputSystem(gameServer))
-    .registerSystemInit(new ServerNetworkSystem(gameServer))
-    .registerSystemInit(new MainGameStartSystem(events), true);
+    .setGlobal(events)
+    .registerSystem(EventSystem)
+    //.registerSystem(new NetworkSystem(gameServer, true, events))
+    //.registerSystem(new ServerInputSystem(gameServer))
+    //.registerSystemInit(new ServerNetworkSystem(gameServer))
+    .registerSystemInit(MainGameStartSystem, true);
 })();

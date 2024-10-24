@@ -10,6 +10,12 @@
     "transform": {
       "legacyDecorator": true,
       "decoratorMetadata": true
+    },
+
+    "baseUrl": ".",
+
+    "paths": {
+      "@/*": ["./src/*"]
     }
   },
   "module": {

@@ -8,18 +8,18 @@
     "target": "es2022",
 
     "rootDir": "src",
-    "noEmit": true,
+    "noEmit": false,
+    "outDir": "dist",
     "declaration": true,
 
     "moduleResolution": "bundler",
-//    "isolatedModules": true,
     "moduleDetection": "force",
 
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
 
-    "types": ["node"],
+    "types": ["@webgpu/types", "node"],
 
     "allowSyntheticDefaultImports": true,
     "sourceMap": true,
@@ -32,12 +32,8 @@
     "noImplicitThis": true,
     "noImplicitAny": true,
     "strictNullChecks": true,
-    "noUnusedLocals": false,
-
-    "paths": {
-      "@/*": ["./src/*"]
-    }
+    "noUnusedLocals": false
   },
-  "include": ["**/*.ts"],
+  "include": ["src/**/*.ts"],
   "exclude": ["node_modules"]
 }

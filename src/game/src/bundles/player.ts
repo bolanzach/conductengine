@@ -1,5 +1,5 @@
 import { Bundle, Network, World } from "../../../conduct-ecs";
-import Events from "../../../conduct-ecs/components/events";
+import EventComponent from "../../../conduct-ecs/components/eventComponent";
 import Input from "../../../conduct-ecs/components/input";
 import Transform2D from "../../../conduct-ecs/components/transform";
 import { Entity } from "../../../conduct-ecs/entity";
@@ -16,7 +16,7 @@ export default class PlayerBundle implements Bundle {
         bundle: PlayerBundle.name,
       })
       .addComponentToEntity(player, Input, {})
-      .addComponentToEntity(player, Events, {});
+      .addComponentToEntity(player, EventComponent, {});
     return player;
   }
 }

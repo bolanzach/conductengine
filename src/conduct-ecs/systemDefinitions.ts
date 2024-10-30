@@ -24,6 +24,6 @@ export const TestSystemDefinition = {
           };
 export const TestTwoSystemDefinition = {
             system: TestTwoSystem,
-            queryWith: [TestComponent] as ComponentType[]
+            queryWith: [TestTwoComponent] as ComponentType[]
           };
 

@@ -1,8 +1,13 @@
 import "reflect-metadata";
 
+import EventInitSystem, {
+  createEventBufferState,
+  PrivateEventBufferState,
+} from "@/conduct-ecs/systems/eventInitSystem";
+
 import { World } from "../conduct-ecs";
 import { EventManager } from "../conduct-ecs/event";
-import EventSystem from "../conduct-ecs/systems/eventSystem";
+import EventSystem, { EventState } from "../conduct-ecs/systems/eventSystem";
 import NetworkSystem from "../conduct-ecs/systems/networkSystem";
 import ServerInputSystem from "../conduct-ecs/systems/serverInputSystem";
 import { ServerNetworkSystem } from "../conduct-ecs/systems/serverNetworkSystem";
@@ -20,7 +25,9 @@ import { GameServer } from "./gameServer";
   });
 
   world
-    .setGlobal(events)
+    .registerState(EventState, events)
+    .registerState(PrivateEventBufferState, createEventBufferState())
+    .registerSystemInit(EventInitSystem)
     .registerSystem(EventSystem)
     //.registerSystem(new NetworkSystem(gameServer, true, events))
     //.registerSystem(new ServerInputSystem(gameServer))

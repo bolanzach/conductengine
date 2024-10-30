@@ -18,8 +18,8 @@ import initNetworkTransport from "./networkTransport";
   startTestGpu();
 
   world
-    .setGlobal(events)
-    .setGlobal(networkTransport)
+    // .setGlobal(events)
+    // .setGlobal(networkTransport)
     .registerSystem(EventSystem)
     //.registerSystem(new NetworkSystem(networkTransport, false, events))
     //.registerSystemInit(new ClientNetworkSystem(networkTransport))

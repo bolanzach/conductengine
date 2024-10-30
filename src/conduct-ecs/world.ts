@@ -1,9 +1,11 @@
 import raf from "raf";
 
+import { STATE_ID, StateKey } from "@/conduct-ecs/state";
 import {
   System,
   SYSTEM_PARAMS,
   SYSTEM_SIGNATURE,
+  SystemStartup,
   SystemUpdate,
 } from "@/conduct-ecs/system";
 
@@ -84,16 +86,16 @@ export class World {
   >[] = [];
 
   // Systems that run a single time when the game starts
-  private initSystems: typeof this.systems = [];
+  private initSystems: SystemStartup[] = [];
 
   // Registered bundles
   private bundles = new Map<string, Bundle>();
 
+  private states = new Map<number, any>();
+
   private tick = 0;
   #previousTimestamp = 0;
   #gameStarted = false;
-
-  private global = new Map<any, any>();
 
   constructor(private config: WorldConfig) {
     config.events.subscribe(({ event, data }) => {
@@ -217,30 +219,13 @@ export class World {
     return this;
   }
 
-  registerSystemInit<
-    A extends Component,
-    B extends Component,
-    C extends Component,
-    D extends Component,
-    E extends Component,
-    F extends Component,
-    G extends Component,
-    H extends Component,
-    I extends Component,
-    J extends Component,
-    K extends Component,
-    L extends Component,
-  >(
-    system: SystemUpdate<A, B, C, D, E, F, G, H, I, J, K, L>,
-    runImmediate = false
-  ): World {
+  registerSystemInit(system: SystemStartup, runImmediate = false): World {
     if (runImmediate) {
       const time = {
         tick: this.tick,
         delta: 0,
         timestamp: Date.now(),
       };
-      // @ts-expect-error A function that runs immediately consumes no components
       system({ entity: Infinity, world: this, time });
       return this;
     }
@@ -270,13 +255,13 @@ export class World {
     return bundleInstance.build(entity, this);
   }
 
-  setGlobal<T>(value: T): World {
-    this.global.set(value, value);
+  registerState<T extends object>(state: StateKey<T>, obj: T): World {
+    this.states.set(state[STATE_ID], obj);
     return this;
   }
 
-  getGlobal<T>(value: T): T {
-    return this.global.get(value);
+  getState<T extends object>(state: StateKey<T>): T {
+    return this.states.get(state[STATE_ID]);
   }
 
   start(): void {
@@ -292,12 +277,12 @@ export class World {
   private update(timestamp: number): void {
     this.tick++;
 
-    // console.log(
-    //   this.tick,
-    //   " | LAST RUN TIME DIFF MS",
-    //   performance.now() - LAST_RUN_TIME
-    // );
-    // LAST_RUN_TIME = performance.now();
+    console.log(
+      this.tick,
+      " | LAST RUN TIME DIFF MS",
+      performance.now() - LAST_RUN_TIME
+    );
+    LAST_RUN_TIME = performance.now();
 
     this.#handleEntityEvents();
 
@@ -369,8 +354,6 @@ export class World {
   }
 
   #runUpdateSystems(timestamp: number) {
-    LAST_RUN_TIME = performance.now();
-
     const secondsPassed = (timestamp - this.#previousTimestamp) / 1000;
     this.#previousTimestamp = timestamp;
 
@@ -416,27 +399,17 @@ export class World {
             componentParams.push(components[e]);
           }
 
-          // Update the system with the queried params
-
-          system.bind(this);
-
-          // system(
-          //   {
-          //     entity: archetypeEntities[e],
-          //     world: this,
-          //     time,
-          //   },
-          //   // @ts-expect-error This is cheating
-          //   ...componentParams
-          // );
+          system(
+            {
+              entity: archetypeEntities[e],
+              world: this,
+              time,
+            },
+            // @ts-expect-error This is cheating
+            ...componentParams
+          );
         }
       }
     }
-
-    console.log(
-      this.tick,
-      " | LAST RUN TIME DIFF MS",
-      performance.now() - LAST_RUN_TIME
-    );
   }
 }

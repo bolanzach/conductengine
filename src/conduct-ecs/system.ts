@@ -248,6 +248,11 @@ export interface SystemInit {
 }
 
 /**
+ * A System that is called a single time, when the World is initialized.
+ */
+export type SystemStartup = (params: SystemParams) => void;
+
+/**
  * WIP DO NOT USE
  *
  * Can experiment with marking a System as Read-Only to prevent it from

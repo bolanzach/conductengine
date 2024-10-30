@@ -16,13 +16,14 @@ export default function MainGameStartSystem({ world }: SystemParams) {
 
   world.registerSystem(TestSystem).registerSystem(TestTwoSystem);
 
-  // for (let i = 0; i < 1000; i++) {
-  //   const ee = world.createEntity();
-  //   world.addComponentToEntity(ee, TestComponent, {
-  //     value: 0,
-  //   });
-  //   world.addComponentToEntity(ee, TestTwoComponent, { value: i });
-  // }
+  for (let i = 0; i < 1000; i++) {
+    const ee = world.createEntity();
+    world.addComponentToEntity(ee, TestComponent, {
+      value: 0,
+    });
+    const eee = world.createEntity();
+    world.addComponentToEntity(eee, TestTwoComponent, { value: i });
+  }
 
   // world.registerBundle(new PlayerBundle());
 

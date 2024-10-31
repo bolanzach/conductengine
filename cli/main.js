@@ -109,8 +109,10 @@ function getAllFiles(dirPath, arrayOfFiles) {
 function findSystemFunctions(sourceFile) {
     var systemFunctions = [];
     function visit(node) {
-        var _a;
-        if (ts.isFunctionDeclaration(node) && ((_a = node.name) === null || _a === void 0 ? void 0 : _a.text.endsWith("System"))) {
+        var _a, _b;
+        if (ts.isFunctionDeclaration(node) &&
+            ((_a = node.name) === null || _a === void 0 ? void 0 : _a.text.endsWith("System")) &&
+            !((_b = node.name) === null || _b === void 0 ? void 0 : _b.text.endsWith("InitSystem"))) {
             systemFunctions.push(node);
         }
         ts.forEachChild(node, visit);
@@ -119,8 +121,8 @@ function findSystemFunctions(sourceFile) {
     return systemFunctions;
 }
 function getComponentTypes(node) {
-    return node.parameters
-        .slice(1) // Skip the first parameter (SystemParams)
+    return (node.parameters
+        //.slice(1) // Skip the first parameter (SystemParams)
         .filter(function (param) { return param.type && ts.isTypeReferenceNode(param.type); })
         .map(function (param) {
         var _a;
@@ -128,9 +130,10 @@ function getComponentTypes(node) {
         (_a = param.type) === null || _a === void 0 ? void 0 : _a.forEachChild(function (node) {
             typeNode = node;
         });
+        console.log(typeNode === null || typeNode === void 0 ? void 0 : typeNode.getText());
         return typeNode === null || typeNode === void 0 ? void 0 : typeNode.getText();
     })
-        .filter(function (type) { return !!type; });
+        .filter(function (type) { return !!type; }));
 }
 function getImportStatements(sourceFile) {
     var importStatements = [];
@@ -158,11 +161,11 @@ allFiles.forEach(function (file) {
                 .replace(/\.ts$/, "");
             systemFunctions.forEach(function (func) {
                 var _a, _b, _c;
-                var componentTypes = getComponentTypes(func);
                 importStatementsSet.add("import ".concat((_a = func.name) === null || _a === void 0 ? void 0 : _a.text, " from \"@/").concat(importPath_1, "\";"));
-                systemDefinitions.add("export const ".concat((_b = func.name) === null || _b === void 0 ? void 0 : _b.text, "Definition = {\n            system: ").concat((_c = func.name) === null || _c === void 0 ? void 0 : _c.text, ",\n            queryWith: [").concat(componentTypes
-                    .map(function (type) { return type; })
-                    .join(", "), "] as ComponentType[]\n          };"));
+                var componentTypes = getComponentTypes(func);
+                systemDefinitions.add("export const ".concat((_b = func.name) === null || _b === void 0 ? void 0 : _b.text, "Definition = {\n            system: ").concat((_c = func.name) === null || _c === void 0 ? void 0 : _c.text, ",\n            queryWith: ").concat(!componentTypes.length
+                    ? "[]"
+                    : componentTypes.map(function (type) { return type; }).join(", "), " as ComponentType[]\n          };"));
             });
             var importStatements = getImportStatements(sourceFile);
             importStatements.forEach(function (stmt) { return importStatementsSet.add(stmt); });

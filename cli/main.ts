@@ -82,7 +82,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as ts from "typescript";
-import { FunctionDeclaration, TypeNode } from "typescript";
+import { TypeNode } from "typescript";
 
 const directoryPath = path.join(__dirname, "../src");
 
@@ -106,7 +106,11 @@ function findSystemFunctions(
   const systemFunctions: ts.FunctionDeclaration[] = [];
 
   function visit(node: ts.Node) {
-    if (ts.isFunctionDeclaration(node) && node.name?.text.endsWith("System")) {
+    if (
+      ts.isFunctionDeclaration(node) &&
+      node.name?.text.endsWith("System") &&
+      !node.name?.text.endsWith("InitSystem")
+    ) {
       systemFunctions.push(node);
     }
     ts.forEachChild(node, visit);
@@ -117,17 +121,20 @@ function findSystemFunctions(
 }
 
 function getComponentTypes(node: ts.FunctionDeclaration): string[] {
-  return node.parameters
-    .slice(1) // Skip the first parameter (SystemParams)
-    .filter((param) => param.type && ts.isTypeReferenceNode(param.type))
-    .map((param) => {
-      let typeNode: TypeNode | ts.Node | undefined = param.type;
-      param.type?.forEachChild((node) => {
-        typeNode = node;
-      });
-      return typeNode?.getText();
-    })
-    .filter((type): type is string => !!type);
+  return (
+    node.parameters
+      //.slice(1) // Skip the first parameter (SystemParams)
+      .filter((param) => param.type && ts.isTypeReferenceNode(param.type))
+      .map((param) => {
+        let typeNode: TypeNode | ts.Node | undefined = param.type;
+        param.type?.forEachChild((node) => {
+          typeNode = node;
+        });
+        console.log(typeNode?.getText());
+        return typeNode?.getText();
+      })
+      .filter((type): type is string => !!type)
+  );
 }
 
 function getImportStatements(sourceFile: ts.SourceFile): string[] {
@@ -166,16 +173,19 @@ allFiles.forEach((file) => {
         .replace(/\.ts$/, "");
 
       systemFunctions.forEach((func) => {
-        const componentTypes = getComponentTypes(func);
         importStatementsSet.add(
           `import ${func.name?.text} from "@/${importPath}";`
         );
+
+        const componentTypes = getComponentTypes(func);
         systemDefinitions.add(
           `export const ${func.name?.text}Definition = {
             system: ${func.name?.text},
-            queryWith: [${componentTypes
-              .map((type) => type)
-              .join(", ")}] as ComponentType[]
+            queryWith: ${
+              !componentTypes.length
+                ? "[]"
+                : componentTypes.map((type) => type).join(", ")
+            } as ComponentType[]
           };`
         );
       });

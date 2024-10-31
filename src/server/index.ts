@@ -11,7 +11,7 @@ import EventSystem, { EventState } from "../conduct-ecs/systems/eventSystem";
 import NetworkSystem from "../conduct-ecs/systems/networkSystem";
 import ServerInputSystem from "../conduct-ecs/systems/serverInputSystem";
 import { ServerNetworkSystem } from "../conduct-ecs/systems/serverNetworkSystem";
-import MainGameStartSystem from "../game/src/main";
+import MainGameStartInitSystem from "../game/src/main";
 import { GameServer } from "./gameServer";
 
 (function () {
@@ -27,10 +27,10 @@ import { GameServer } from "./gameServer";
   world
     .registerState(EventState, events)
     .registerState(PrivateEventBufferState, createEventBufferState())
-    .registerSystemInit(EventInitSystem)
-    .registerSystem(EventSystem)
+    // .registerSystemInit(EventInitSystem)
+    // .registerSystem(EventSystem)
     //.registerSystem(new NetworkSystem(gameServer, true, events))
     //.registerSystem(new ServerInputSystem(gameServer))
     //.registerSystemInit(new ServerNetworkSystem(gameServer))
-    .registerSystemInit(MainGameStartSystem, true);
+    .registerSystemInit(MainGameStartInitSystem, true);
 })();

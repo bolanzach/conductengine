@@ -11,7 +11,7 @@ export const PrivateEventBufferState = createState<{
 
 export function createEventBufferState() {
   return {
-    futureEvents: [],
+    futureEvents: [] as ConductEvent[],
     currentEvents: new Map(),
     lastTick: -Infinity,
   };

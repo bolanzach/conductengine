@@ -1,12 +1,12 @@
 import "reflect-metadata";
 
-import { ComponentType, SystemParams } from "@/conduct-ecs";
+import { World } from "@/conduct-ecs";
 import TestComponent from "@/game/src/components/testComponent";
 import TestTwoComponent from "@/game/src/components/testTwoComponent";
 import TestSystem from "@/game/src/systems/testSystem";
 import TestTwoSystem from "@/game/src/systems/testSystemTwo";
 
-export default function MainGameStartSystem({ world }: SystemParams) {
+export default function MainGameStartInitSystem(world: World) {
   console.log("GAME INIT");
 
   const e = world.createEntity();
@@ -16,7 +16,7 @@ export default function MainGameStartSystem({ world }: SystemParams) {
 
   world.registerSystem(TestSystem).registerSystem(TestTwoSystem);
 
-  for (let i = 0; i < 1000; i++) {
+  for (let i = 0; i < 10_000; i++) {
     const ee = world.createEntity();
     world.addComponentToEntity(ee, TestComponent, {
       value: 0,

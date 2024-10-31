@@ -2,10 +2,10 @@ import "reflect-metadata";
 
 import { World } from "../conduct-ecs";
 import { EventManager } from "../conduct-ecs/event";
-import ClientNetworkSystem from "../conduct-ecs/systems/clientNetworkSystem";
+// import ClientNetworkSystem from "../conduct-ecs/systems/clientNetworkSystem";
 import EventSystem from "../conduct-ecs/systems/eventSystem";
-import NetworkSystem from "../conduct-ecs/systems/networkSystem";
-import MainGameStartSystem from "../game/src/main";
+// import NetworkSystem from "../conduct-ecs/systems/networkSystem";
+import MainGameStartInitSystem from "../game/src/main";
 import { startTestGpu } from "./gpu";
 import initNetworkTransport from "./networkTransport";
 
@@ -23,5 +23,5 @@ import initNetworkTransport from "./networkTransport";
     .registerSystem(EventSystem)
     //.registerSystem(new NetworkSystem(networkTransport, false, events))
     //.registerSystemInit(new ClientNetworkSystem(networkTransport))
-    .registerSystemInit(MainGameStartSystem, true);
+    .registerSystemInit(MainGameStartInitSystem, true);
 })();

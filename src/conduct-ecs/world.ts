@@ -16,6 +16,7 @@ import {
   COMPONENT_ID,
   COMPONENT_TYPE,
   ComponentConstructor,
+  ComponentType,
   DeleteFunctions,
 } from "./component";
 import { NETWORK_ID } from "./components/network";
@@ -54,7 +55,7 @@ let LAST_RUN_TIME = performance.now();
 
 export class World {
   // The index is the entity ID and the value is the entity state.
-  private entityList = new Int32Array(10_000);
+  private entityList = new Int32Array(50_000);
 
   // Buffer events for entities
   private internalEntityEvents = new Map<Entity, [number, Component[]]>();
@@ -95,7 +96,7 @@ export class World {
   /**
    * Spawn a new Entity in this World.
    */
-  createEntity(): Entity {
+  addEntity(): Entity {
     let entity = 0;
 
     while (entity < this.entityList.length) {
@@ -216,7 +217,7 @@ export class World {
       return Infinity;
     }
 
-    const entity = this.createEntity();
+    const entity = this.addEntity();
     return bundleInstance.build(entity, this);
   }
 
@@ -321,16 +322,6 @@ export class World {
     const secondsPassed = (timestamp - this.#previousTimestamp) / 1000;
     this.#previousTimestamp = timestamp;
 
-    const systemQueryParams: [Entity, ...Component[]][] = [];
-    // @ts-expect-error This is just creating an object
-    systemQueryParams.world = this;
-    // @ts-expect-error This is just creating an object
-    systemQueryParams.time = {
-      tick: this.tick,
-      delta: secondsPassed,
-      timestamp,
-    };
-
     // Update all systems
     for (let s = 0; s < this.systems.length; s++) {
       const system = this.systems[s];
@@ -353,7 +344,17 @@ export class World {
 
         const archetypeComponents = archetype.components;
         const archetypeEntities = archetype.entities;
-        systemQueryParams.filter(() => false);
+        const systemQueryParams: [Entity, ...Component[]][] = Object.assign(
+          [],
+          {
+            world: this,
+            time: {
+              tick: this.tick,
+              delta: secondsPassed,
+              timestamp,
+            },
+          }
+        );
 
         // Each entity in the archetype will be processed
         for (let e = 0; e < archetypeEntities.length; e++) {

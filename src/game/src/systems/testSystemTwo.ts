@@ -1,9 +1,11 @@
 import { Query } from "@/conduct-ecs/system";
 import TestTwoComponent from "@/game/src/components/testTwoComponent";
 
-export default function TestTwoSystem(_: Query<[TestTwoComponent]>): void {
-  //const e = world.createEntity();
-  // world.addComponentToEntity(e, TestComponent, {
-  //   value: one.value,
-  // });
+export default function TestTwoSystem(query: Query<[TestTwoComponent]>): void {
+  for (const [_, testTwo] of query) {
+    if (testTwo.value > 1_000) {
+      testTwo.value = 0;
+    }
+    testTwo.value++;
+  }
 }

@@ -12,11 +12,5 @@ export {
   NetworkedComponent,
 } from "./components/network";
 export { NetworkedTransform } from "./components/transform";
-export {
-  Query,
-  System,
-  SystemConstructor,
-  SystemInit,
-  SystemParams,
-} from "./system";
+export { Query, System, SystemConstructor, SystemInit } from "./system";
 export { World, WorldConfig } from "./world";

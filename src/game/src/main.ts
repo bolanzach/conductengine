@@ -1,6 +1,7 @@
 import "reflect-metadata";
 
 import { World } from "@/conduct-ecs";
+import EventComponent from "@/conduct-ecs/components/eventComponent";
 import TestComponent from "@/game/src/components/testComponent";
 import TestTwoComponent from "@/game/src/components/testTwoComponent";
 import TestSystem from "@/game/src/systems/testSystem";
@@ -23,6 +24,7 @@ export default function MainGameStartInitSystem(world: World) {
     });
     const eee = world.createEntity();
     world.addComponentToEntity(eee, TestTwoComponent, { value: i });
+    world.addComponentToEntity(eee, EventComponent, {});
   }
 
   // world.registerBundle(new PlayerBundle());

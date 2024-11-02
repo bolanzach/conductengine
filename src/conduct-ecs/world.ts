@@ -15,8 +15,8 @@ import {
   component,
   COMPONENT_ID,
   COMPONENT_TYPE,
+  ComponentAdder,
   ComponentConstructor,
-  ComponentType,
   DeleteFunctions,
 } from "./component";
 import { NETWORK_ID } from "./components/network";
@@ -96,7 +96,7 @@ export class World {
   /**
    * Spawn a new Entity in this World.
    */
-  addEntity(): Entity {
+  addEntity(): ComponentAdder {
     let entity = 0;
 
     while (entity < this.entityList.length) {
@@ -114,7 +114,7 @@ export class World {
       data: entity,
     });
 
-    return entity;
+    return new ComponentAdder(entity, this);
   }
 
   destroyEntity(entity: Entity): void {
@@ -218,7 +218,8 @@ export class World {
     }
 
     const entity = this.addEntity();
-    return bundleInstance.build(entity, this);
+    bundleInstance.build(entity.entity, this);
+    return entity.entity;
   }
 
   registerState<T extends object>(state: StateKey<T>, obj: T): World {

@@ -17,3 +17,7 @@ yarn dev
 ```
 
 In a WebGPU supported browser (unfortunately, just Chrome) navigate to `localhost:6969`.
+
+## Features
+
+ECS - [Entity Component System](src/conduct-ecs/README.md)

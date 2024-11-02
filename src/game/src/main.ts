@@ -11,26 +11,17 @@ import TestTwoSystem from "@/game/src/systems/testSystemTwo";
 export default function MainGameStartInitSystem(world: World) {
   console.log("GAME INIT");
 
-  const e = world.addEntity();
-  world.addComponentToEntity(e, TestComponent, {
-    value: 0,
-  });
-
   world
     .registerSystem(TestSystem)
     .registerSystem(TestTwoSystem)
     .registerSystem(TestThreeSystem);
 
   for (let i = 0; i < 10_000; i++) {
-    const ee = world.addEntity();
-    world.addComponentToEntity(ee, TestComponent, {
-      value: 0,
-    });
-    world.addComponentToEntity(ee, TestTwoComponent, {
-      value: i,
-      name: "test",
-    });
-    world.addComponentToEntity(ee, EventComponent, {});
+    world
+      .addEntity()
+      .add(TestComponent, { value: 0 })
+      .add(TestTwoComponent, { value: i, name: "test" })
+      .add(EventComponent, {});
   }
 
   // world.registerBundle(new PlayerBundle());
@@ -38,16 +29,12 @@ export default function MainGameStartInitSystem(world: World) {
   world.start();
 
   setInterval(() => {
-    for (let i = 0; i < 2500; i++) {
-      const ee = world.addEntity();
-      world.addComponentToEntity(ee, TestComponent, {
-        value: 0,
-      });
-      world.addComponentToEntity(ee, TestTwoComponent, {
-        value: i,
-        name: "test",
-      });
-      world.addComponentToEntity(ee, EventComponent, {});
+    for (let i = 0; i < 800; i++) {
+      world
+        .addEntity()
+        .add(TestComponent, { value: 0 })
+        .add(TestTwoComponent, { value: i, name: "test" })
+        .add(EventComponent, {});
     }
   }, 1000);
 }

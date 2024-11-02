@@ -1,16 +1,17 @@
 import "reflect-metadata";
 
+import { World } from "@/conduct-ecs";
+import { EventManager } from "@/conduct-ecs/event";
 import EventInitSystem, {
   createEventBufferState,
   PrivateEventBufferState,
 } from "@/conduct-ecs/systems/eventInitSystem";
+import ServerNetworkInitSystem from "@/conduct-ecs/systems/serverNetworkInitSystem";
 
-import { World } from "../conduct-ecs";
-import { EventManager } from "../conduct-ecs/event";
 import EventSystem, { EventState } from "../conduct-ecs/systems/eventSystem";
-import NetworkSystem from "../conduct-ecs/systems/networkSystem";
-import ServerInputSystem from "../conduct-ecs/systems/serverInputSystem";
-import { ServerNetworkSystem } from "../conduct-ecs/systems/serverNetworkSystem";
+import { NetworkTransportState } from "../conduct-ecs/systems/networkSystem";
+// import ServerInputSystem from "../conduct-ecs/systems/serverInputSystem";
+// import { ServerNetworkInitSystem } from "../conduct-ecs/systems/serverNetworkSystem";
 import MainGameStartInitSystem from "../game/src/main";
 import { GameServer } from "./gameServer";
 
@@ -27,10 +28,14 @@ import { GameServer } from "./gameServer";
   world
     .registerState(EventState, events)
     .registerState(PrivateEventBufferState, createEventBufferState())
-    // .registerSystemInit(EventInitSystem)
-    // .registerSystem(EventSystem)
+    .registerState(NetworkTransportState, gameServer)
+
+    .registerSystemInit(EventInitSystem)
+    .registerSystemInit(ServerNetworkInitSystem)
+
+    .registerSystem(EventSystem)
     //.registerSystem(new NetworkSystem(gameServer, true, events))
     //.registerSystem(new ServerInputSystem(gameServer))
-    //.registerSystemInit(new ServerNetworkSystem(gameServer))
+    //.registerSystemInit(new ServerNetworkInitSystem(gameServer))
     .registerSystemInit(MainGameStartInitSystem, true);
 })();

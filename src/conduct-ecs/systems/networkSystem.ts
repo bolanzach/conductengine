@@ -1,3 +1,8 @@
+import { NetworkTransport } from "@/conduct-core/networkTransport";
+import { createState } from "@/conduct-ecs/state";
+
+export const NetworkTransportState = createState<NetworkTransport>();
+
 // import { NetworkTransport } from "../../conduct-core/networkTransport";
 // import { Component, COMPONENT_TYPE } from "../component";
 // import {

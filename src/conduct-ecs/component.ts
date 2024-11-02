@@ -1,3 +1,6 @@
+import { Entity } from "@/conduct-ecs/entity";
+import { World } from "@/conduct-ecs/world";
+
 import { NETWORK_ID } from "./components/network";
 
 export const COMPONENT_TYPE = Symbol("COMPONENT_TYPE");
@@ -25,6 +28,21 @@ export type DeleteFields<T, U> = {
 };
 
 export type DeleteFunctions<T> = DeleteFields<T, Function>;
+
+export class ComponentAdder {
+  constructor(
+    public entity: Entity,
+    private world: World
+  ) {}
+
+  add<T extends ComponentConstructor>(
+    componentType: T,
+    data: DeleteFunctions<Omit<InstanceType<T>, typeof NETWORK_ID>>
+  ): ComponentAdder {
+    this.world.addComponentToEntity(this.entity, componentType, data);
+    return this;
+  }
+}
 
 /**
  * Create a new component instance with data.

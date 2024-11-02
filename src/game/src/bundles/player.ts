@@ -20,3 +20,9 @@ export default class PlayerBundle implements Bundle {
     return player;
   }
 }
+
+const idk = [
+  [Network, { bundle: PlayerBundle.name }],
+  [Input, {}],
+  [EventComponent, {}],
+];

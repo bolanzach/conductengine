@@ -1,10 +1,10 @@
-import mainwgsl from './main.wgsl';
+import mainwgsl from "./main.wgsl";
 
 export function startTestGpu() {
-  console.log('webgpu init');
+  console.log("webgpu init");
 
   if (!navigator.gpu) {
-    throw new Error('WebGPU is not supported on this device.');
+    throw new Error("WebGPU is not supported on this device.");
   }
 
   const GRID_SIZE = 4;
@@ -13,13 +13,13 @@ export function startTestGpu() {
     const adapter = await navigator.gpu.requestAdapter();
     const device = await adapter?.requestDevice();
     if (!device) {
-      throw new Error('No device found.');
+      throw new Error("No device found.");
     }
 
-    const canvas = document.getElementById('canvas') as HTMLCanvasElement;
-    const context = canvas.getContext('webgpu');
+    const canvas = document.getElementById("canvas") as HTMLCanvasElement;
+    const context = canvas.getContext("webgpu");
     if (!context) {
-      throw new Error('Could not get WebGPU context.');
+      throw new Error("Could not get WebGPU context.");
     }
 
     const canvasFormat = navigator.gpu.getPreferredCanvasFormat();
@@ -32,13 +32,13 @@ export function startTestGpu() {
     const encoder = device.createCommandEncoder();
 
     const pass = encoder.beginRenderPass({
-      label: '[renderpass]',
+      label: "[renderpass]",
       colorAttachments: [
         {
           // @ts-expect-error webpgu_ts_compilation
           view: context.getCurrentTexture().createView(),
-          loadOp: 'clear',
-          storeOp: 'store',
+          loadOp: "clear",
+          storeOp: "store",
           clearValue: { r: 0.0, g: 0.15, b: 0.6, a: 1.0 },
         },
       ],
@@ -46,7 +46,7 @@ export function startTestGpu() {
 
     const uniform = new Float32Array([GRID_SIZE, GRID_SIZE]);
     const uniformBuffer = device.createBuffer({
-      label: '[uniformbuffer]',
+      label: "[uniformbuffer]",
       size: uniform.byteLength,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
@@ -59,7 +59,7 @@ export function startTestGpu() {
     ]);
 
     const vertexBuffer = device.createBuffer({
-      label: 'A Vertex Buffer',
+      label: "A Vertex Buffer",
       size: vertices.byteLength,
       usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
     });
@@ -70,7 +70,7 @@ export function startTestGpu() {
       arrayStride: 8,
       attributes: [
         {
-          format: 'float32x2',
+          format: "float32x2",
           offset: 0,
           shaderLocation: 0, // Position, see vertex shader
         },
@@ -78,21 +78,21 @@ export function startTestGpu() {
     };
 
     const cellShaderModule = device.createShaderModule({
-      label: '[cellshader]',
+      label: "[cellshader]",
       code: mainwgsl,
     });
 
     const cellPipeline = device.createRenderPipeline({
-      label: '[cellpipeline]',
-      layout: 'auto',
+      label: "[cellpipeline]",
+      layout: "auto",
       vertex: {
         module: cellShaderModule,
-        entryPoint: 'vmain',
+        entryPoint: "vmain",
         buffers: [vertexBufferLayout],
       },
       fragment: {
         module: cellShaderModule,
-        entryPoint: 'fmain',
+        entryPoint: "fmain",
         targets: [
           {
             format: canvasFormat,
@@ -102,7 +102,7 @@ export function startTestGpu() {
     });
 
     const bindGroup = device.createBindGroup({
-      label: '[bindgroup]',
+      label: "[bindgroup]",
       layout: cellPipeline.getBindGroupLayout(0),
       entries: [
         {

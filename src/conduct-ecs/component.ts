@@ -37,7 +37,7 @@ export class ComponentAdder {
 
   add<T extends ComponentConstructor>(
     componentType: T,
-    data: DeleteFunctions<Omit<InstanceType<T>, typeof NETWORK_ID>>
+    data: Partial<DeleteFunctions<InstanceType<T>>>
   ): ComponentAdder {
     this.world.addComponentToEntity(this.entity, componentType, data);
     return this;
@@ -49,7 +49,7 @@ export class ComponentAdder {
  */
 export function component<T extends ComponentConstructor>(
   component: T,
-  data: DeleteFunctions<Omit<InstanceType<T>, typeof NETWORK_ID>>
+  data: Partial<DeleteFunctions<InstanceType<T>>>
 ): InstanceType<T> {
   const instance = new component() as InstanceType<T>;
   return Object.assign(instance, data);

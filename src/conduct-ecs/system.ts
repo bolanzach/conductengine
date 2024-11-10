@@ -36,8 +36,10 @@ export type System = (query: Query<never>) => void;
 // registered along with a System.
 let componentIdCounter = 1;
 
-(function registerSystemDefinitions() {
-  Object.values(SYSTEM_DEFINITIONS).forEach((systemDef) => {
+export function registerSystemDefinitions(systemDefinitions: {
+  string: { system: SystemConstructor; queryWith: ComponentConstructor[] };
+}) {
+  Object.values(systemDefinitions).forEach((systemDef) => {
     const { system, queryWith } = systemDef;
 
     // Add a Component ID to each Component Constructor
@@ -47,13 +49,11 @@ let componentIdCounter = 1;
       }
     });
 
-    // @ts-expect-error adds metadata to the System function
     system[SYSTEM_PARAMS] = {
       queryWith,
       queryWithout: [],
     };
 
-    // @ts-expect-error adds metadata to the System function
     system[SYSTEM_SIGNATURE] = {
       queryWith: createSignature(
         queryWith.map((cstr) => cstr[COMPONENT_ID] as number)
@@ -61,7 +61,7 @@ let componentIdCounter = 1;
       queryWithout: createSignature([]),
     };
   });
-})();
+}
 
 /**
  * Stored on each System to declare how the System should query Components.

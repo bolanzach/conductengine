@@ -92,7 +92,12 @@ Object.defineProperty(exports, "__esModule", { value: true });
 var fs = require("fs");
 var path = require("path");
 var ts = require("typescript");
-var directoryPath = path.join(__dirname, "../src");
+var pathArg = process.argv[2];
+var directoryPaths = [
+    path.join(__dirname, "../src/conduct-ecs"),
+    path.join(__dirname, "../src/game/src"),
+    path.join(__dirname, "../src/", pathArg),
+];
 function getAllFiles(dirPath, arrayOfFiles) {
     if (arrayOfFiles === void 0) { arrayOfFiles = []; }
     var files = fs.readdirSync(dirPath);
@@ -130,7 +135,6 @@ function getComponentTypes(node) {
         (_a = param.type) === null || _a === void 0 ? void 0 : _a.forEachChild(function (node) {
             typeNode = node;
         });
-        console.log(typeNode === null || typeNode === void 0 ? void 0 : typeNode.getText());
         return typeNode === null || typeNode === void 0 ? void 0 : typeNode.getText();
     })
         .filter(function (type) { return !!type; }));
@@ -146,33 +150,37 @@ function getImportStatements(sourceFile) {
     visit(sourceFile);
     return importStatements;
 }
-var allFiles = getAllFiles(directoryPath);
+// const allFiles = getAllFiles(directoryPath);
 var importStatementsSet = new Set();
 var systemDefinitions = new Set();
-allFiles.forEach(function (file) {
-    if (file.endsWith(".ts")) {
-        var fileContent = fs.readFileSync(file, "utf8");
-        var sourceFile = ts.createSourceFile(file, fileContent, ts.ScriptTarget.Latest, true);
-        var systemFunctions = findSystemFunctions(sourceFile);
-        if (systemFunctions.length > 0) {
-            var importPath_1 = path
-                .relative(directoryPath, file)
-                .replace(/\\/g, "/")
-                .replace(/\.ts$/, "");
-            systemFunctions.forEach(function (func) {
-                var _a, _b, _c;
-                importStatementsSet.add("import ".concat((_a = func.name) === null || _a === void 0 ? void 0 : _a.text, " from \"@/").concat(importPath_1, "\";"));
-                var componentTypes = getComponentTypes(func);
-                systemDefinitions.add("export const ".concat((_b = func.name) === null || _b === void 0 ? void 0 : _b.text, "Definition = {\n            system: ").concat((_c = func.name) === null || _c === void 0 ? void 0 : _c.text, ",\n            queryWith: ").concat(!componentTypes.length
-                    ? "[]"
-                    : componentTypes.map(function (type) { return type; }).join(", "), " as ComponentType[]\n          };"));
-            });
-            var importStatements = getImportStatements(sourceFile);
-            importStatements.forEach(function (stmt) { return importStatementsSet.add(stmt); });
+directoryPaths.forEach(function (dirPath) {
+    var allFiles = getAllFiles(dirPath);
+    console.log("compiling systems in", dirPath);
+    allFiles.forEach(function (file) {
+        if (file.endsWith(".ts")) {
+            var fileContent = fs.readFileSync(file, "utf8");
+            var sourceFile = ts.createSourceFile(file, fileContent, ts.ScriptTarget.Latest, true);
+            var systemFunctions = findSystemFunctions(sourceFile);
+            if (systemFunctions.length > 0) {
+                var importPath_1 = path
+                    .relative(path.join(__dirname, "../src"), file)
+                    .replace(/\\/g, "/")
+                    .replace(/\.ts$/, "");
+                systemFunctions.forEach(function (func) {
+                    var _a, _b, _c;
+                    importStatementsSet.add("import ".concat((_a = func.name) === null || _a === void 0 ? void 0 : _a.text, " from \"@/").concat(importPath_1, "\";"));
+                    var componentTypes = getComponentTypes(func);
+                    systemDefinitions.add("export const ".concat((_b = func.name) === null || _b === void 0 ? void 0 : _b.text, "Definition = {\n            system: ").concat((_c = func.name) === null || _c === void 0 ? void 0 : _c.text, ",\n            queryWith: ").concat(!componentTypes.length
+                        ? "[]"
+                        : componentTypes.map(function (type) { return type; }).join(", "), " as ComponentType[]\n          };"));
+                });
+                var importStatements = getImportStatements(sourceFile);
+                importStatements.forEach(function (stmt) { return importStatementsSet.add(stmt); });
+            }
         }
-    }
+    });
 });
-var compiledFilePath = path.join(process.cwd(), "src", "conduct-ecs", "systemDefinitions.ts");
+var compiledFilePath = path.join(process.cwd(), "src", pathArg, "systemDefinitions.ts");
 var contents = __spreadArray(__spreadArray(__spreadArray(__spreadArray([], Array.from(importStatementsSet), true), [
     "\n"
 ], false), Array.from(systemDefinitions), true), [

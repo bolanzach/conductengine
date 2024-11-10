@@ -19,7 +19,7 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
 
-    "types": ["node"],
+    "types": ["@webgpu/types", "node"],
 
     "allowSyntheticDefaultImports": true,
     "sourceMap": true,

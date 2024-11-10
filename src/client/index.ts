@@ -1,7 +1,11 @@
 import "reflect-metadata";
 
+import * as SYSTEM_DEFINITIONS from "@/client/systemDefinitions";
+import WebGpuRendererInitSystem from "@/client/webGpuRendererInitSystem";
+import WebGpuRendererSystem from "@/client/webGpuRendererSystem";
 import { World } from "@/conduct-ecs";
 import { EventManager } from "@/conduct-ecs/event";
+import { registerSystemDefinitions } from "@/conduct-ecs/system";
 import ClientNetworkInitSystem from "@/conduct-ecs/systems/clientNetworkInitSystem";
 import EventInitSystem, {
   createEventBufferState,
@@ -13,8 +17,11 @@ import { NetworkTransportState } from "@/conduct-ecs/systems/networkSystem";
 import EventSystem, { EventState } from "../conduct-ecs/systems/eventSystem";
 // import NetworkSystem from "../conduct-ecs/systems/networkSystem";
 import MainGameStartInitSystem from "../game/src/main";
-import { startTestGpu } from "./gpu";
+// import { startTestGpu } from "./gpu";
 import initNetworkTransport from "./networkTransport";
+
+// @ts-expect-error this is fine
+registerSystemDefinitions(SYSTEM_DEFINITIONS);
 
 // Start the game on the client
 (async function initClient() {
@@ -22,7 +29,7 @@ import initNetworkTransport from "./networkTransport";
   const events = new EventManager();
   const world = new World({ gameHost: "client", events });
 
-  startTestGpu();
+  //startTestGpu();
 
   world
     .registerState(EventState, events)
@@ -31,9 +38,10 @@ import initNetworkTransport from "./networkTransport";
 
     .registerSystemInit(EventInitSystem)
     .registerSystemInit(ClientNetworkInitSystem)
-
     .registerSystem(EventSystem)
+    .registerSystem(WebGpuRendererSystem)
     //.registerSystem(new NetworkSystem(networkTransport, false, events))
     //.registerSystemInit(new ClientNetworkSystem(networkTransport))
+    .registerSystemInit(WebGpuRendererInitSystem)
     .registerSystemInit(MainGameStartInitSystem, true);
 })();

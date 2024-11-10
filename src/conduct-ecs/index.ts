@@ -11,6 +11,5 @@ export {
   NetworkAuthority,
   NetworkedComponent,
 } from "./components/network";
-export { NetworkedTransform } from "./components/transform";
 export { Query, System, SystemConstructor, SystemInit } from "./system";
 export { World, WorldConfig } from "./world";

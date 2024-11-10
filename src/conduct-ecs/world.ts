@@ -134,7 +134,7 @@ export class World {
   addComponentToEntity<T extends ComponentConstructor>(
     entity: Entity,
     componentType: T,
-    data: DeleteFunctions<Omit<InstanceType<T>, typeof NETWORK_ID>>
+    data: Partial<DeleteFunctions<InstanceType<T>>>
   ): World {
     if (this.entityList[entity] <= EntityStateDestroying) {
       console.error("Cannot add component to inactive entity");

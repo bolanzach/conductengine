@@ -84,7 +84,13 @@ import * as path from "path";
 import * as ts from "typescript";
 import { TypeNode } from "typescript";
 
-const directoryPath = path.join(__dirname, "../src");
+const pathArg = process.argv[2];
+
+const directoryPaths = [
+  path.join(__dirname, "../src/conduct-ecs"),
+  path.join(__dirname, "../src/game/src"),
+  path.join(__dirname, "../src/", pathArg),
+];
 
 function getAllFiles(dirPath: string, arrayOfFiles: string[] = []): string[] {
   const files = fs.readdirSync(dirPath);
@@ -130,7 +136,6 @@ function getComponentTypes(node: ts.FunctionDeclaration): string[] {
         param.type?.forEachChild((node) => {
           typeNode = node;
         });
-        console.log(typeNode?.getText());
         return typeNode?.getText();
       })
       .filter((type): type is string => !!type)
@@ -151,35 +156,40 @@ function getImportStatements(sourceFile: ts.SourceFile): string[] {
   return importStatements;
 }
 
-const allFiles = getAllFiles(directoryPath);
+// const allFiles = getAllFiles(directoryPath);
 const importStatementsSet = new Set<string>();
 const systemDefinitions = new Set<string>();
 
-allFiles.forEach((file) => {
-  if (file.endsWith(".ts")) {
-    const fileContent = fs.readFileSync(file, "utf8");
-    const sourceFile = ts.createSourceFile(
-      file,
-      fileContent,
-      ts.ScriptTarget.Latest,
-      true
-    );
+directoryPaths.forEach((dirPath) => {
+  const allFiles = getAllFiles(dirPath);
 
-    const systemFunctions = findSystemFunctions(sourceFile);
-    if (systemFunctions.length > 0) {
-      const importPath = path
-        .relative(directoryPath, file)
-        .replace(/\\/g, "/")
-        .replace(/\.ts$/, "");
+  console.log("compiling systems in", dirPath);
 
-      systemFunctions.forEach((func) => {
-        importStatementsSet.add(
-          `import ${func.name?.text} from "@/${importPath}";`
-        );
+  allFiles.forEach((file) => {
+    if (file.endsWith(".ts")) {
+      const fileContent = fs.readFileSync(file, "utf8");
+      const sourceFile = ts.createSourceFile(
+        file,
+        fileContent,
+        ts.ScriptTarget.Latest,
+        true
+      );
 
-        const componentTypes = getComponentTypes(func);
-        systemDefinitions.add(
-          `export const ${func.name?.text}Definition = {
+      const systemFunctions = findSystemFunctions(sourceFile);
+      if (systemFunctions.length > 0) {
+        const importPath = path
+          .relative(path.join(__dirname, "../src"), file)
+          .replace(/\\/g, "/")
+          .replace(/\.ts$/, "");
+
+        systemFunctions.forEach((func) => {
+          importStatementsSet.add(
+            `import ${func.name?.text} from "@/${importPath}";`
+          );
+
+          const componentTypes = getComponentTypes(func);
+          systemDefinitions.add(
+            `export const ${func.name?.text}Definition = {
             system: ${func.name?.text},
             queryWith: ${
               !componentTypes.length
@@ -187,19 +197,20 @@ allFiles.forEach((file) => {
                 : componentTypes.map((type) => type).join(", ")
             } as ComponentType[]
           };`
-        );
-      });
+          );
+        });
 
-      const importStatements = getImportStatements(sourceFile);
-      importStatements.forEach((stmt) => importStatementsSet.add(stmt));
+        const importStatements = getImportStatements(sourceFile);
+        importStatements.forEach((stmt) => importStatementsSet.add(stmt));
+      }
     }
-  }
+  });
 });
 
 const compiledFilePath = path.join(
   process.cwd(),
   "src",
-  "conduct-ecs",
+  pathArg,
   "systemDefinitions.ts"
 );
 

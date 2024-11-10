@@ -2,11 +2,13 @@ import "reflect-metadata";
 
 import { World } from "@/conduct-ecs";
 import { EventManager } from "@/conduct-ecs/event";
+import { registerSystemDefinitions } from "@/conduct-ecs/system";
 import EventInitSystem, {
   createEventBufferState,
   PrivateEventBufferState,
 } from "@/conduct-ecs/systems/eventInitSystem";
 import ServerNetworkInitSystem from "@/conduct-ecs/systems/serverNetworkInitSystem";
+import * as SYSTEM_DEFINITIONS from "@/server/systemDefinitions";
 
 import EventSystem, { EventState } from "../conduct-ecs/systems/eventSystem";
 import { NetworkTransportState } from "../conduct-ecs/systems/networkSystem";
@@ -14,6 +16,9 @@ import { NetworkTransportState } from "../conduct-ecs/systems/networkSystem";
 // import { ServerNetworkInitSystem } from "../conduct-ecs/systems/serverNetworkSystem";
 import MainGameStartInitSystem from "../game/src/main";
 import { GameServer } from "./gameServer";
+
+// @ts-expect-error this is fine
+registerSystemDefinitions(SYSTEM_DEFINITIONS);
 
 (function () {
   const gameServer = new GameServer();

@@ -1,12 +1,12 @@
 import "reflect-metadata";
 
 import * as SYSTEM_DEFINITIONS from "@/client/systemDefinitions";
-import WebGpuRendererInitSystem from "@/client/webGpuRendererInitSystem";
-import WebGpuRendererSystem from "@/client/webGpuRendererSystem";
 import { World } from "@/conduct-ecs";
 import { EventManager } from "@/conduct-ecs/event";
 import { registerSystemDefinitions } from "@/conduct-ecs/system";
-import ClientNetworkInitSystem from "@/conduct-ecs/systems/clientNetworkInitSystem";
+import ClientNetworkInitSystem from "@/conduct-ecs/systems/client/clientNetworkInitSystem";
+import WebGpuRendererInitSystem from "@/conduct-ecs/systems/client/render/webGpuRendererInitSystem.client";
+import WebGpuRendererSystem from "@/conduct-ecs/systems/client/render/webGpuRendererSystem.client";
 import EventInitSystem, {
   createEventBufferState,
   PrivateEventBufferState,

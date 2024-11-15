@@ -1,9 +1,9 @@
 import {
   NetworkTransport,
   TransportEvent,
-} from "../../conduct-core/networkTransport";
-import Input, { INPUT_EVENT } from "../components/input";
-import { Query, System, SystemParams } from "../system";
+} from "../../../conduct-core/networkTransport";
+import Input, { INPUT_EVENT } from "../../components/input";
+import { Query, System, SystemParams } from "../../system";
 
 export default class ServerInputSystem implements System {
   private eventBuffer: TransportEvent[] = [];

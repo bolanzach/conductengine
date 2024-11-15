@@ -93,6 +93,7 @@ var fs = require("fs");
 var path = require("path");
 var ts = require("typescript");
 var pathArg = process.argv[2];
+var ignoreGlob = process.argv[3];
 var directoryPaths = [
     path.join(__dirname, "../src/conduct-ecs"),
     path.join(__dirname, "../src/game/src"),
@@ -105,7 +106,7 @@ function getAllFiles(dirPath, arrayOfFiles) {
         if (fs.statSync(path.join(dirPath, file)).isDirectory()) {
             arrayOfFiles = getAllFiles(path.join(dirPath, file), arrayOfFiles);
         }
-        else {
+        else if (ignoreGlob && !file.includes(ignoreGlob)) {
             arrayOfFiles.push(path.join(dirPath, file));
         }
     });

@@ -1,8 +1,6 @@
 import { Entity } from "@/conduct-ecs/entity";
 import { World } from "@/conduct-ecs/world";
 
-import { NETWORK_ID } from "./components/network";
-
 export const COMPONENT_TYPE = Symbol("COMPONENT_TYPE");
 export const COMPONENT_ID = Symbol("COMPONENT_ID");
 
@@ -29,6 +27,10 @@ export type DeleteFields<T, U> = {
 
 export type DeleteFunctions<T> = DeleteFields<T, Function>;
 
+export type ComponentDataConstructor<T extends ComponentConstructor> =
+  | Partial<DeleteFunctions<InstanceType<T>>>
+  | ((component: InstanceType<T>) => Partial<DeleteFunctions<InstanceType<T>>>);
+
 export class ComponentAdder {
   constructor(
     public entity: Entity,
@@ -37,7 +39,7 @@ export class ComponentAdder {
 
   add<T extends ComponentConstructor>(
     componentType: T,
-    data: Partial<DeleteFunctions<InstanceType<T>>>
+    data: ComponentDataConstructor<T>
   ): ComponentAdder {
     this.world.addComponentToEntity(this.entity, componentType, data);
     return this;
@@ -49,9 +51,12 @@ export class ComponentAdder {
  */
 export function component<T extends ComponentConstructor>(
   component: T,
-  data: Partial<DeleteFunctions<InstanceType<T>>>
+  data: ComponentDataConstructor<T>
 ): InstanceType<T> {
   const instance = new component() as InstanceType<T>;
+  if (typeof data === "function") {
+    return Object.assign(instance, data(instance));
+  }
   return Object.assign(instance, data);
 }
 

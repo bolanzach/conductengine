@@ -1,5 +1,3 @@
-import * as SYSTEM_DEFINITIONS from "@/conduct-ecs/systemDefinitions";
-
 import { Component, COMPONENT_ID, ComponentConstructor } from "./component";
 import { Entity } from "./entity";
 import { createSignature, Signature } from "./signature";

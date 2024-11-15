@@ -1,8 +1,12 @@
 import { World } from "@/conduct-ecs";
+import RenderComponent from "@/conduct-ecs/components/renderComponent";
+import { EVENT_COMPONENT_ADDED } from "@/conduct-ecs/event";
 import { createState } from "@/conduct-ecs/state";
+import { EventState } from "@/conduct-ecs/systems/eventSystem";
 
 export const WebGpuRendererState = createState<{
   context: GPUCanvasContext;
+  device: GPUDevice;
 }>();
 
 export default async function WebGpuRendererInitSystem(world: World) {
@@ -66,7 +70,16 @@ export default async function WebGpuRendererInitSystem(world: World) {
   //   } as GPURenderPassDepthStencilAttachment,
   // };
 
-  world.registerState(WebGpuRendererState, { context });
+  world.registerState(WebGpuRendererState, { context, device });
+
+  // world.getState(EventState).subscribe(({ event, data }) => {
+  //   if (
+  //     event === EVENT_COMPONENT_ADDED &&
+  //     data.component instanceof RenderComponent
+  //   ) {
+  //     const { component } = data as { component: RenderComponent };
+  //   }
+  // });
 
   // cameraUniformBuffer = device.createBuffer({
   //   size: this.matrixSize,

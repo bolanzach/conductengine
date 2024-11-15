@@ -8,9 +8,9 @@
     "clean": "rm -rf dist",
     "lint": "eslint src",
     "dev": "node_modules/nodemon/bin/nodemon.js --watch src --ext ts,wgsl --ignore **/*systemDefinitions.ts --exec 'yarn clean && yarn server:compile & yarn client:compile && yarn server:start'",
-    "server:compile": "yarn cli:run server && node_modules/@swc/cli/bin/swc.js src/conduct-core src/server src/conduct-ecs src/game -d dist --config-file .swcrc",
+    "server:compile": "yarn cli:run server client.ts && node_modules/@swc/cli/bin/swc.js src/conduct-core src/server src/conduct-ecs src/game -d dist --config-file .swcrc --ignore **/*client.ts",
     "server:start": "node --enable-source-maps dist/src/server",
-    "client:compile": "yarn cli:run client && node_modules/webpack/bin/webpack.js --mode development && cp src/client/main.html dist/src/server/static/main.html",
+    "client:compile": "yarn cli:run client server.ts && node_modules/webpack/bin/webpack.js --mode development && cp src/client/main.html dist/src/server/static/main.html",
     "cli:compile": "node_modules/typescript/bin/tsc cli/main.ts",
     "cli:run": "node cli/main.js"
   },

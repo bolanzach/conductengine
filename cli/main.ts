@@ -85,6 +85,7 @@ import * as ts from "typescript";
 import { TypeNode } from "typescript";
 
 const pathArg = process.argv[2];
+const ignoreGlob = process.argv[3];
 
 const directoryPaths = [
   path.join(__dirname, "../src/conduct-ecs"),
@@ -98,7 +99,7 @@ function getAllFiles(dirPath: string, arrayOfFiles: string[] = []): string[] {
   files.forEach((file) => {
     if (fs.statSync(path.join(dirPath, file)).isDirectory()) {
       arrayOfFiles = getAllFiles(path.join(dirPath, file), arrayOfFiles);
-    } else {
+    } else if (ignoreGlob && !file.includes(ignoreGlob)) {
       arrayOfFiles.push(path.join(dirPath, file));
     }
   });

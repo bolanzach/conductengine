@@ -17,9 +17,8 @@ import {
   COMPONENT_TYPE,
   ComponentAdder,
   ComponentConstructor,
-  DeleteFunctions,
+  ComponentDataConstructor,
 } from "./component";
-import { NETWORK_ID } from "./components/network";
 import { Entity } from "./entity";
 import {
   EVENT_COMPONENT_ADDED,
@@ -134,7 +133,7 @@ export class World {
   addComponentToEntity<T extends ComponentConstructor>(
     entity: Entity,
     componentType: T,
-    data: Partial<DeleteFunctions<InstanceType<T>>>
+    data: ComponentDataConstructor<T>
   ): World {
     if (this.entityList[entity] <= EntityStateDestroying) {
       console.error("Cannot add component to inactive entity");
@@ -241,20 +240,22 @@ export class World {
   }
 
   private update(timestamp: number): void {
-    this.tick++;
+    while (true) {
+      this.tick++;
 
-    console.log(
-      this.tick,
-      " | LAST RUN TIME DIFF MS",
-      performance.now() - LAST_RUN_TIME
-    );
-    LAST_RUN_TIME = performance.now();
+      console.log(
+        this.tick,
+        " | LAST RUN TIME DIFF",
+        performance.now() - LAST_RUN_TIME
+      );
+      LAST_RUN_TIME = performance.now();
 
-    this.#handleEntityEvents();
+      this.#handleEntityEvents();
 
-    this.#runUpdateSystems(timestamp);
+      this.#runUpdateSystems(timestamp);
+    }
 
-    raf(this.update.bind(this));
+    // raf(this.update.bind(this));
   }
 
   #handleEntityEvents() {
@@ -357,20 +358,21 @@ export class World {
           }
         );
 
-        // Each entity in the archetype will be processed
+        // Collect the component columns based on the system's requirements
+        const componentColumns: Component[][] = [];
+        for (let i = 0; i < systemComponentTypes.queryWith.length; i++) {
+          const systemComponentType = systemComponentTypes.queryWith[i];
+          const components = archetypeComponents.get(
+            systemComponentType
+          ) as Component[];
+          componentColumns.push(components);
+        }
+
         for (let e = 0; e < archetypeEntities.length; e++) {
-          const componentParams: Component[] = [];
-
-          // Collect the components based on the system's requirements
-          for (let i = 0; i < systemComponentTypes.queryWith.length; i++) {
-            const systemComponentType = systemComponentTypes.queryWith[i];
-            const components = archetypeComponents.get(
-              systemComponentType
-            ) as Component[];
-            componentParams.push(components[e]);
+          systemQueryParams.push([e]);
+          for (let c = 0; c < componentColumns.length; c++) {
+            systemQueryParams[e].push(componentColumns[c][e]);
           }
-
-          systemQueryParams.push([archetypeEntities[e], ...componentParams]);
         }
 
         // @ts-expect-error This is cheating

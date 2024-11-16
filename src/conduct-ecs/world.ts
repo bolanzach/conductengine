@@ -240,22 +240,21 @@ export class World {
   }
 
   private update(timestamp: number): void {
-    while (true) {
-      this.tick++;
+    this.tick++;
 
-      console.log(
-        this.tick,
-        " | LAST RUN TIME DIFF",
-        performance.now() - LAST_RUN_TIME
-      );
-      LAST_RUN_TIME = performance.now();
+    console.log(
+      this.tick,
+      " | LAST RUN TIME DIFF",
+      performance.now() - LAST_RUN_TIME
+    );
+    LAST_RUN_TIME = performance.now();
 
-      this.#handleEntityEvents();
+    this.#handleEntityEvents();
 
-      this.#runUpdateSystems(timestamp);
-    }
+    this.#runUpdateSystems(timestamp);
 
-    // raf(this.update.bind(this));
+    // For now we bind the update to the next frame
+    raf(this.update.bind(this));
   }
 
   #handleEntityEvents() {

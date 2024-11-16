@@ -64,13 +64,15 @@ export default class RenderComponent extends Component {
   offset = 256; // transformationBindGroup offset must be 256-byte aligned
   uniformBufferSize = this.offset;
 
+  vertices: Vertex[] = vertices;
+
   transformMatrix = mat4.create() as Float32Array;
   rotateMatrix = mat4.create() as Float32Array;
 
-  renderPipeline?: GPURenderPipeline = undefined;
-  transformationBuffer?: GPUBuffer = undefined;
-  transformationBindGroup?: GPUBindGroup = undefined;
-  verticesBuffer?: GPUBuffer = undefined;
+  renderPipeline: GPURenderPipeline = undefined as unknown as GPURenderPipeline;
+  transformationBuffer: GPUBuffer = undefined as unknown as GPUBuffer;
+  transformationBindGroup: GPUBindGroup | null = null;
+  verticesBuffer: GPUBuffer | null = null;
   colorBuffer?: GPUBuffer = undefined;
 
   perVertex = 3 + 3 + 2; // 3 for position, 3 for normal, 2 for uv, 3 for color

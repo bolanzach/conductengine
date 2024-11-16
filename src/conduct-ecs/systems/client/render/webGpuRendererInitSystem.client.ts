@@ -7,6 +7,7 @@ import { EventState } from "@/conduct-ecs/systems/eventSystem";
 export const WebGpuRendererState = createState<{
   context: GPUCanvasContext;
   device: GPUDevice;
+  renderPassDescriptor: GPURenderPassDescriptor;
 }>();
 
 export default async function WebGpuRendererInitSystem(world: World) {
@@ -48,29 +49,32 @@ export default async function WebGpuRendererInitSystem(world: World) {
     alphaMode: "premultiplied",
   });
 
-  // const renderPassDescriptor = {
-  //   colorAttachments: [
-  //     {
-  //       // attachment is acquired and set in render loop.
-  //       view: undefined,
-  //       loadOp: "clear",
-  //       clearValue: { r: 0.25, g: 0.25, b: 0.25, a: 1.0 },
-  //       storeOp: "store",
-  //     } as GPURenderPassColorAttachment,
-  //   ],
-  //   depthStencilAttachment: {
-  //     view: depthTextureView(canvas),
-  //
-  //     depthLoadOp: "clear",
-  //     depthClearValue: 1.0,
-  //     depthStoreOp: "store",
-  //     stencilLoadOp: "clear",
-  //     stencilClearValue: 0,
-  //     stencilStoreOp: "store",
-  //   } as GPURenderPassDepthStencilAttachment,
-  // };
+  const renderPassDescriptor = {
+    colorAttachments: [
+      {
+        // attachment is acquired and set in render loop.
+        view: undefined,
+        loadOp: "clear",
+        clearValue: { r: 0.25, g: 0.25, b: 0.25, a: 1.0 },
+        storeOp: "store",
+      } as unknown as GPURenderPassColorAttachment,
+    ],
+    depthStencilAttachment: {
+      view: depthTextureView(device, canvas),
+      depthLoadOp: "clear",
+      depthClearValue: 1.0,
+      depthStoreOp: "store",
+      stencilLoadOp: "clear",
+      stencilClearValue: 0,
+      stencilStoreOp: "store",
+    } as GPURenderPassDepthStencilAttachment,
+  };
 
-  world.registerState(WebGpuRendererState, { context, device });
+  world.registerState(WebGpuRendererState, {
+    context,
+    device,
+    renderPassDescriptor,
+  });
 
   // world.getState(EventState).subscribe(({ event, data }) => {
   //   if (
@@ -90,4 +94,17 @@ export default async function WebGpuRendererInitSystem(world: World) {
   //   size: lightDataSize,
   //   usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   // });
+}
+
+function depthTextureView(device: GPUDevice, canvas: HTMLCanvasElement) {
+  return device
+    .createTexture({
+      size: [
+        canvas.clientWidth, //* devicePixelRatio,
+        canvas.clientHeight, //  * devicePixelRatio,
+      ],
+      format: "depth24plus-stencil8",
+      usage: GPUTextureUsage.RENDER_ATTACHMENT,
+    })
+    .createView();
 }

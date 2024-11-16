@@ -42,6 +42,6 @@ registerSystemDefinitions(SYSTEM_DEFINITIONS);
     .registerSystem(WebGpuRendererSystem)
     //.registerSystem(new NetworkSystem(networkTransport, false, events))
     //.registerSystemInit(new ClientNetworkSystem(networkTransport))
-    .registerSystemInit(WebGpuRendererInitSystem)
+    .registerSystemInit(WebGpuRendererInitSystem, true)
     .registerSystemInit(MainGameStartInitSystem, true);
 })();

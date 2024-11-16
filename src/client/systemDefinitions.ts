@@ -12,7 +12,7 @@ import TestTwoSystem from "@/game/src/systems/testSystemTwo";
 
 export const WebGpuRendererSystemDefinition = {
             system: WebGpuRendererSystem,
-            queryWith: [] as ComponentType[]
+            queryWith: [RenderComponent] as ComponentType[]
           };
 export const EventSystemDefinition = {
             system: EventSystem,

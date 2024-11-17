@@ -8,6 +8,9 @@ export const WebGpuRendererState = createState<{
   context: GPUCanvasContext;
   device: GPUDevice;
   renderPassDescriptor: GPURenderPassDescriptor;
+  cameraUniformBuffer: GPUBuffer;
+  lightDataBuffer: GPUBuffer;
+  lightDataSize: number;
 }>();
 
 export default async function WebGpuRendererInitSystem(world: World) {
@@ -53,7 +56,7 @@ export default async function WebGpuRendererInitSystem(world: World) {
     colorAttachments: [
       {
         // attachment is acquired and set in render loop.
-        view: undefined,
+        view: depthTextureView(device, canvas),
         loadOp: "clear",
         clearValue: { r: 0.25, g: 0.25, b: 0.25, a: 1.0 },
         storeOp: "store",
@@ -70,30 +73,24 @@ export default async function WebGpuRendererInitSystem(world: World) {
     } as GPURenderPassDepthStencilAttachment,
   };
 
+  const cameraUniformBuffer = device.createBuffer({
+    size: 4 * 16,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  });
+  const lightDataSize = 3 * 4 + 4; // vec3 size in bytes
+  const lightDataBuffer = device.createBuffer({
+    size: lightDataSize,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  });
+
   world.registerState(WebGpuRendererState, {
     context,
     device,
     renderPassDescriptor,
+    cameraUniformBuffer,
+    lightDataBuffer,
+    lightDataSize: 3 * 4 + 4, // vec3 size in bytes
   });
-
-  // world.getState(EventState).subscribe(({ event, data }) => {
-  //   if (
-  //     event === EVENT_COMPONENT_ADDED &&
-  //     data.component instanceof RenderComponent
-  //   ) {
-  //     const { component } = data as { component: RenderComponent };
-  //   }
-  // });
-
-  // cameraUniformBuffer = device.createBuffer({
-  //   size: this.matrixSize,
-  //   usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  // });
-  //
-  // lightDataBuffer = device.createBuffer({
-  //   size: lightDataSize,
-  //   usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  // });
 }
 
 function depthTextureView(device: GPUDevice, canvas: HTMLCanvasElement) {

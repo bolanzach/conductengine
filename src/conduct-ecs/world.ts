@@ -189,7 +189,10 @@ export class World {
     return this;
   }
 
-  registerSystemInit(system: SystemInit, runImmediate = false): World {
+  async registerSystemInit(
+    system: SystemInit,
+    runImmediate = false
+  ): Promise<World> {
     if (runImmediate) {
       system(this);
       return this;

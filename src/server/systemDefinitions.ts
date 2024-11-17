@@ -1,3 +1,6 @@
+import CameraSystem from "@/conduct-ecs/systems/cameraSystem";
+import CameraComponent from "@/conduct-ecs/components/cameraComponent";
+import Transform3DComponent from "@/conduct-ecs/components/transformComponent";
 import EventSystem from "@/conduct-ecs/systems/eventSystem";
 import EventComponent from "@/conduct-ecs/components/eventComponent";
 import TestSystem from "@/game/src/systems/testSystem";
@@ -8,6 +11,10 @@ import TestThreeSystem from "@/game/src/systems/testSystemThree";
 import TestTwoSystem from "@/game/src/systems/testSystemTwo";
 
 
+export const CameraSystemDefinition = {
+            system: CameraSystem,
+            queryWith: [CameraComponent, Transform3DComponent] as ComponentType[]
+          };
 export const EventSystemDefinition = {
             system: EventSystem,
             queryWith: [EventComponent] as ComponentType[]

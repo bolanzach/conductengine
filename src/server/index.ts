@@ -3,6 +3,7 @@ import "reflect-metadata";
 import { World } from "@/conduct-ecs";
 import { EventManager } from "@/conduct-ecs/event";
 import { registerSystemDefinitions } from "@/conduct-ecs/system";
+import CameraSystem from "@/conduct-ecs/systems/cameraSystem";
 import EventInitSystem, {
   createEventBufferState,
   PrivateEventBufferState,
@@ -35,12 +36,14 @@ registerSystemDefinitions(SYSTEM_DEFINITIONS);
     .registerState(PrivateEventBufferState, createEventBufferState())
     .registerState(NetworkTransportState, gameServer)
 
-    .registerSystemInit(EventInitSystem)
-    .registerSystemInit(ServerNetworkInitSystem)
-
     .registerSystem(EventSystem)
-    //.registerSystem(new NetworkSystem(gameServer, true, events))
-    //.registerSystem(new ServerInputSystem(gameServer))
-    //.registerSystemInit(new ServerNetworkInitSystem(gameServer))
-    .registerSystemInit(MainGameStartInitSystem, true);
+    .registerSystem(CameraSystem)
+
+    .registerSystemInit(EventInitSystem)
+    .then((w) => w.registerSystemInit(ServerNetworkInitSystem))
+    .then((w) => w.registerSystemInit(MainGameStartInitSystem, true));
+
+  //.registerSystem(new NetworkSystem(gameServer, true, events))
+  //.registerSystem(new ServerInputSystem(gameServer))
+  //.registerSystemInit(new ServerNetworkInitSystem(gameServer))
 })();

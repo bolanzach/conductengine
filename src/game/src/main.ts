@@ -20,6 +20,7 @@ export default async function MainGameStartInitSystem(world: World) {
     .registerSystem(TestTwoSystem)
     .registerSystem(TestThreeSystem);
 
+  // camera
   world.addEntity().add(CameraComponent, {}).add(Transform3DComponent, {});
 
   squareBundle(world);

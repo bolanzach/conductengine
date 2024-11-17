@@ -1,6 +1,6 @@
+import { Query } from "@/conduct-ecs";
 import EventComponent from "@/conduct-ecs/components/eventComponent";
 import { eventSubscribe } from "@/conduct-ecs/event";
-import { Query } from "@/conduct-ecs/system";
 import TestComponent from "@/game/src/components/testComponent";
 import TestTwoComponent from "@/game/src/components/testTwoComponent";
 

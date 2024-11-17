@@ -1,18 +1,10 @@
-import { Component, COMPONENT_ID, ComponentConstructor } from "./component";
-import { Entity } from "./entity";
+import { Query } from "@/conduct-ecs/query";
+
+import { COMPONENT_ID, ComponentConstructor } from "./component";
 import { createSignature, Signature } from "./signature";
 import { World } from "./world";
 
-export const SYSTEM_PARAMS = Symbol("SYSTEM_PARAMS");
 export const SYSTEM_SIGNATURE = Symbol("SYSTEM_SIG");
-
-/**
- * Declare the Component types that a System should query for and operate on.
- * When iterating over a Query, the first element is always the Entity, followed
- * by the declared Components. A Query contains additional properties for
- * accessing global variables, such as the World.
- */
-export type Query<T extends Component[]> = [Entity, ...T][] & SystemParams;
 
 /**
  * A System is a function that operates on a collection of Components. Each
@@ -28,35 +20,44 @@ export type Query<T extends Component[]> = [Entity, ...T][] & SystemParams;
  * // Register the System
  * world.registerSystem(MySystem);
  */
-export type System = (query: Query<never>) => void;
+export type System = (...queries: Query<never>[]) => void;
+
+export type RegisteredSystem = System & {
+  [SYSTEM_SIGNATURE]: SystemSignature;
+};
+
+/**
+ * A System that is called a single time, when the World is initialized.
+ */
+export type SystemInit = (world: World) => void;
 
 // Private counter to assign a unique ID to each Component as they are
 // registered along with a System.
 let componentIdCounter = 1;
 
 export function registerSystemDefinitions(systemDefinitions: {
-  string: { system: SystemConstructor; queryWith: ComponentConstructor[] };
+  string: { system: System; queryWith: ComponentConstructor[][] };
 }) {
   Object.values(systemDefinitions).forEach((systemDef) => {
     const { system, queryWith } = systemDef;
 
     // Add a Component ID to each Component Constructor
-    queryWith.forEach((cstr) => {
-      if (!cstr[COMPONENT_ID]) {
-        cstr[COMPONENT_ID] = componentIdCounter++;
-      }
+    queryWith.forEach((cstrs) => {
+      cstrs.forEach((cstr) => {
+        if (!cstr[COMPONENT_ID]) {
+          cstr[COMPONENT_ID] = componentIdCounter++;
+        }
+      });
     });
 
-    system[SYSTEM_PARAMS] = {
-      queryWith,
-      queryWithout: [],
-    };
-
+    // @ts-expect-error We need to do this - this is what creates a RegisteredSystem
     system[SYSTEM_SIGNATURE] = {
-      queryWith: createSignature(
-        queryWith.map((cstr) => cstr[COMPONENT_ID] as number)
+      componentDeps: queryWith,
+      signatures: queryWith.map((componentQuery) =>
+        createSignature(
+          componentQuery.map((cstr) => cstr[COMPONENT_ID] as number)
+        )
       ),
-      queryWithout: createSignature([]),
     };
   });
 }
@@ -64,37 +65,19 @@ export function registerSystemDefinitions(systemDefinitions: {
 /**
  * Stored on each System to declare how the System should query Components.
  */
-interface SystemComponentDeps {
-  queryWith: ComponentConstructor[];
-  queryWithout: ComponentConstructor[];
-}
-
 interface SystemSignature {
-  queryWith: Signature;
-  queryWithout: Signature;
+  signatures: Signature[];
+  componentDeps: ComponentConstructor[][];
 }
 
-interface SystemParams {
-  world: World;
-  time: Readonly<{
-    /**
-     * The current cycle, incremented each frame.
-     */
-    tick: number;
-    delta: number;
-    timestamp: number;
-  }>;
-}
-
-/**
- * A System that is called a single time, when the World is initialized.
- */
-export type SystemInit = (world: World) => void;
-
-/**
- * A system's Component Query Params are stored on the registered constructor.
- */
-export type SystemConstructor = Function & {
-  [SYSTEM_PARAMS]: SystemComponentDeps;
-  [SYSTEM_SIGNATURE]: SystemSignature;
-};
+// interface SystemParams {
+//   world: World;
+//   time: Readonly<{
+//     /**
+//      * The current cycle, incremented each frame.
+//      */
+//     tick: number;
+//     delta: number;
+//     timestamp: number;
+//   }>;
+// }

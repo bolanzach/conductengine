@@ -1,7 +1,7 @@
+import { Query } from "@/conduct-ecs";
 import EventComponent from "@/conduct-ecs/components/eventComponent";
 import { EventEmitter, EventReceiver, EVENTS } from "@/conduct-ecs/event";
 import { createState } from "@/conduct-ecs/state";
-import { Query } from "@/conduct-ecs/system";
 import { PrivateEventBufferState } from "@/conduct-ecs/systems/eventInitSystem";
 
 export const EventState = createState<EventReceiver & EventEmitter>();

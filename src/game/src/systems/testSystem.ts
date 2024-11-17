@@ -1,5 +1,5 @@
-import { Component, ComponentType } from "@/conduct-ecs";
-import { Query } from "@/conduct-ecs/system";
+import { ComponentType } from "@/conduct-ecs";
+import { Query } from "@/conduct-ecs";
 import TestComponent from "@/game/src/components/testComponent";
 import TestTwoComponent from "@/game/src/components/testTwoComponent";
 

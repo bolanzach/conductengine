@@ -171,9 +171,9 @@ directoryPaths.forEach(function (dirPath) {
                     var _a, _b, _c;
                     importStatementsSet.add("import ".concat((_a = func.name) === null || _a === void 0 ? void 0 : _a.text, " from \"@/").concat(importPath_1, "\";"));
                     var componentTypes = getComponentTypes(func);
-                    systemDefinitions.add("export const ".concat((_b = func.name) === null || _b === void 0 ? void 0 : _b.text, "Definition = {\n            system: ").concat((_c = func.name) === null || _c === void 0 ? void 0 : _c.text, ",\n            queryWith: ").concat(!componentTypes.length
+                    systemDefinitions.add("export const ".concat((_b = func.name) === null || _b === void 0 ? void 0 : _b.text, "Definition = {\n            system: ").concat((_c = func.name) === null || _c === void 0 ? void 0 : _c.text, ",\n            queryWith: [").concat(!componentTypes.length
                         ? "[]"
-                        : componentTypes.map(function (type) { return type; }).join(", "), " as ComponentType[]\n          };"));
+                        : componentTypes.map(function (type) { return type; }).join(", "), "] as ComponentType[][]\n          };"));
                 });
                 var importStatements = getImportStatements(sourceFile);
                 importStatements.forEach(function (stmt) { return importStatementsSet.add(stmt); });

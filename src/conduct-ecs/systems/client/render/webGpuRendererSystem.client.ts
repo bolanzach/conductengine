@@ -1,25 +1,30 @@
 import { vec3 } from "gl-matrix";
 
 import { Query } from "@/conduct-ecs";
-import { getCameraViewProjectionMatrix } from "@/conduct-ecs/components/cameraComponent";
+import CameraComponent, {
+  getCameraViewProjectionMatrix,
+} from "@/conduct-ecs/components/cameraComponent";
 import RenderComponent from "@/conduct-ecs/components/renderComponent";
-import { CameraState } from "@/conduct-ecs/systems/cameraSystem";
+import Transform3DComponent from "@/conduct-ecs/components/transformComponent";
 import { WebGpuRendererState } from "@/conduct-ecs/systems/client/render/webGpuRendererInitSystem.client";
 
-export default function WebGpuRendererSystem(query: Query<[RenderComponent]>) {
+export default function WebGpuRendererSystem(
+  renderQuery: Query<[RenderComponent]>,
+  cameraQuery: Query<[CameraComponent, Transform3DComponent]>
+) {
   const {
     context,
     device,
     renderPassDescriptor,
     cameraUniformBuffer,
     lightDataBuffer,
-  } = query.world.getState(WebGpuRendererState);
-  const { mainCamera } = query.world.getState(CameraState);
+  } = renderQuery.world.getState(WebGpuRendererState);
+  const [[_, mainCamera, cameraTransform]] = cameraQuery;
 
   // CAMERA BUFFER
   const cameraViewProjectionMatrix = getCameraViewProjectionMatrix(
-    mainCamera.transform,
-    mainCamera.camera
+    cameraTransform,
+    mainCamera
   ) as Float32Array;
   device.queue.writeBuffer(
     cameraUniformBuffer,
@@ -46,7 +51,7 @@ export default function WebGpuRendererSystem(query: Query<[RenderComponent]>) {
   const commandEncoder = device.createCommandEncoder();
   const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
 
-  for (const [_, renderComponent] of query) {
+  for (const [_, renderComponent] of renderQuery) {
     // THIS NEEDS TO BE UNIQUE TO EACH RENDERER ???
     passEncoder.setPipeline(renderComponent.renderPipeline);
     device.queue.writeBuffer(

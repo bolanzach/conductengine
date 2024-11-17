@@ -192,11 +192,11 @@ directoryPaths.forEach((dirPath) => {
           systemDefinitions.add(
             `export const ${func.name?.text}Definition = {
             system: ${func.name?.text},
-            queryWith: ${
+            queryWith: [${
               !componentTypes.length
                 ? "[]"
                 : componentTypes.map((type) => type).join(", ")
-            } as ComponentType[]
+            }] as ComponentType[][]
           };`
           );
         });

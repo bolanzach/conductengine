@@ -1,9 +1,10 @@
 import raf from "raf";
 
+import { Query } from "@/conduct-ecs/query";
 import { STATE_ID, StateKey } from "@/conduct-ecs/state";
 import {
+  RegisteredSystem,
   System,
-  SYSTEM_PARAMS,
   SYSTEM_SIGNATURE,
   SystemInit,
 } from "@/conduct-ecs/system";
@@ -28,11 +29,7 @@ import {
   EventEmitter,
   EventReceiver,
 } from "./event";
-import {
-  createSignature,
-  signatureContains,
-  signatureEquals,
-} from "./signature";
+import { createSignature, signatureEquals } from "./signature";
 
 const EntityStateInactive = 0;
 const EntityStateDestroying = 1;
@@ -328,58 +325,22 @@ export class World {
 
     // Update all systems
     for (let s = 0; s < this.systems.length; s++) {
-      const system = this.systems[s];
-
-      // @ts-expect-error The system has a Definition
-      const systemComponentTypes = system[SYSTEM_PARAMS];
-      // @ts-expect-error The system has a Signature
-      const systemSignature = system[SYSTEM_SIGNATURE];
-
-      // Find all archetypes that match the system signature
-      for (let a = 0; a < this.archetypes.length; a++) {
-        const archetype = this.archetypes[a];
-
-        if (
-          !signatureContains(systemSignature.queryWith, archetype.signature)
-        ) {
-          // Signature does not match, skip this archetype
-          continue;
-        }
-
-        const archetypeComponents = archetype.components;
-        const archetypeEntities = archetype.entities;
-        const systemQueryParams: [Entity, ...Component[]][] = Object.assign(
-          [],
-          {
-            world: this,
-            time: {
-              tick: this.tick,
-              delta: secondsPassed,
-              timestamp,
-            },
-          }
+      const system = this.systems[s] as RegisteredSystem;
+      const { signatures, componentDeps } = system[SYSTEM_SIGNATURE];
+      const queries: Query<never>[] = [];
+      for (let q = 0; q < signatures.length; q++) {
+        const query = new Query(
+          this,
+          signatures[q],
+          componentDeps[q],
+          this.archetypes
         );
 
-        // Collect the component columns based on the system's requirements
-        const componentColumns: Component[][] = [];
-        for (let i = 0; i < systemComponentTypes.queryWith.length; i++) {
-          const systemComponentType = systemComponentTypes.queryWith[i];
-          const components = archetypeComponents.get(
-            systemComponentType
-          ) as Component[];
-          componentColumns.push(components);
-        }
-
-        for (let e = 0; e < archetypeEntities.length; e++) {
-          systemQueryParams.push([e]);
-          for (let c = 0; c < componentColumns.length; c++) {
-            systemQueryParams[e].push(componentColumns[c][e]);
-          }
-        }
-
-        // @ts-expect-error This is cheating
-        system(systemQueryParams);
+        // @ts-expect-error This is fine - have to ignore types a little
+        queries.push(query);
       }
+
+      system(...queries);
     }
   }
 }

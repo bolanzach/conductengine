@@ -11,18 +11,15 @@ import { World } from "@/conduct-ecs/world";
  * accessing global variables, such as the World.
  */
 export class Query<T extends Component[]> {
-  private systemQueryParams: [Entity, ...T][] = [];
+  public archetypes: Archetype[] = [];
+  public world: World = undefined as unknown as World;
 
   constructor(
-    public world: World,
-    private signature: Signature,
-    private componentTypes: ComponentType[],
-    private archetypes: Archetype[]
-  ) {
-    this.createSystemQueryParams();
-  }
+    private signature: Signature = [],
+    private componentTypes: ComponentType[] = []
+  ) {}
 
-  private createSystemQueryParams() {
+  *[Symbol.iterator](): Generator<[Entity, ...T]> {
     for (let a = 0; a < this.archetypes.length; a++) {
       const archetype = this.archetypes[a];
 
@@ -45,18 +42,14 @@ export class Query<T extends Component[]> {
       }
 
       for (let e = 0; e < archetypeEntities.length; e++) {
-        // @ts-expect-error this is fine
-        this.systemQueryParams.push([e]);
         for (let c = 0; c < componentColumns.length; c++) {
-          this.systemQueryParams[e].push(componentColumns[c][e]);
+          // @ts-expect-error this is fine
+          yield [
+            archetypeEntities[e],
+            ...componentColumns.map((components) => components[e]),
+          ];
         }
       }
-    }
-  }
-
-  *[Symbol.iterator](): Generator<[Entity, ...T]> {
-    for (let i = 0; i < this.systemQueryParams.length; i++) {
-      yield this.systemQueryParams[i];
     }
   }
 }

@@ -50,14 +50,20 @@ export function registerSystemDefinitions(systemDefinitions: {
       });
     });
 
+    const signatures = queryWith.map((componentQuery) =>
+      createSignature(
+        componentQuery.map((cstr) => cstr[COMPONENT_ID] as number)
+      )
+    );
+    const queries = queryWith.map(
+      (componentQuery, i) => new Query(signatures[i], componentQuery)
+    );
+
     // @ts-expect-error We need to do this - this is what creates a RegisteredSystem
     system[SYSTEM_SIGNATURE] = {
       componentDeps: queryWith,
-      signatures: queryWith.map((componentQuery) =>
-        createSignature(
-          componentQuery.map((cstr) => cstr[COMPONENT_ID] as number)
-        )
-      ),
+      signatures,
+      queries,
     };
   });
 }
@@ -68,6 +74,7 @@ export function registerSystemDefinitions(systemDefinitions: {
 interface SystemSignature {
   signatures: Signature[];
   componentDeps: ComponentConstructor[][];
+  queries: Query<never>[];
 }
 
 // interface SystemParams {

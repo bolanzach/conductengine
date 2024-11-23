@@ -51,7 +51,7 @@ let LAST_RUN_TIME = performance.now();
 
 export class World {
   // The index is the entity ID and the value is the entity state.
-  private entityList = new Int32Array(50_000);
+  private entityList = new Int32Array(80_000);
 
   // Buffer events for entities
   private internalEntityEvents = new Map<Entity, [number, Component[]]>();
@@ -181,6 +181,8 @@ export class World {
   registerSystem(system: System): World {
     const found = this.systems.find((s) => s === system);
     if (!found) {
+      const { queries } = (system as RegisteredSystem)[SYSTEM_SIGNATURE];
+      queries.forEach((query) => (query.world = this));
       this.systems.push(system);
     }
     return this;
@@ -191,7 +193,7 @@ export class World {
     runImmediate = false
   ): Promise<World> {
     if (runImmediate) {
-      system(this);
+      await system(this);
       return this;
     }
     if (this.#gameStarted) {
@@ -326,20 +328,8 @@ export class World {
     // Update all systems
     for (let s = 0; s < this.systems.length; s++) {
       const system = this.systems[s] as RegisteredSystem;
-      const { signatures, componentDeps } = system[SYSTEM_SIGNATURE];
-      const queries: Query<never>[] = [];
-      for (let q = 0; q < signatures.length; q++) {
-        const query = new Query(
-          this,
-          signatures[q],
-          componentDeps[q],
-          this.archetypes
-        );
-
-        // @ts-expect-error This is fine - have to ignore types a little
-        queries.push(query);
-      }
-
+      const { queries } = system[SYSTEM_SIGNATURE];
+      queries.forEach((query) => (query.archetypes = this.archetypes));
       system(...queries);
     }
   }

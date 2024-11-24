@@ -19,7 +19,7 @@ export default function WebGpuRendererSystem(
     cameraUniformBuffer,
     lightDataBuffer,
   } = renderQuery.world.getState(WebGpuRendererState);
-  const [[_, mainCamera, cameraTransform]] = cameraQuery;
+  const [[_, mainCamera, cameraTransform]] = cameraQuery.components;
 
   // CAMERA BUFFER
   const cameraViewProjectionMatrix = getCameraViewProjectionMatrix(
@@ -51,7 +51,7 @@ export default function WebGpuRendererSystem(
   const commandEncoder = device.createCommandEncoder();
   const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
 
-  for (const [_, renderComponent] of renderQuery) {
+  for (const [_, renderComponent] of renderQuery.components) {
     // THIS NEEDS TO BE UNIQUE TO EACH RENDERER ???
     passEncoder.setPipeline(renderComponent.renderPipeline);
     device.queue.writeBuffer(

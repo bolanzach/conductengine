@@ -244,19 +244,31 @@ export class World {
   private update(timestamp: number): void {
     this.tick++;
 
-    console.log(
-      this.tick,
-      " | LAST RUN TIME DIFF",
-      performance.now() - LAST_RUN_TIME
-    );
-    LAST_RUN_TIME = performance.now();
+    while (true) {
+      console.log(
+        this.tick,
+        " | LAST RUN TIME DIFF",
+        performance.now() - LAST_RUN_TIME
+      );
+      LAST_RUN_TIME = performance.now();
 
-    this.#handleEntityEvents();
+      this.#handleEntityEvents();
 
-    this.#runUpdateSystems(timestamp);
-
-    // For now we bind the update to the next frame
-    raf(this.update.bind(this));
+      this.#runUpdateSystems(timestamp);
+    }
+    // console.log(
+    //   this.tick,
+    //   " | LAST RUN TIME DIFF",
+    //   performance.now() - LAST_RUN_TIME
+    // );
+    // LAST_RUN_TIME = performance.now();
+    //
+    // this.#handleEntityEvents();
+    //
+    // this.#runUpdateSystems(timestamp);
+    //
+    // // For now we bind the update to the next frame
+    // raf(this.update.bind(this));
   }
 
   #handleEntityEvents() {

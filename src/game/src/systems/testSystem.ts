@@ -7,7 +7,7 @@ export default function TestSystem(
   query: Query<[TestComponent, TestTwoComponent]>
 ) {
   const { world } = query;
-  for (const [entity, one] of query) {
+  for (const [entity, one] of query.components) {
     one.value++;
   }
 }

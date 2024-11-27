@@ -22,10 +22,12 @@ class PersonComponent extends Component {
 // Define a System that operates on the data
 // A system is just a function!
 function TestSystem(query: Query<[PersonComponent]>) {
-  // Iterates over all entities that have the TestComponent
-  for (const [entity, person] of query) {
-    console.log(person.name);
-  }
+  // Iterates over all entities that have the PersonComponent
+  query.components(([entity, person]) => {
+    if (person.age > 40) {
+      console.log(person.name, "is old!");
+    }
+  });
 }
 
 // Setup your world
@@ -54,13 +56,14 @@ Let's refactor to several components.
 
 ```ts
 class NameComponent extends Component {
-  name = "";
+  value = "";
 }
 
 class AgeComponent extends Component {
-  age = 0;
+  value = 0;
 }
 
+// This tags an entity as a person
 class PersonComponent extends Component {}
 
 class DogComponent extends Component {
@@ -68,14 +71,41 @@ class DogComponent extends Component {
 }
 
 function PersonSystem(query: Query<[PersonComponent, NameComponent, AgeComponent]>) {
-  for (const [entity, person, name, age] of query) {
-    // Do something with the person
-  }
+  query.components(([entity, person, name, age]) => {
+    if (age.value > 40) {
+      console.log(name.value, "is old!");
+    }
+  });
 }
 
 function DogSystem(query: Query<[DogComponent, NameComponent]>) {
-  for (const [entity, dog, name] of query) {
-    // Do something with the dog
-  }
+  query.components(([entity, dog, name]) => {
+    console.log(name.value, "is a", dog.breed);
+  });
+}
+```
+
+Systems can declare multiple queries to allow entities to interact
+
+```ts
+class TransformComponent extends Component {
+  x = 0;
+  y = 0;
+}
+
+class MissileComponent extends Component {}
+class TargetComponent extends Component {}
+
+function MissileTargetSystem(
+  missileQuery: Query<[MissileComponent, TransformComponent]>,
+  targetQuery: Query<[TargetComponent, TransformComponent]>,
+) {
+  missileQuery.components(([missileEntity, missile, missileTransform]) => {
+    targetQuery.components(([targetEntity, target, targetTransform]) => {
+      if (distance(missileTransform, targetTransform) < 10) {
+        console.log("Missile hit target!");
+      }
+    });
+  });
 }
 ```

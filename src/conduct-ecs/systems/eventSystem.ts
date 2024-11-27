@@ -17,7 +17,7 @@ export default function EventSystem(query: Query<[EventComponent]>) {
   });
   eventBufferState.futureEvents = [];
 
-  // for (const [_, event] of query.components) {
-  //   event[EVENTS] = currentEvents;
-  // }
+  query.iter(([_, event]) => {
+    event[EVENTS] = currentEvents;
+  });
 }

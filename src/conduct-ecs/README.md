@@ -23,7 +23,7 @@ class PersonComponent extends Component {
 // A system is just a function!
 function TestSystem(query: Query<[PersonComponent]>) {
   // Iterates over all entities that have the PersonComponent
-  query.components(([entity, person]) => {
+  query.iter(([entity, person]) => {
     if (person.age > 40) {
       console.log(person.name, "is old!");
     }
@@ -71,7 +71,7 @@ class DogComponent extends Component {
 }
 
 function PersonSystem(query: Query<[PersonComponent, NameComponent, AgeComponent]>) {
-  query.components(([entity, person, name, age]) => {
+  query.iter(([entity, person, name, age]) => {
     if (age.value > 40) {
       console.log(name.value, "is old!");
     }
@@ -79,7 +79,7 @@ function PersonSystem(query: Query<[PersonComponent, NameComponent, AgeComponent
 }
 
 function DogSystem(query: Query<[DogComponent, NameComponent]>) {
-  query.components(([entity, dog, name]) => {
+  query.iter(([entity, dog, name]) => {
     console.log(name.value, "is a", dog.breed);
   });
 }
@@ -100,8 +100,8 @@ function MissileTargetSystem(
   missileQuery: Query<[MissileComponent, TransformComponent]>,
   targetQuery: Query<[TargetComponent, TransformComponent]>,
 ) {
-  missileQuery.components(([missileEntity, missile, missileTransform]) => {
-    targetQuery.components(([targetEntity, target, targetTransform]) => {
+  missileQuery.iter(([missileEntity, missile, missileTransform]) => {
+    targetQuery.iter(([targetEntity, target, targetTransform]) => {
       if (distance(missileTransform, targetTransform) < 10) {
         console.log("Missile hit target!");
       }

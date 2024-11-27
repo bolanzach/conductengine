@@ -244,38 +244,36 @@ export class World {
   private update(timestamp: number): void {
     this.tick++;
 
-    // 0.0075
-    // 0.0095
-    const runs: number[] = [];
-    while (true) {
-      if (runs.length >= 5000) {
-        runs.splice(0, 10);
-        console.log(
-          "AVG RUN TIME",
-          runs.reduce((a, b) => a + b, 0) / runs.length
-        );
-        break;
-      }
-      runs.push(performance.now() - LAST_RUN_TIME);
-      LAST_RUN_TIME = performance.now();
+    // const runs: number[] = [];
+    // while (true) {
+    //   if (runs.length >= 8_000) {
+    //     runs.splice(0, 10);
+    //     console.log(
+    //       "AVG RUN TIME",
+    //       runs.reduce((a, b) => a + b, 0) / runs.length
+    //     );
+    //     break;
+    //   }
+    //   runs.push(performance.now() - LAST_RUN_TIME);
+    //   LAST_RUN_TIME = performance.now();
+    //
+    //   this.#handleEntityEvents();
+    //
+    //   this.#runUpdateSystems(timestamp);
+    // }
+    console.log(
+      this.tick,
+      " | LAST RUN TIME DIFF",
+      performance.now() - LAST_RUN_TIME
+    );
+    LAST_RUN_TIME = performance.now();
 
-      this.#handleEntityEvents();
+    this.#handleEntityEvents();
 
-      this.#runUpdateSystems(timestamp);
-    }
-    // console.log(
-    //   this.tick,
-    //   " | LAST RUN TIME DIFF",
-    //   performance.now() - LAST_RUN_TIME
-    // );
-    // LAST_RUN_TIME = performance.now();
-    //
-    // this.#handleEntityEvents();
-    //
-    // this.#runUpdateSystems(timestamp);
-    //
-    // // For now we bind the update to the next frame
-    // raf(this.update.bind(this));
+    this.#runUpdateSystems(timestamp);
+
+    // For now we bind the update to the next frame
+    raf(this.update.bind(this));
   }
 
   #handleEntityEvents() {
@@ -332,7 +330,7 @@ export class World {
       this.mapEntityToArchetype[entity] = archetypeIdx;
     } else {
       const archetype = createArchetype(
-        new Map(components.map((c) => [c[COMPONENT_TYPE], [c]])),
+        components.map((c) => [c]),
         [entity]
       );
       const len = this.archetypes.push(archetype);

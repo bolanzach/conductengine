@@ -5,7 +5,7 @@ import PerformanceTestTwoComponent from "@/game/src/components/performanceTestTw
 export default function PerformanceTestOneTwoSystem(
   query: Query<[PerformanceTestOneComponent, PerformanceTestTwoComponent]>
 ) {
-  query.components(([_, one, two]) => {
+  query.iter(([_, one, two]) => {
     one.value += two.value;
   });
 }

@@ -4,7 +4,7 @@ import PerformanceTestThreeComponent from "@/game/src/components/performanceTest
 export default function PerformanceTestThreeSystem(
   query: Query<[PerformanceTestThreeComponent]>
 ) {
-  query.components(([_, three]) => {
+  query.iter(([_, three]) => {
     three.value++;
   });
 }

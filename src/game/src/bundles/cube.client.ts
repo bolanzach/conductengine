@@ -4,7 +4,7 @@ import { WebGpuRendererState } from "@/conduct-ecs/systems/client/render/webGpuR
 import fragmentShader from "@/game/src/shaders/square.fragment.wgsl";
 import vertexShader from "@/game/src/shaders/square.vertex.wgsl";
 
-export function initSquareClientRenderer(world: World) {
+export function initCubeClientRenderer(world: World) {
   return function (component: RenderComponent) {
     const { device, lightDataSize, lightDataBuffer, cameraUniformBuffer } =
       world.getState(WebGpuRendererState);

@@ -7,6 +7,13 @@ import WebGpuRendererSystem from "@/conduct-ecs/systems/client/render/webGpuRend
 import RenderComponent from "@/conduct-ecs/components/renderComponent";
 import EventSystem from "@/conduct-ecs/systems/eventSystem";
 import EventComponent from "@/conduct-ecs/components/eventComponent";
+import PerformanceTestOneSystem from "@/game/src/systems/performanceTestOneSystem";
+import PerformanceTestOneComponent from "@/game/src/components/performanceTestOneComponent";
+import PerformanceTestOneTwoSystem from "@/game/src/systems/performanceTestOneTwoSystem";
+import PerformanceTestTwoComponent from "@/game/src/components/performanceTestTwoComponent";
+import PerformanceTestThreeSystem from "@/game/src/systems/performanceTestThreeSystem";
+import PerformanceTestThreeComponent from "@/game/src/components/performanceTestThreeComponent";
+import PerformanceTestTwoSystem from "@/game/src/systems/performanceTestTwoSystem";
 import TestSystem from "@/game/src/systems/testSystem";
 import { ComponentType } from "@/conduct-ecs";
 import TestComponent from "@/game/src/components/testComponent";
@@ -26,6 +33,22 @@ export const WebGpuRendererSystemDefinition = {
 export const EventSystemDefinition = {
             system: EventSystem,
             queryWith: [[EventComponent]] as ComponentType[][]
+          };
+export const PerformanceTestOneSystemDefinition = {
+            system: PerformanceTestOneSystem,
+            queryWith: [[PerformanceTestOneComponent]] as ComponentType[][]
+          };
+export const PerformanceTestOneTwoSystemDefinition = {
+            system: PerformanceTestOneTwoSystem,
+            queryWith: [[PerformanceTestOneComponent, PerformanceTestTwoComponent]] as ComponentType[][]
+          };
+export const PerformanceTestThreeSystemDefinition = {
+            system: PerformanceTestThreeSystem,
+            queryWith: [[PerformanceTestThreeComponent]] as ComponentType[][]
+          };
+export const PerformanceTestTwoSystemDefinition = {
+            system: PerformanceTestTwoSystem,
+            queryWith: [[PerformanceTestTwoComponent]] as ComponentType[][]
           };
 export const TestSystemDefinition = {
             system: TestSystem,

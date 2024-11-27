@@ -36,11 +36,11 @@ registerSystemDefinitions(SYSTEM_DEFINITIONS);
     .registerState(PrivateEventBufferState, createEventBufferState())
     .registerState(NetworkTransportState, gameServer)
 
-    .registerSystem(EventSystem)
-    .registerSystem(CameraSystem)
+    // .registerSystem(EventSystem)
+    // .registerSystem(CameraSystem)
 
     .registerSystemInit(EventInitSystem)
-    .then((w) => w.registerSystemInit(ServerNetworkInitSystem))
+    // .then((w) => w.registerSystemInit(ServerNetworkInitSystem))
     .then((w) => w.registerSystemInit(MainGameStartInitSystem, true));
 
   //.registerSystem(new NetworkSystem(gameServer, true, events))

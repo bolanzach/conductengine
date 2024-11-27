@@ -4,6 +4,8 @@
 // import { Signature, signatureContains } from "@/conduct-ecs/signature";
 // import { World } from "@/conduct-ecs/world";
 //
+// const ZACH = new Array(2_000).fill([1]);
+//
 // /**
 //  * Declare the Component types that a System should query for and operate on.
 //  * When iterating over a Query, the first element is always the Entity, followed
@@ -11,9 +13,7 @@
 //  * accessing global variables, such as the World.
 //  */
 // export class Query<T extends Component[]> {
-//   private systemQueryParams: [Entity, ...T][] = [];
 //   public archetypes: Archetype[] = [];
-//
 //   public world: World = undefined as unknown as World;
 //
 //   constructor(
@@ -21,10 +21,9 @@
 //     private componentTypes: ComponentType[] = []
 //   ) {}
 //
-//   get components(): readonly [Entity, ...T][] {
-//     const systemQueryParams: [Entity, ...T][] = [];
-//
+//   components(iter: (foo: [Entity, ...T]) => void) {
 //     for (let a = 0; a < this.archetypes.length; a++) {
+//       const systemQueryParams = [];
 //       const archetype = this.archetypes[a];
 //
 //       if (!signatureContains(this.signature, archetype.signature)) {
@@ -32,30 +31,27 @@
 //         continue;
 //       }
 //
-//       const startingIndex = systemQueryParams.length;
 //       const archetypeComponents = archetype.components;
-//       const archetypeEntities = archetype.entities;
-//
-//       for (let e = 0; e < archetypeEntities.length; e++) {
-//         // @ts-expect-error this is fine
-//         systemQueryParams.push([archetypeEntities[e]]);
-//       }
 //
 //       for (let i = 0; i < this.componentTypes.length; i++) {
-//         let idx = startingIndex;
-//         const systemComponentType = this.componentTypes[i];
 //         const components = archetypeComponents.get(
-//           systemComponentType
+//           this.componentTypes[i]
 //         ) as Component[];
+//         systemQueryParams[i] = components;
+//       }
 //
-//         for (let c = 0; c < components.length; c++) {
-//           systemQueryParams[idx].push(components[c]);
-//           idx++;
+//       const params = []; //
+//       const archetypeEntities = archetype.entities;
+//       const length = this.componentTypes.length;
+//       for (let e = 0, eCount = archetypeEntities.length; e < eCount; e++) {
+//         params[0] = archetypeEntities[e];
+//         for (let p = 0; p < length; p++) {
+//           params[p + 1] = systemQueryParams[p][e];
 //         }
+//         // @ts-expect-error this is fine.
+//         iter(params);
 //       }
 //     }
-//
-//     return systemQueryParams;
 //   }
 // }
 
@@ -72,47 +68,53 @@ import { World } from "@/conduct-ecs/world";
  * accessing global variables, such as the World.
  */
 export class Query<T extends Component[]> {
-  public archetypes: Archetype[] = [];
-  public world: World = undefined as unknown as World;
+  private _world: World = undefined as unknown as World;
+  private records: [Entity[], Component[][]][] = [] as unknown as [
+    Entity[],
+    Component[][],
+  ][];
 
   constructor(
     private signature: Signature = [],
     private componentTypes: ComponentType[] = []
   ) {}
 
-  get components(): readonly [Entity, ...T][] {
-    const systemQueryParams: [Entity, ...T][] = [];
+  get world() {
+    return this._world;
+  }
 
-    for (let a = 0; a < this.archetypes.length; a++) {
-      const archetype = this.archetypes[a];
+  set world(world: World) {
+    this._world = world;
+  }
 
-      if (!signatureContains(this.signature, archetype.signature)) {
-        // Signature does not match, skip this archetype
-        continue;
-      }
-
-      const startingIndex = systemQueryParams.length;
-      const archetypeComponents = archetype.components;
-      const archetypeEntities = archetype.entities;
-
-      for (let i = 0; i < this.componentTypes.length; i++) {
-        let idx = startingIndex;
-        const systemComponentType = this.componentTypes[i];
-        const components = archetypeComponents.get(
-          systemComponentType
-        ) as Component[];
-
-        for (let c = 0; c < components.length; c++) {
-          if (systemQueryParams[idx] === undefined) {
-            // @ts-expect-error this is fine
-            systemQueryParams[idx] = [archetypeEntities[c]];
-          }
-          systemQueryParams[idx].push(components[c]);
-          idx++;
-        }
-      }
+  handleNewArchetype(archetype: Archetype) {
+    if (!signatureContains(this.signature, archetype.signature)) {
+      // Signature does not match, skip this archetype
+      return;
     }
 
-    return systemQueryParams;
+    const components: Component[][] = [];
+    for (let i = 0; i < this.componentTypes.length; i++) {
+      components[i] = archetype.components.get(
+        this.componentTypes[i]
+      ) as Component[];
+    }
+    this.records.push([archetype.entities, components]);
+  }
+
+  components(iter: (foo: [Entity, ...T]) => void) {
+    for (let a = 0; a < this.records.length; a++) {
+      const [entities, components] = this.records[a];
+      const params = []; //
+      const length = this.componentTypes.length;
+      for (let e = 0, eCount = entities.length; e < eCount; e++) {
+        params[0] = entities[e];
+        for (let p = 0; p < length; p++) {
+          params[p + 1] = components[p][e];
+        }
+        // @ts-expect-error this is fine.
+        iter(params);
+      }
+    }
   }
 }

@@ -21,3 +21,6 @@ In a WebGPU supported browser (unfortunately, just Chrome) navigate to `localhos
 ## Features
 
 ECS - [Entity Component System](src/conduct-ecs/README.md)
+
+5_000 entities with no archetype            = 0.0659
+5_000 entities with archetype cache         = 0.0616

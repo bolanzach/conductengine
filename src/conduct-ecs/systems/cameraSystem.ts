@@ -7,6 +7,6 @@ import Transform3DComponent from "@/conduct-ecs/components/transformComponent";
 export default function CameraSystem(
   query: Query<[CameraComponent, Transform3DComponent]>
 ) {
-  for (const [entity, camera, transform] of query.components) {
-  }
+  // for (const [entity, camera, transform] of query.components) {
+  // }
 }

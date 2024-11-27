@@ -244,12 +244,19 @@ export class World {
   private update(timestamp: number): void {
     this.tick++;
 
+    // 0.0075
+    // 0.0095
+    const runs: number[] = [];
     while (true) {
-      console.log(
-        this.tick,
-        " | LAST RUN TIME DIFF",
-        performance.now() - LAST_RUN_TIME
-      );
+      if (runs.length >= 5000) {
+        runs.splice(0, 10);
+        console.log(
+          "AVG RUN TIME",
+          runs.reduce((a, b) => a + b, 0) / runs.length
+        );
+        break;
+      }
+      runs.push(performance.now() - LAST_RUN_TIME);
       LAST_RUN_TIME = performance.now();
 
       this.#handleEntityEvents();
@@ -330,6 +337,13 @@ export class World {
       );
       const len = this.archetypes.push(archetype);
       this.mapEntityToArchetype[entity] = len - 1;
+
+      // Temporary - update all the queries
+      this.systems.forEach((system) => {
+        (system as RegisteredSystem)[SYSTEM_SIGNATURE].queries.forEach(
+          (query) => query.handleNewArchetype(archetype)
+        );
+      });
     }
   }
 
@@ -341,7 +355,7 @@ export class World {
     for (let s = 0; s < this.systems.length; s++) {
       const system = this.systems[s] as RegisteredSystem;
       const { queries } = system[SYSTEM_SIGNATURE];
-      queries.forEach((query) => (query.archetypes = this.archetypes));
+      //queries.forEach((query) => (query.archetypes = this.archetypes));
       system(...queries);
     }
   }

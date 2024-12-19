@@ -20,7 +20,7 @@ export default async function MainGameStartInitSystem(world: World) {
     .registerSystem(PerformanceTestThreeSystem)
     .registerSystem(PerformanceTestOneTwoSystem);
 
-  // // camera
+  // camera
   const aspect =
     world.gameHostType === "client"
       ? window.innerWidth / window.innerHeight

@@ -4,7 +4,7 @@ import { Query } from "@/conduct-ecs";
 import CameraComponent from "@/conduct-ecs/components/cameraComponent";
 import RenderComponent from "@/conduct-ecs/components/renderComponent";
 import Transform3DComponent from "@/conduct-ecs/components/transformComponent";
-import { getCameraViewProjectionMatrix } from "@/conduct-ecs/impl/camera";
+import { getCameraViewProjectionMatrix } from "@/conduct-ecs/systems/cameraSystem";
 import { WebGpuRendererState } from "@/conduct-ecs/systems/client/render/webGpuRendererInitSystem.client";
 
 function updateTransformationMatrix(

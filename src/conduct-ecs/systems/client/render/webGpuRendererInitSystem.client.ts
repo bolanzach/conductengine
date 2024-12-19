@@ -1,8 +1,5 @@
 import { World } from "@/conduct-ecs";
-import RenderComponent from "@/conduct-ecs/components/renderComponent";
-import { EVENT_COMPONENT_ADDED } from "@/conduct-ecs/event";
 import { createState } from "@/conduct-ecs/state";
-import { EventState } from "@/conduct-ecs/systems/eventSystem";
 
 export const WebGpuRendererState = createState<{
   context: GPUCanvasContext;
@@ -20,12 +17,10 @@ export default async function WebGpuRendererInitSystem(world: World) {
     return;
   }
 
-  const adapter = await navigator.gpu.requestAdapter();
-  if (!adapter) {
-    console.error("found no gpu adapter!");
-    return;
-  }
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
 
+  const adapter = (await navigator.gpu.requestAdapter()) as GPUAdapter;
   const device = await adapter.requestDevice();
 
   if (!device) {
@@ -35,16 +30,12 @@ export default async function WebGpuRendererInitSystem(world: World) {
 
   // @ts-expect-error webpgu_ts_compilation
   const context = canvas.getContext("webgpu") as GPUCanvasContext;
-  if (!context) {
-    console.error("could not get webgpu context!");
-    return;
-  }
 
   const presentationFormat = navigator.gpu.getPreferredCanvasFormat();
-  const presentationSize = [
-    canvas.clientWidth * devicePixelRatio,
-    canvas.clientHeight * devicePixelRatio,
-  ];
+  // const presentationSize = [
+  //   canvas.clientWidth * devicePixelRatio,
+  //   canvas.clientHeight * devicePixelRatio,
+  // ];
 
   context.configure({
     device,
@@ -56,14 +47,15 @@ export default async function WebGpuRendererInitSystem(world: World) {
     colorAttachments: [
       {
         // attachment is acquired and set in render loop.
-        view: depthTextureView(device, canvas),
+        view: undefined,
         loadOp: "clear",
         clearValue: { r: 0.25, g: 0.25, b: 0.25, a: 1.0 },
         storeOp: "store",
-      } as unknown as GPURenderPassColorAttachment,
+      } as GPURenderPassColorAttachment,
     ],
     depthStencilAttachment: {
       view: depthTextureView(device, canvas),
+
       depthLoadOp: "clear",
       depthClearValue: 1.0,
       depthStoreOp: "store",
@@ -74,12 +66,12 @@ export default async function WebGpuRendererInitSystem(world: World) {
   };
 
   const cameraUniformBuffer = device.createBuffer({
-    size: 4 * 16,
+    size: 4 * 16, // 4x4 matrix,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
-  const lightDataSize = 3 * 4 + 4; // vec3 size in bytes
+
   const lightDataBuffer = device.createBuffer({
-    size: lightDataSize,
+    size: 3 * 4 + 4, // vec3 size in bytes
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
 

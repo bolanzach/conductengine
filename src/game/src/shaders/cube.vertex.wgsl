@@ -3,7 +3,7 @@ struct Uniforms {     // 4x4 transform matrices
     rotate : mat4x4<f32>,       // rotate only
 };
 
-struct Camera {     // 4x4 transform matrix
+struct CameraClient {     // 4x4 transform matrix
     matrix : mat4x4<f32>,
 };
 
@@ -13,7 +13,7 @@ struct Color {        // RGB color
 
 // bind model/camera/color buffers
 @group(0) @binding(0) var<uniform> modelTransform    : Uniforms;
-@group(0) @binding(2) var<uniform> cameraTransform   : Camera;
+@group(0) @binding(2) var<uniform> cameraTransform   : CameraClient;
 @group(0) @binding(1) var<storage,read> color             : Color;
 
 // output struct of this vertex shader

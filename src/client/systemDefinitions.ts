@@ -1,12 +1,12 @@
 import CameraSystem from "@/conduct-ecs/systems/cameraSystem";
-import CameraComponent, {
-  getCameraViewProjectionMatrix,
-} from "@/conduct-ecs/components/cameraComponent";
+import CameraComponent from "@/conduct-ecs/components/cameraComponent";
 import Transform3DComponent from "@/conduct-ecs/components/transformComponent";
 import WebGpuRendererSystem from "@/conduct-ecs/systems/client/render/webGpuRendererSystem.client";
 import RenderComponent from "@/conduct-ecs/components/renderComponent";
 import EventSystem from "@/conduct-ecs/systems/eventSystem";
 import EventComponent from "@/conduct-ecs/components/eventComponent";
+import MoveSquareSystem from "@/game/src/systems/moveSquareSystem";
+import MoveSquareComponent from "@/game/src/components/moveSquare";
 import PerformanceTestOneSystem from "@/game/src/systems/performanceTestOneSystem";
 import PerformanceTestOneComponent from "@/game/src/components/performanceTestOneComponent";
 import PerformanceTestOneTwoSystem from "@/game/src/systems/performanceTestOneTwoSystem";
@@ -28,11 +28,15 @@ export const CameraSystemDefinition = {
           };
 export const WebGpuRendererSystemDefinition = {
             system: WebGpuRendererSystem,
-            queryWith: [[RenderComponent], [CameraComponent, Transform3DComponent]] as ComponentType[][]
+            queryWith: [[RenderComponent, Transform3DComponent], [CameraComponent, Transform3DComponent]] as ComponentType[][]
           };
 export const EventSystemDefinition = {
             system: EventSystem,
             queryWith: [[EventComponent]] as ComponentType[][]
+          };
+export const MoveSquareSystemDefinition = {
+            system: MoveSquareSystem,
+            queryWith: [[Transform3DComponent, MoveSquareComponent]] as ComponentType[][]
           };
 export const PerformanceTestOneSystemDefinition = {
             system: PerformanceTestOneSystem,

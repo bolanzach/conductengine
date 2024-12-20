@@ -8,5 +8,6 @@ export default function MoveSquareSystem(
   query.iter(([_, transform]) => {
     const now = Date.now() / 1000;
     transform.rx = Math.cos(now);
+    transform.ry = Math.cos(now);
   });
 }

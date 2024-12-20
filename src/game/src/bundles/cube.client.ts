@@ -6,8 +6,6 @@ import cubeVertexShader from "@/game/src/shaders/cube.vertex.wgsl";
 
 export function initCubeClientRenderer(world: World) {
   return function (component: RenderComponent): RenderComponent {
-    //this.setTransformation(parameter);
-
     const { vertices } = component;
     const { device, cameraUniformBuffer, lightDataBuffer } =
       world.getState(WebGpuRendererState);
@@ -82,7 +80,7 @@ export function initCubeClientRenderer(world: World) {
           vertices[i].pos[1] * 2, //component.scaleY,
           vertices[i].pos[2] * 2, //component.scaleZ,
         ],
-        component.perVertex * i + 0
+        component.perVertex * i
       );
       mapping.set(vertices[i].norm, component.perVertex * i + 3);
       mapping.set(vertices[i].uv, component.perVertex * i + 6);

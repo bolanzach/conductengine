@@ -48,12 +48,13 @@ export default function WebGpuRendererSystem(
     lightDataBuffer,
     renderPassDescriptor,
   } = renderQuery.world.getState(WebGpuRendererState);
-  let camera: CameraComponent;
-  let cameraTransform: Transform3DComponent;
-  cameraQuery.iter(([, cam, camTransform]) => {
-    camera = cam;
-    cameraTransform = camTransform;
-  });
+
+  const cameraQueryResults = cameraQuery.findOne();
+  if (!cameraQueryResults) {
+    return;
+  }
+  const [_, camera, cameraTransform] = cameraQueryResults;
+
   // CAMERA BUFFER
   const cameraViewProjectionMatrix = getCameraViewProjectionMatrix(
     cameraTransform,

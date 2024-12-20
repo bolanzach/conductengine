@@ -4,6 +4,8 @@ import { Entity } from "@/conduct-ecs/entity";
 import { Signature, signatureContains } from "@/conduct-ecs/signature";
 import { World } from "@/conduct-ecs/world";
 
+type ServiceArgs<T extends Component[]> = [Entity, ...T];
+
 /**
  * Declare the Component types that a System should query for and operate on.
  * When iterating over a Query, the first element is always the Entity, followed
@@ -53,7 +55,7 @@ export class Query<T extends Component[]> {
    * Query. The callback is passed the Entity and the requested Components.
    * @param iteree
    */
-  iter(iteree: (foo: [Entity, ...T]) => void) {
+  iter(iteree: (arg: ServiceArgs<T>) => void) {
     for (let a = 0; a < this.records.length; a++) {
       const [entities, components] = this.records[a];
       const params = [];
@@ -67,5 +69,32 @@ export class Query<T extends Component[]> {
         iteree(params);
       }
     }
+  }
+
+  /**
+   * Find the first Entity that matches the Query.
+   * The `filter` function is optional and can be used to refine the search.
+   */
+  findOne(
+    filter: (arg: ServiceArgs<T>) => boolean = () => true
+  ): ServiceArgs<T> | undefined {
+    for (let a = 0; a < this.records.length; a++) {
+      const [entities, components] = this.records[a];
+      const params = [];
+      const length = this.componentTypes.length;
+      for (let e = 0, eCount = entities.length; e < eCount; e++) {
+        params[0] = entities[e];
+        for (let p = 0; p < length; p++) {
+          params[p + 1] = components[p][e];
+        }
+
+        // @ts-expect-error this is fine.
+        if (filter(params)) {
+          // @ts-expect-error this is fine.
+          return params;
+        }
+      }
+    }
+    return undefined;
   }
 }

@@ -71,7 +71,7 @@ export class World {
   // Registered bundles
   private bundles = new Map<string, Bundle>();
 
-  private states = new Map<number, any>();
+  private states: unknown[] = [];
 
   private tick = 0;
   #previousTimestamp = 0;
@@ -224,12 +224,12 @@ export class World {
   }
 
   registerState<T extends object>(state: StateKey<T>, obj: T): World {
-    this.states.set(state[STATE_ID], obj);
+    this.states[state[STATE_ID]] = obj;
     return this;
   }
 
   getState<T extends object>(state: StateKey<T>): T {
-    return this.states.get(state[STATE_ID]);
+    return this.states[state[STATE_ID]] as T;
   }
 
   start(): void {

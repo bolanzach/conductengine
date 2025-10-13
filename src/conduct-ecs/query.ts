@@ -56,10 +56,12 @@ export class Query<T extends Component[]> {
    * @param iteree
    */
   iter(iteree: (arg: ServiceArgs<T>) => void) {
+    const length = this.componentTypes.length;
+    const params = new Array(length + 1);
     for (let a = 0; a < this.records.length; a++) {
-      const [entities, components] = this.records[a];
-      const params = [];
-      const length = this.componentTypes.length;
+      const record = this.records[a];
+      const entities = record[0];
+      const components = record[1];
       for (let e = 0, eCount = entities.length; e < eCount; e++) {
         params[0] = entities[e];
         for (let p = 0; p < length; p++) {
@@ -78,10 +80,12 @@ export class Query<T extends Component[]> {
   findOne(
     filter: (arg: ServiceArgs<T>) => boolean = () => true
   ): ServiceArgs<T> | undefined {
+    const length = this.componentTypes.length;
+    const params = new Array(length + 1);
     for (let a = 0; a < this.records.length; a++) {
-      const [entities, components] = this.records[a];
-      const params = [];
-      const length = this.componentTypes.length;
+      const record = this.records[a];
+      const entities = record[0];
+      const components = record[1];
       for (let e = 0, eCount = entities.length; e < eCount; e++) {
         params[0] = entities[e];
         for (let p = 0; p < length; p++) {

@@ -1,6 +1,7 @@
 import CameraSystem from "@/conduct-ecs/systems/cameraSystem";
 import CameraComponent from "@/conduct-ecs/components/cameraComponent";
 import Transform3DComponent from "@/conduct-ecs/components/transformComponent";
+import CameraControllerSystem from "@/conduct-ecs/systems/client/cameraControllerSystem.client";
 import WebGpuRendererSystem from "@/conduct-ecs/systems/client/render/webGpuRendererSystem.client";
 import RenderComponent from "@/conduct-ecs/components/renderComponent";
 import EventSystem from "@/conduct-ecs/systems/eventSystem";
@@ -24,6 +25,10 @@ import TestTwoSystem from "@/game/src/systems/testSystemTwo";
 
 export const CameraSystemDefinition = {
             system: CameraSystem,
+            queryWith: [[CameraComponent, Transform3DComponent]] as ComponentType[][]
+          };
+export const CameraControllerSystemDefinition = {
+            system: CameraControllerSystem,
             queryWith: [[CameraComponent, Transform3DComponent]] as ComponentType[][]
           };
 export const WebGpuRendererSystemDefinition = {

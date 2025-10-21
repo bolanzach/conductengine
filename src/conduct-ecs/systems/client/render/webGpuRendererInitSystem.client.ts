@@ -1,5 +1,6 @@
 import { World } from "@/conduct-ecs";
 import { createState } from "@/conduct-ecs/state";
+import { CanvasState } from "@/conduct-ecs/state/client/canvasState";
 
 export const WebGpuRendererState = createState<{
   context: GPUCanvasContext;
@@ -11,7 +12,7 @@ export const WebGpuRendererState = createState<{
 }>();
 
 export default async function WebGpuRendererInitSystem(world: World) {
-  const canvas = document.getElementById("canvas") as HTMLCanvasElement;
+  const { canvas } = world.getState(CanvasState);
   if (!canvas) {
     console.error("missing canvas!");
     return;

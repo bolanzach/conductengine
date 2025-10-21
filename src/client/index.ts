@@ -3,6 +3,7 @@ import "reflect-metadata";
 import * as SYSTEM_DEFINITIONS from "@/client/systemDefinitions";
 import { World } from "@/conduct-ecs";
 import { EventManager } from "@/conduct-ecs/event";
+import { Canvas, CanvasState } from "@/conduct-ecs/state/client/canvasState";
 import { registerSystemDefinitions } from "@/conduct-ecs/system";
 import CameraSystem from "@/conduct-ecs/systems/cameraSystem";
 import ClientNetworkInitSystem from "@/conduct-ecs/systems/client/clientNetworkInitSystem";
@@ -36,6 +37,7 @@ registerSystemDefinitions(SYSTEM_DEFINITIONS);
     .registerState(EventState, events)
     .registerState(PrivateEventBufferState, createEventBufferState())
     .registerState(NetworkTransportState, networkTransport)
+    .registerState(CanvasState, new Canvas())
 
     .registerSystem(EventSystem)
     .registerSystem(CameraSystem)

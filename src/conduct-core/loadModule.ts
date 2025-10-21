@@ -1,5 +1,5 @@
 export async function loadClientModule<T>(
-  modulePath: string
+  modulePath: `${string}.client.ts`
 ): Promise<T | undefined> {
   try {
     return (await import("../game/" + modulePath)) as T;

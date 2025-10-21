@@ -109,3 +109,20 @@ function MissileTargetSystem(
   });
 }
 ```
+
+A Bundle is a reusable collection of components that can be added to an entity all at once.
+
+```ts
+import { World } from "@/conduct-ecs";
+
+export default function playerBundle(world: World) {
+  world
+    .addEntity()
+    .add(Transform3DComponent, {
+      x: 0,
+      y: 0,
+    })
+    .add(PlayerComponent, {})
+    .add(...);
+}
+```

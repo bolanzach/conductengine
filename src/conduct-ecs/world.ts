@@ -261,11 +261,11 @@ export class World {
     //
     //   this.#runUpdateSystems(timestamp);
     // }
-    console.log(
-      this.tick,
-      " | LAST RUN TIME DIFF",
-      performance.now() - LAST_RUN_TIME
-    );
+    // console.log(
+    //   this.tick,
+    //   " | LAST RUN TIME DIFF",
+    //   performance.now() - LAST_RUN_TIME
+    // );
     LAST_RUN_TIME = performance.now();
 
     this.#handleEntityEvents();

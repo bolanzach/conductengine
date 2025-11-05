@@ -2,6 +2,8 @@ import CameraSystem from "@/conduct-ecs/systems/cameraSystem";
 import CameraComponent from "@/conduct-ecs/components/cameraComponent";
 import Transform3DComponent from "@/conduct-ecs/components/transformComponent";
 import CameraControllerSystem from "@/conduct-ecs/systems/client/cameraControllerSystem.client";
+import { CameraControlComponent } from "@/conduct-ecs/components/cameraControl";
+import InputSystem from "@/conduct-ecs/systems/client/inputSystem";
 import WebGpuRendererSystem from "@/conduct-ecs/systems/client/render/webGpuRendererSystem.client";
 import RenderComponent from "@/conduct-ecs/components/renderComponent";
 import EventSystem from "@/conduct-ecs/systems/eventSystem";
@@ -17,9 +19,9 @@ import PerformanceTestThreeComponent from "@/game/src/components/performanceTest
 import PerformanceTestTwoSystem from "@/game/src/systems/performanceTestTwoSystem";
 import TestSystem from "@/game/src/systems/testSystem";
 import { ComponentType } from "@/conduct-ecs";
+import TestThreeSystem from "@/game/src/systems/testSystemThree";
 import TestComponent from "@/game/src/components/testComponent";
 import TestTwoComponent from "@/game/src/components/testTwoComponent";
-import TestThreeSystem from "@/game/src/systems/testSystemThree";
 import TestTwoSystem from "@/game/src/systems/testSystemTwo";
 
 
@@ -29,7 +31,11 @@ export const CameraSystemDefinition = {
           };
 export const CameraControllerSystemDefinition = {
             system: CameraControllerSystem,
-            queryWith: [[CameraComponent, Transform3DComponent]] as ComponentType[][]
+            queryWith: [[CameraControlComponent, CameraComponent, Transform3DComponent]] as ComponentType[][]
+          };
+export const InputSystemDefinition = {
+            system: InputSystem,
+            queryWith: [[]] as ComponentType[][]
           };
 export const WebGpuRendererSystemDefinition = {
             system: WebGpuRendererSystem,
@@ -61,7 +67,7 @@ export const PerformanceTestTwoSystemDefinition = {
           };
 export const TestSystemDefinition = {
             system: TestSystem,
-            queryWith: [[TestComponent, TestTwoComponent]] as ComponentType[][]
+            queryWith: [[]] as ComponentType[][]
           };
 export const TestThreeSystemDefinition = {
             system: TestThreeSystem,

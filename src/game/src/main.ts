@@ -3,6 +3,7 @@ import "reflect-metadata";
 import { loadClientModule } from "@/conduct-core/loadModule";
 import { World } from "@/conduct-ecs";
 import CameraComponent from "@/conduct-ecs/components/cameraComponent";
+import { CameraControlComponent } from "@/conduct-ecs/components/cameraControl";
 import Transform3DComponent from "@/conduct-ecs/components/transformComponent";
 import cubeBundle from "@/game/src/bundles/cube";
 import type * as SetupClientModule from "@/game/src/main.client";
@@ -36,6 +37,7 @@ export default async function MainGameStartInitSystem(world: World) {
   world
     .addEntity()
     .add(CameraComponent, { aspect })
+    .add(CameraControlComponent, {})
     .add(Transform3DComponent, { z: 10, y: 10 });
 
   cubeBundle(world);

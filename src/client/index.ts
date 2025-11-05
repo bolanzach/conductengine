@@ -4,9 +4,11 @@ import * as SYSTEM_DEFINITIONS from "@/client/systemDefinitions";
 import { World } from "@/conduct-ecs";
 import { EventManager } from "@/conduct-ecs/event";
 import { Canvas, CanvasState } from "@/conduct-ecs/state/client/canvasState";
+import { Input, InputState } from "@/conduct-ecs/state/client/inputState";
 import { registerSystemDefinitions } from "@/conduct-ecs/system";
 import CameraSystem from "@/conduct-ecs/systems/cameraSystem";
 import ClientNetworkInitSystem from "@/conduct-ecs/systems/client/clientNetworkInitSystem";
+import InputSystem from "@/conduct-ecs/systems/client/inputSystem";
 import WebGpuRendererInitSystem from "@/conduct-ecs/systems/client/render/webGpuRendererInitSystem.client";
 import WebGpuRendererSystem from "@/conduct-ecs/systems/client/render/webGpuRendererSystem.client";
 import EventInitSystem, {
@@ -29,6 +31,7 @@ registerSystemDefinitions(SYSTEM_DEFINITIONS);
 (async function initClient() {
   const networkTransport = await initNetworkTransport();
   const events = new EventManager();
+  const canvas = new Canvas();
   const world = new World({ gameHost: "client", events });
 
   //startTestGpu();
@@ -37,8 +40,10 @@ registerSystemDefinitions(SYSTEM_DEFINITIONS);
     .registerState(EventState, events)
     .registerState(PrivateEventBufferState, createEventBufferState())
     .registerState(NetworkTransportState, networkTransport)
-    .registerState(CanvasState, new Canvas())
+    .registerState(CanvasState, canvas)
+    .registerState(InputState, new Input(canvas))
 
+    .registerSystem(InputSystem)
     .registerSystem(EventSystem)
     .registerSystem(CameraSystem)
     .registerSystem(WebGpuRendererSystem)

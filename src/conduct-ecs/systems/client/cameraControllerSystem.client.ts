@@ -2,16 +2,42 @@ import { vec3 } from "gl-matrix";
 
 import { Query } from "@/conduct-ecs";
 import CameraComponent from "@/conduct-ecs/components/cameraComponent";
+import { CameraControlComponent } from "@/conduct-ecs/components/cameraControl";
 import Transform3DComponent from "@/conduct-ecs/components/transformComponent";
-import { CameraControllerState } from "@/conduct-ecs/systems/client/cameraControllerInitSystem.client";
+import {
+  InputKeyMouseLeft,
+  InputState,
+} from "@/conduct-ecs/state/client/inputState";
 
 export default function CameraControllerSystem(
-  query: Query<[CameraComponent, Transform3DComponent]>
+  query: Query<[CameraControlComponent, CameraComponent, Transform3DComponent]>
 ) {
-  const state = query.world.getState(CameraControllerState);
+  const inputState = query.world.getState(InputState);
 
-  query.iter(([_, camera, transform]) => {
-    if (state.panDeltaX !== 0 || state.panDeltaY !== 0) {
+  query.iter(([_, cameraControl, camera, transform]) => {
+    const isDragging = inputState.isPressed(InputKeyMouseLeft);
+    const { clientX, clientY } = inputState.currentMousePosition;
+
+    if (isDragging) {
+      // Initialize last mouse position on first frame of drag
+      if (cameraControl.lastMouseX === 0 && cameraControl.lastMouseY === 0) {
+        cameraControl.lastMouseX = clientX;
+        cameraControl.lastMouseY = clientY;
+      }
+
+      const deltaX = clientX - cameraControl.lastMouseX;
+      const deltaY = clientY - cameraControl.lastMouseY;
+      cameraControl.lastMouseX = clientX;
+      cameraControl.lastMouseY = clientY;
+      cameraControl.panDeltaX += deltaX;
+      cameraControl.panDeltaY += deltaY;
+    } else {
+      // Reset on drag end
+      cameraControl.lastMouseX = 0;
+      cameraControl.lastMouseY = 0;
+    }
+
+    if (cameraControl.panDeltaX !== 0 || cameraControl.panDeltaY !== 0) {
       const right = vec3.create();
       const up = vec3.fromValues(0, 1, 0);
       const forward = vec3.create();
@@ -26,8 +52,8 @@ export default function CameraControllerSystem(
       vec3.cross(right, forward, up);
       vec3.normalize(right, right);
 
-      const panX = state.panDeltaX * state.panSpeed;
-      const panY = state.panDeltaY * state.panSpeed;
+      const panX = cameraControl.panDeltaX * cameraControl.panSpeed;
+      const panY = cameraControl.panDeltaY * cameraControl.panSpeed;
 
       transform.x -= right[0] * panX;
       transform.y += panY;
@@ -37,11 +63,16 @@ export default function CameraControllerSystem(
       camera.lookAt[1] += panY;
       camera.lookAt[2] -= right[2] * panX;
 
-      state.panDeltaX = 0;
-      state.panDeltaY = 0;
+      cameraControl.panDeltaX = 0;
+      cameraControl.panDeltaY = 0;
     }
 
-    if (state.zoomDelta !== 0) {
+    const wheelEvent = inputState.getEvent("wheel") as WheelEvent;
+    if (wheelEvent) {
+      cameraControl.zoomDelta += wheelEvent.deltaY;
+    }
+
+    if (cameraControl.zoomDelta !== 0) {
       const forward = vec3.create();
       vec3.subtract(
         forward,
@@ -52,10 +83,11 @@ export default function CameraControllerSystem(
       const distance = vec3.length(forward);
       vec3.normalize(forward, forward);
 
-      const zoomAmount = state.zoomDelta * state.zoomSpeed * 0.01;
+      const zoomAmount =
+        cameraControl.zoomDelta * cameraControl.zoomSpeed * 0.01;
       const newDistance = Math.max(
-        state.minZoom,
-        Math.min(state.maxZoom, distance + zoomAmount * distance)
+        cameraControl.minZoom,
+        Math.min(cameraControl.maxZoom, distance + zoomAmount * distance)
       );
 
       const scaleFactor = (distance - newDistance) / distance;
@@ -63,7 +95,7 @@ export default function CameraControllerSystem(
       transform.y += forward[1] * scaleFactor * distance;
       transform.z += forward[2] * scaleFactor * distance;
 
-      state.zoomDelta = 0;
+      cameraControl.zoomDelta = 0;
     }
   });
 }

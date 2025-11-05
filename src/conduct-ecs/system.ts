@@ -33,7 +33,7 @@ export type SystemInit = (world: World) => void;
 
 // Private counter to assign a unique ID to each Component as they are
 // registered along with a System.
-let componentIdCounter = 1;
+let componentIdCounter = 0;
 
 export function registerSystemDefinitions(systemDefinitions: {
   string: { system: System; queryWith: ComponentConstructor[][] };

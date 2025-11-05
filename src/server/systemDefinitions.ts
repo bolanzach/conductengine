@@ -1,6 +1,7 @@
 import CameraSystem from "@/conduct-ecs/systems/cameraSystem";
 import CameraComponent from "@/conduct-ecs/components/cameraComponent";
 import Transform3DComponent from "@/conduct-ecs/components/transformComponent";
+import InputSystem from "@/conduct-ecs/systems/client/inputSystem";
 import EventSystem from "@/conduct-ecs/systems/eventSystem";
 import EventComponent from "@/conduct-ecs/components/eventComponent";
 import MoveSquareSystem from "@/game/src/systems/moveSquareSystem";
@@ -14,15 +15,19 @@ import PerformanceTestThreeComponent from "@/game/src/components/performanceTest
 import PerformanceTestTwoSystem from "@/game/src/systems/performanceTestTwoSystem";
 import TestSystem from "@/game/src/systems/testSystem";
 import { ComponentType } from "@/conduct-ecs";
+import TestThreeSystem from "@/game/src/systems/testSystemThree";
 import TestComponent from "@/game/src/components/testComponent";
 import TestTwoComponent from "@/game/src/components/testTwoComponent";
-import TestThreeSystem from "@/game/src/systems/testSystemThree";
 import TestTwoSystem from "@/game/src/systems/testSystemTwo";
 
 
 export const CameraSystemDefinition = {
             system: CameraSystem,
             queryWith: [[CameraComponent, Transform3DComponent]] as ComponentType[][]
+          };
+export const InputSystemDefinition = {
+            system: InputSystem,
+            queryWith: [[]] as ComponentType[][]
           };
 export const EventSystemDefinition = {
             system: EventSystem,
@@ -50,7 +55,7 @@ export const PerformanceTestTwoSystemDefinition = {
           };
 export const TestSystemDefinition = {
             system: TestSystem,
-            queryWith: [[TestComponent, TestTwoComponent]] as ComponentType[][]
+            queryWith: [[]] as ComponentType[][]
           };
 export const TestThreeSystemDefinition = {
             system: TestThreeSystem,

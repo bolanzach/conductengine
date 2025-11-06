@@ -25,7 +25,9 @@
       "./node_modules/@types"
     ]
   },
-  "include": ["src/client/**/*.ts"],
+  "include": [
+    "src/conduct-core-client/**/*.ts"
+  ],
   "exclude": ["./node_modules"]
 }
 //{

@@ -1,5 +1,6 @@
 import "reflect-metadata";
 
+import * as SYSTEM_DEFINITIONS from "@/conduct-core-server/systemDefinitions";
 import { World } from "@/conduct-ecs";
 import { EventManager } from "@/conduct-ecs/event";
 import { registerSystemDefinitions } from "@/conduct-ecs/system";
@@ -9,7 +10,6 @@ import EventInitSystem, {
   PrivateEventBufferState,
 } from "@/conduct-ecs/systems/eventInitSystem";
 import ServerNetworkInitSystem from "@/conduct-ecs/systems/server/serverNetworkInitSystem";
-import * as SYSTEM_DEFINITIONS from "@/server/systemDefinitions";
 
 import EventSystem, { EventState } from "../conduct-ecs/systems/eventSystem";
 import { NetworkTransportState } from "../conduct-ecs/systems/networkSystem";

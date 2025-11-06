@@ -1,6 +1,6 @@
 import "reflect-metadata";
 
-import * as SYSTEM_DEFINITIONS from "@/client/systemDefinitions";
+import * as SYSTEM_DEFINITIONS from "@/conduct-core-client/systemDefinitions";
 import { World } from "@/conduct-ecs";
 import { EventManager } from "@/conduct-ecs/event";
 import { Canvas, CanvasState } from "@/conduct-ecs/state/client/canvasState";

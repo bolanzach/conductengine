@@ -1,7 +1,7 @@
 const path = require("path");
 
 module.exports = {
-  entry: "./src/client/index.ts",
+  entry: "./src/conduct-core-client/index.ts",
   devtool: "inline-source-map",
   module: {
     rules: [
@@ -30,6 +30,6 @@ module.exports = {
   },
   output: {
     filename: "main.js",
-    path: path.resolve(__dirname, "dist/src/server/static"),
+    path: path.resolve(__dirname, "dist/src/conduct-core-server/static"),
   },
 };

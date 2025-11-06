@@ -21,9 +21,9 @@ class PersonComponent extends Component {
 
 // Define a System that operates on the data
 // A system is just a function!
-function TestSystem(query: Query<[PersonComponent]>) {
+export default function TestSystem(query: Query<[PersonComponent]>) {
   // Iterates over all entities that have the PersonComponent
-  query.iter(([entity, person]) => {
+  query.iter(([_, person]) => {
     if (person.age > 40) {
       console.log(person.name, "is old!");
     }
@@ -109,6 +109,37 @@ function MissileTargetSystem(
   });
 }
 ```
+
+### State
+
+Create world-level global state using State.
+State can be a simple object or class.
+
+```ts
+import { createState } from "./state";
+
+// Define a state object
+class Score {
+  playerScore: 0;
+};
+
+// Declare the state
+export const ScoreState = createState<Score>();
+
+// Register the state instance with the world
+world.registerState(ScoreState, new Score());
+
+// Access the singleton state in a system
+function ScoreSystem({ world }: Query<[]>) {
+  const score = world.getState(ScoreState);
+  console.log("Player score is", score.playerScore);
+}
+```
+
+State is great for data that must really be a global singleton, or for interacting with modules outside the ECS world.
+Use State for where it makes sense, but prefer components for most data.
+
+### Bundles
 
 A Bundle is a reusable collection of components that can be added to an entity all at once.
 

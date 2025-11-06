@@ -7,8 +7,8 @@ import {
   InputState,
 } from "@/conduct-ecs/state/client/inputState";
 
-export default function TestSystem(query: Query<[]>) {
-  const input = query.world.getState(InputState);
+export default function TestSystem({ world }: Query<[]>) {
+  const input = world.getState(InputState);
 
   if (input.isPressed(InputKeyMouseLeft)) {
     console.log(true);

@@ -7,10 +7,12 @@
   "scripts": {
     "clean": "rm -rf dist",
     "lint": "eslint src",
-    "dev": "node_modules/nodemon/bin/nodemon.js --watch src --ext ts,wgsl --ignore **/*systemDefinitions.ts --exec 'yarn clean && yarn server:compile & yarn client:compile && yarn server:start'",
+    "dev": "node_modules/nodemon/bin/nodemon.js --watch src --ext ts,wgsl --ignore **/*systemDefinitions.ts --exec 'yarn clean && (yarn server:compile & yarn client:compile & yarn ui:build & wait) && yarn ui:dist && yarn server:start'",
     "server:compile": "yarn cli:run conduct-core-server client.ts && node_modules/@swc/cli/bin/swc.js src/conduct-core src/conduct-core-server src/conduct-ecs src/game -d dist --config-file .swcrc --ignore **/*client.ts",
     "server:start": "node --enable-source-maps dist/src/conduct-core-server",
     "client:compile": "yarn cli:run conduct-core-client server.ts && node_modules/webpack/bin/webpack.js --mode development && cp src/conduct-core-client/main.html dist/src/conduct-core-server/static/main.html",
+    "ui:build": "cd src/conduct-ui && yarn build",
+    "ui:dist": "cp -r src/conduct-ui/dist/assets dist/src/conduct-core-server/static/ && node cli/merge-ui.js",
     "cli:compile": "node_modules/typescript/bin/tsc cli/main.ts",
     "cli:run": "node cli/main.js",
     "foo": "node cli/main.js client server.ts"

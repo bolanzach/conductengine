@@ -48,8 +48,9 @@ export class GameServer implements NetworkTransport {
       res.sendFile(path.join(__dirname, "/static/main.html"));
     });
 
-    this.instance.get("/static/:file", (req, res) => {
-      res.sendFile(path.join(__dirname, `/static/${req.params.file}`));
+    this.instance.get("/static/*", (req, res) => {
+      const filePath = req.path.replace('/static/', '');
+      res.sendFile(path.join(__dirname, `/static/${filePath}`));
     });
   }
 

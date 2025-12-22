@@ -21,14 +21,7 @@ import {
   ComponentDataConstructor,
 } from "./component";
 import { Entity } from "./entity";
-import {
-  EVENT_COMPONENT_ADDED,
-  EVENT_ENTITY_CREATED,
-  EVENT_ENTITY_DESTROY,
-  EVENT_ENTITY_SPAWNED,
-  EventEmitter,
-  EventReceiver,
-} from "./event";
+import { ConductEventsRegistry, EventEmitter, EventReceiver } from "./event";
 import { createSignature, signatureEquals } from "./signature";
 
 const EntityStateInactive = 0;
@@ -78,11 +71,12 @@ export class World {
   #gameStarted = false;
 
   constructor(private config: WorldConfig) {
-    config.events.subscribe(({ event, data }) => {
-      if (event === EVENT_ENTITY_DESTROY) {
+    config.events.subscribe(
+      ConductEventsRegistry.EntityDestroyed,
+      ({ data }) => {
         this.destroyEntity(data);
       }
-    });
+    );
   }
 
   get gameHostType() {
@@ -106,7 +100,7 @@ export class World {
     this.internalEntityEvents.set(entity, [EntityEventCreate, []]);
 
     this.config.events.publish({
-      event: EVENT_ENTITY_CREATED,
+      event: ConductEventsRegistry.EntityCreated,
       data: entity,
     });
 
@@ -153,7 +147,7 @@ export class World {
     ]);
 
     this.config.events.publish({
-      event: EVENT_COMPONENT_ADDED,
+      event: ConductEventsRegistry.EntityCreated,
       data: { entity, component: componentInstance },
     });
 
@@ -284,7 +278,7 @@ export class World {
         this.#addOrUpdateArchetype(entity, components);
         this.entityList[entity] = EntityStateActive;
         this.config.events.publish({
-          event: EVENT_ENTITY_SPAWNED,
+          event: ConductEventsRegistry.EntityCreated,
           data: entity,
         });
       } else if (action === EntityEventAddComponent) {

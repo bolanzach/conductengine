@@ -2,9 +2,14 @@
   import svelteLogo from './assets/svelte.svg'
   import viteLogo from '/vite.svg'
   import Counter from './lib/Counter.svelte'
+  import { eventStore } from "@/conduct-ui/src/lib/eventStore";
+
+  eventStore.subscribe(event => {
+
+  })
 </script>
 
-<main>
+<main class="main">
   <div>
     <a href="https://vite.dev" target="_blank" rel="noreferrer">
       <img src={viteLogo} class="logo" alt="Vite Logo" />
@@ -29,6 +34,11 @@
 </main>
 
 <style>
+    .main {
+        width: 100%;
+        height: 100%;
+        position: absolute;
+    }
   .logo {
     height: 6em;
     padding: 1.5em;

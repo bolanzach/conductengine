@@ -130,8 +130,8 @@ export const ScoreState = createState<Score>();
 world.registerState(ScoreState, new Score());
 
 // Access the singleton state in a system
-function ScoreSystem({ world }: Query<[]>) {
-  const score = world.getState(ScoreState);
+function ScoreSystem(query: Query<[]>) {
+  const score = query.world.getState(ScoreState);
   console.log("Player score is", score.playerScore);
 }
 ```

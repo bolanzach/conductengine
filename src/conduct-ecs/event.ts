@@ -36,12 +36,14 @@ export class EventManager implements EventEmitter, EventReceiver {
   #subscriptions = new Map<ConductEventId, Set<ConductEventCallback>>();
 
   publish(event: ConductEvent): void {
-    const subscriptions = this.#subscriptions.get(event.event) ?? [];
+    const subscriptions =
+      this.#subscriptions.get(event.event) ?? ([] as ConductEventCallback[]);
     subscriptions.forEach((callback) => callback(event));
 
     // Notify AllEvents subscribers
     const allEventsSubscriptions =
-      this.#subscriptions.get(ConductEventsRegistry.AllEvents) ?? [];
+      this.#subscriptions.get(ConductEventsRegistry.AllEvents) ??
+      ([] as ConductEventCallback[]);
     allEventsSubscriptions.forEach((callback) => callback(event));
   }
 

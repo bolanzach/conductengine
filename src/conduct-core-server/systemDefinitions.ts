@@ -1,9 +1,9 @@
+import { SystemDefinition } from "@/conduct-ecs/system";
 import CameraSystem from "@/conduct-ecs/systems/cameraSystem";
 import CameraComponent from "@/conduct-ecs/components/cameraComponent";
 import Transform3DComponent from "@/conduct-ecs/components/transformComponent";
 import InputSystem from "@/conduct-ecs/systems/client/inputSystem";
 import EventSystem from "@/conduct-ecs/systems/eventSystem";
-import EventComponent from "@/conduct-ecs/components/eventComponent";
 import MoveSquareSystem from "@/game/src/systems/moveSquareSystem";
 import MoveSquareComponent from "@/game/src/components/moveSquare";
 import PerformanceTestOneSystem from "@/game/src/systems/performanceTestOneSystem";
@@ -14,55 +14,55 @@ import PerformanceTestThreeSystem from "@/game/src/systems/performanceTestThreeS
 import PerformanceTestThreeComponent from "@/game/src/components/performanceTestThreeComponent";
 import PerformanceTestTwoSystem from "@/game/src/systems/performanceTestTwoSystem";
 import TestSystem from "@/game/src/systems/testSystem";
-import { ComponentType } from "@/conduct-ecs";
-import TestThreeSystem from "@/game/src/systems/testSystemThree";
 import TestComponent from "@/game/src/components/testComponent";
 import TestTwoComponent from "@/game/src/components/testTwoComponent";
+import TestThreeSystem from "@/game/src/systems/testSystemThree";
+import EventComponent from "@/conduct-ecs/components/eventComponent";
 import TestTwoSystem from "@/game/src/systems/testSystemTwo";
 
 
-export const CameraSystemDefinition = {
-            system: CameraSystem,
-            queryWith: [[CameraComponent, Transform3DComponent]] as ComponentType[][]
-          };
-export const InputSystemDefinition = {
-            system: InputSystem,
-            queryWith: [[]] as ComponentType[][]
-          };
-export const EventSystemDefinition = {
-            system: EventSystem,
-            queryWith: [[EventComponent]] as ComponentType[][]
-          };
-export const MoveSquareSystemDefinition = {
-            system: MoveSquareSystem,
-            queryWith: [[Transform3DComponent, MoveSquareComponent]] as ComponentType[][]
-          };
-export const PerformanceTestOneSystemDefinition = {
-            system: PerformanceTestOneSystem,
-            queryWith: [[PerformanceTestOneComponent]] as ComponentType[][]
-          };
-export const PerformanceTestOneTwoSystemDefinition = {
-            system: PerformanceTestOneTwoSystem,
-            queryWith: [[PerformanceTestOneComponent, PerformanceTestTwoComponent]] as ComponentType[][]
-          };
-export const PerformanceTestThreeSystemDefinition = {
-            system: PerformanceTestThreeSystem,
-            queryWith: [[PerformanceTestThreeComponent]] as ComponentType[][]
-          };
-export const PerformanceTestTwoSystemDefinition = {
-            system: PerformanceTestTwoSystem,
-            queryWith: [[PerformanceTestTwoComponent]] as ComponentType[][]
-          };
-export const TestSystemDefinition = {
-            system: TestSystem,
-            queryWith: [[]] as ComponentType[][]
-          };
-export const TestThreeSystemDefinition = {
-            system: TestThreeSystem,
-            queryWith: [[TestTwoComponent, TestComponent, EventComponent]] as ComponentType[][]
-          };
-export const TestTwoSystemDefinition = {
-            system: TestTwoSystem,
-            queryWith: [[TestTwoComponent]] as ComponentType[][]
-          };
+export const CameraSystemDefinition: SystemDefinition = {
+  system: CameraSystem,
+  queries: [{ dataComponents: [CameraComponent, Transform3DComponent], filterComponents: { not: [] as const, optional: [] as const } }]
+};
+export const InputSystemDefinition: SystemDefinition = {
+  system: InputSystem,
+  queries: [{ dataComponents: [], filterComponents: { not: [] as const, optional: [] as const } }]
+};
+export const EventSystemDefinition: SystemDefinition = {
+  system: EventSystem,
+  queries: [{ dataComponents: [], filterComponents: { not: [] as const, optional: [] as const } }]
+};
+export const MoveSquareSystemDefinition: SystemDefinition = {
+  system: MoveSquareSystem,
+  queries: [{ dataComponents: [Transform3DComponent, MoveSquareComponent], filterComponents: { not: [] as const, optional: [] as const } }]
+};
+export const PerformanceTestOneSystemDefinition: SystemDefinition = {
+  system: PerformanceTestOneSystem,
+  queries: [{ dataComponents: [PerformanceTestOneComponent], filterComponents: { not: [] as const, optional: [] as const } }]
+};
+export const PerformanceTestOneTwoSystemDefinition: SystemDefinition = {
+  system: PerformanceTestOneTwoSystem,
+  queries: [{ dataComponents: [PerformanceTestOneComponent, PerformanceTestTwoComponent], filterComponents: { not: [] as const, optional: [] as const } }]
+};
+export const PerformanceTestThreeSystemDefinition: SystemDefinition = {
+  system: PerformanceTestThreeSystem,
+  queries: [{ dataComponents: [PerformanceTestThreeComponent], filterComponents: { not: [] as const, optional: [] as const } }]
+};
+export const PerformanceTestTwoSystemDefinition: SystemDefinition = {
+  system: PerformanceTestTwoSystem,
+  queries: [{ dataComponents: [PerformanceTestTwoComponent], filterComponents: { not: [] as const, optional: [] as const } }]
+};
+export const TestSystemDefinition: SystemDefinition = {
+  system: TestSystem,
+  queries: [{ dataComponents: [TestComponent], filterComponents: { not: [TestTwoComponent] as const, optional: [] as const } }]
+};
+export const TestThreeSystemDefinition: SystemDefinition = {
+  system: TestThreeSystem,
+  queries: [{ dataComponents: [TestTwoComponent, TestComponent, EventComponent], filterComponents: { not: [] as const, optional: [] as const } }]
+};
+export const TestTwoSystemDefinition: SystemDefinition = {
+  system: TestTwoSystem,
+  queries: [{ dataComponents: [TestTwoComponent], filterComponents: { not: [] as const, optional: [] as const } }]
+};
 

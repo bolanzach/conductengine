@@ -44,5 +44,24 @@ export function signatureEquals(sig: Signature, other: Signature): boolean {
   if (sig.length !== other.length) {
     return false;
   }
-  return signatureContains(sig, other) && signatureContains(other, sig);
+  for (let i = 0; i < sig.length; i++) {
+    if (sig[i] !== other[i]) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Checks whether two signatures have any overlapping bits.
+ * Used for Not operator matching - returns true if any component is shared.
+ */
+export function signatureOverlaps(sig: Signature, other: Signature): boolean {
+  const minLength = Math.min(sig.length, other.length);
+  for (let i = 0; i < minLength; i++) {
+    if ((sig[i] & other[i]) !== 0) {
+      return true;
+    }
+  }
+  return false;
 }

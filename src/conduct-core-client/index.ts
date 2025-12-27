@@ -23,7 +23,6 @@ import MainGameStartInitSystem from "../game/src/main";
 // import { startTestGpu } from "./gpu";
 import initNetworkTransport from "./networkTransport";
 
-// @ts-expect-error this is fine
 registerSystemDefinitions(SYSTEM_DEFINITIONS);
 
 // Start the game on the client

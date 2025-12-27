@@ -21,7 +21,6 @@
     "@webgpu/types": "^0.1.48",
     "express": "^4.21.0",
     "gl-matrix": "^3.4.3",
-    "lodash": "^4.17.21",
     "nodemon": "^3.1.7",
     "raf": "^3.4.1",
     "reflect-metadata": "^0.2.2",

@@ -11,6 +11,12 @@ export {
   NetworkAuthority,
   NetworkedComponent,
 } from "./components/network";
+export { Not, Optional } from "./operators";
 export { Query } from "./query";
-export { RegisteredSystem, System, SystemInit } from "./system";
+export {
+  RegisteredSystem,
+  System,
+  SystemDefinition,
+  SystemInit,
+} from "./system";
 export { World, WorldConfig } from "./world";

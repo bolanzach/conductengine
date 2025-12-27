@@ -1,8 +1,27 @@
-import { Query } from "@/conduct-ecs/query";
+import { Query, QueryFilter } from "@/conduct-ecs/query";
 
 import { COMPONENT_ID, ComponentConstructor } from "./component";
 import { createSignature, Signature } from "./signature";
 import { World } from "./world";
+
+/**
+ * Query definition with operator support.
+ */
+export interface QueryDefinition {
+  dataComponents: ComponentConstructor[];
+  filterComponents: {
+    not: ComponentConstructor[];
+    optional: ComponentConstructor[];
+  };
+}
+
+/**
+ * System definition with operator support.
+ */
+export interface SystemDefinition {
+  system: System;
+  queries: QueryDefinition[];
+}
 
 export const SYSTEM_SIGNATURE = Symbol("SYSTEM_SIG");
 
@@ -36,32 +55,45 @@ export type SystemInit = (world: World) => void;
 let componentIdCounter = 0;
 
 export function registerSystemDefinitions(systemDefinitions: {
-  string: { system: System; queryWith: ComponentConstructor[][] };
+  [key: string]: SystemDefinition;
 }) {
   Object.values(systemDefinitions).forEach((systemDef) => {
-    const { system, queryWith } = systemDef;
+    const { system, queries: queryDefs } = systemDef;
 
-    // Add a Component ID to each Component Constructor
-    queryWith.forEach((cstrs) => {
-      cstrs.forEach((cstr) => {
+    queryDefs.forEach((queryDef) => {
+      const allComponents = [
+        ...queryDef.dataComponents,
+        ...queryDef.filterComponents.not,
+        ...queryDef.filterComponents.optional,
+      ];
+      allComponents.forEach((cstr) => {
         if (!cstr[COMPONENT_ID]) {
           cstr[COMPONENT_ID] = componentIdCounter++;
         }
       });
     });
 
-    const signatures = queryWith.map((componentQuery) =>
+    const signatures = queryDefs.map((queryDef) =>
       createSignature(
-        componentQuery.map((cstr) => cstr[COMPONENT_ID] as number)
+        queryDef.dataComponents.map((cstr) => cstr[COMPONENT_ID] as number)
       )
     );
-    const queries = queryWith.map(
-      (componentQuery, i) => new Query(signatures[i], componentQuery)
+
+    const filters: QueryFilter[] = queryDefs.map((queryDef) => ({
+      notSignature: createSignature(
+        queryDef.filterComponents.not.map((c) => c[COMPONENT_ID] as number)
+      ),
+      optionalTypes: queryDef.filterComponents.optional,
+    }));
+
+    const queries = queryDefs.map(
+      (queryDef, i) =>
+        new Query(signatures[i], queryDef.dataComponents, filters[i])
     );
 
-    // @ts-expect-error We need to do this - this is what creates a RegisteredSystem
+    // @ts-expect-error this is what creates a RegisteredSystem
     system[SYSTEM_SIGNATURE] = {
-      componentDeps: queryWith,
+      componentDeps: queryDefs.map((q) => q.dataComponents),
       signatures,
       queries,
     };

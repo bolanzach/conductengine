@@ -6,6 +6,7 @@ import CameraComponent from "@/conduct-ecs/components/cameraComponent";
 import { CameraControlComponent } from "@/conduct-ecs/components/cameraControl";
 import Transform3DComponent from "@/conduct-ecs/components/transformComponent";
 import cubeBundle from "@/game/src/bundles/cube";
+import TestComponent from "@/game/src/components/testComponent";
 import type * as SetupClientModule from "@/game/src/main.client";
 import MoveSquareSystem from "@/game/src/systems/moveSquareSystem";
 import PerformanceTestOneSystem from "@/game/src/systems/performanceTestOneSystem";
@@ -38,7 +39,8 @@ export default async function MainGameStartInitSystem(world: World) {
     .addEntity()
     .add(CameraComponent, { aspect })
     .add(CameraControlComponent, {})
-    .add(Transform3DComponent, { z: 10, y: 10 });
+    .add(Transform3DComponent, { z: 10, y: 10 })
+    .add(TestComponent, { value: 42 });
 
   cubeBundle(world);
 

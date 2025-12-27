@@ -82,10 +82,82 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as ts from "typescript";
-import { TypeNode } from "typescript";
 
 const pathArg = process.argv[2];
 const ignoreGlob = process.argv[3];
+
+const OPERATORS = ["Not", "Optional"];
+
+interface ParsedQuery {
+  dataComponents: string[];
+  filterComponents: {
+    not: string[];
+    optional: string[];
+  };
+}
+
+function parseTypeNode(node: ts.TypeNode): ParsedQuery {
+  const result: ParsedQuery = {
+    dataComponents: [],
+    filterComponents: { not: [], optional: [] },
+  };
+
+  if (ts.isTypeReferenceNode(node)) {
+    const typeName = node.typeName.getText();
+
+    if (OPERATORS.includes(typeName)) {
+      const typeArgs = node.typeArguments;
+      if (typeArgs && typeArgs.length > 0) {
+        const firstArg = typeArgs[0];
+        if (ts.isTupleTypeNode(firstArg)) {
+          firstArg.elements.forEach((element) => {
+            const nested = parseTypeNode(element);
+            if (typeName === "Not") {
+              result.filterComponents.not.push(...nested.dataComponents);
+            } else if (typeName === "Optional") {
+              result.filterComponents.optional.push(...nested.dataComponents);
+            }
+          });
+        }
+      }
+    } else {
+      result.dataComponents.push(typeName);
+    }
+  } else if (ts.isTupleTypeNode(node)) {
+    node.elements.forEach((element) => {
+      const nested = parseTypeNode(element);
+      result.dataComponents.push(...nested.dataComponents);
+      result.filterComponents.not.push(...nested.filterComponents.not);
+      result.filterComponents.optional.push(
+        ...nested.filterComponents.optional
+      );
+    });
+  }
+
+  return result;
+}
+
+function parseQueryParameters(func: ts.FunctionDeclaration): ParsedQuery[] {
+  return func.parameters
+    .filter((param) => param.type && ts.isTypeReferenceNode(param.type))
+    .filter((param) => {
+      const type = param.type as ts.TypeReferenceNode;
+      return type.typeName.getText() === "Query";
+    })
+    .map((param) => {
+      const type = param.type as ts.TypeReferenceNode;
+      const typeArgs = type.typeArguments;
+
+      if (!typeArgs || typeArgs.length === 0) {
+        return {
+          dataComponents: [],
+          filterComponents: { not: [], optional: [] },
+        };
+      }
+
+      return parseTypeNode(typeArgs[0]);
+    });
+}
 
 const directoryPaths = [
   path.join(__dirname, "../src/conduct-ecs"),
@@ -125,22 +197,6 @@ function findSystemFunctions(
 
   visit(sourceFile);
   return systemFunctions;
-}
-
-function getComponentTypes(node: ts.FunctionDeclaration): string[] {
-  return (
-    node.parameters
-      //.slice(1) // Skip the first parameter (SystemParams)
-      .filter((param) => param.type && ts.isTypeReferenceNode(param.type))
-      .map((param) => {
-        let typeNode: TypeNode | ts.Node | undefined = param.type;
-        param.type?.forEachChild((node) => {
-          typeNode = node;
-        });
-        return typeNode?.getText();
-      })
-      .filter((type): type is string => !!type)
-  );
 }
 
 function getImportStatements(sourceFile: ts.SourceFile): string[] {
@@ -188,16 +244,26 @@ directoryPaths.forEach((dirPath) => {
             `import ${func.name?.text} from "@/${importPath}";`
           );
 
-          const componentTypes = getComponentTypes(func);
+          const parsedQueries = parseQueryParameters(func);
+          const queriesStr = parsedQueries
+            .map(
+              (q) =>
+                `{ dataComponents: [${q.dataComponents.join(
+                  ", "
+                )}], filterComponents: { not: [${q.filterComponents.not.join(
+                  ", "
+                )}] as const, optional: [${q.filterComponents.optional.join(
+                  ", "
+                )}] as const } }`
+            )
+
+            .join(", ");
+
           systemDefinitions.add(
-            `export const ${func.name?.text}Definition = {
-            system: ${func.name?.text},
-            queryWith: [${
-              !componentTypes.length
-                ? "[]"
-                : componentTypes.map((type) => type).join(", ")
-            }] as ComponentType[][]
-          };`
+            `export const ${func.name?.text}Definition: SystemDefinition = {
+  system: ${func.name?.text},
+  queries: [${queriesStr}]
+};`
           );
         });
 
@@ -216,6 +282,7 @@ const compiledFilePath = path.join(
 );
 
 const contents = [
+  'import { SystemDefinition } from "@/conduct-ecs/system";',
   ...Array.from(importStatementsSet),
   "\n",
   ...Array.from(systemDefinitions),

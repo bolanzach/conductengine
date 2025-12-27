@@ -94,6 +94,63 @@ var path = require("path");
 var ts = require("typescript");
 var pathArg = process.argv[2];
 var ignoreGlob = process.argv[3];
+var OPERATORS = ["Not", "Optional"];
+function parseTypeNode(node) {
+    var result = {
+        dataComponents: [],
+        filterComponents: { not: [], optional: [] },
+    };
+    if (ts.isTypeReferenceNode(node)) {
+        var typeName_1 = node.typeName.getText();
+        if (OPERATORS.includes(typeName_1)) {
+            var typeArgs = node.typeArguments;
+            if (typeArgs && typeArgs.length > 0) {
+                var firstArg = typeArgs[0];
+                if (ts.isTupleTypeNode(firstArg)) {
+                    firstArg.elements.forEach(function (element) {
+                        var _a, _b;
+                        var nested = parseTypeNode(element);
+                        if (typeName_1 === "Not") {
+                            (_a = result.filterComponents.not).push.apply(_a, nested.dataComponents);
+                        }
+                        else if (typeName_1 === "Optional") {
+                            (_b = result.filterComponents.optional).push.apply(_b, nested.dataComponents);
+                        }
+                    });
+                }
+            }
+        }
+        else {
+            result.dataComponents.push(typeName_1);
+        }
+    }
+    else if (ts.isTupleTypeNode(node)) {
+        node.elements.forEach(function (element) {
+            var _a, _b, _c;
+            var nested = parseTypeNode(element);
+            (_a = result.dataComponents).push.apply(_a, nested.dataComponents);
+            (_b = result.filterComponents.not).push.apply(_b, nested.filterComponents.not);
+            (_c = result.filterComponents.optional).push.apply(_c, nested.filterComponents.optional);
+        });
+    }
+    return result;
+}
+function parseQueryParameters(func) {
+    return func.parameters
+        .filter(function (param) { return param.type && ts.isTypeReferenceNode(param.type); })
+        .filter(function (param) {
+        var type = param.type;
+        return type.typeName.getText() === "Query";
+    })
+        .map(function (param) {
+        var type = param.type;
+        var typeArgs = type.typeArguments;
+        if (!typeArgs || typeArgs.length === 0) {
+            return { dataComponents: [], filterComponents: { not: [], optional: [] } };
+        }
+        return parseTypeNode(typeArgs[0]);
+    });
+}
 var directoryPaths = [
     path.join(__dirname, "../src/conduct-ecs"),
     path.join(__dirname, "../src/game/src"),
@@ -126,20 +183,6 @@ function findSystemFunctions(sourceFile) {
     visit(sourceFile);
     return systemFunctions;
 }
-function getComponentTypes(node) {
-    return (node.parameters
-        //.slice(1) // Skip the first parameter (SystemParams)
-        .filter(function (param) { return param.type && ts.isTypeReferenceNode(param.type); })
-        .map(function (param) {
-        var _a;
-        var typeNode = param.type;
-        (_a = param.type) === null || _a === void 0 ? void 0 : _a.forEachChild(function (node) {
-            typeNode = node;
-        });
-        return typeNode === null || typeNode === void 0 ? void 0 : typeNode.getText();
-    })
-        .filter(function (type) { return !!type; }));
-}
 function getImportStatements(sourceFile) {
     var importStatements = [];
     function visit(node) {
@@ -170,10 +213,13 @@ directoryPaths.forEach(function (dirPath) {
                 systemFunctions.forEach(function (func) {
                     var _a, _b, _c;
                     importStatementsSet.add("import ".concat((_a = func.name) === null || _a === void 0 ? void 0 : _a.text, " from \"@/").concat(importPath_1, "\";"));
-                    var componentTypes = getComponentTypes(func);
-                    systemDefinitions.add("export const ".concat((_b = func.name) === null || _b === void 0 ? void 0 : _b.text, "Definition = {\n            system: ").concat((_c = func.name) === null || _c === void 0 ? void 0 : _c.text, ",\n            queryWith: [").concat(!componentTypes.length
-                        ? "[]"
-                        : componentTypes.map(function (type) { return type; }).join(", "), "] as ComponentType[][]\n          };"));
+                    var parsedQueries = parseQueryParameters(func);
+                    var queriesStr = parsedQueries
+                        .map(function (q) {
+                        return "{ dataComponents: [".concat(q.dataComponents.join(", "), "], filterComponents: { not: [").concat(q.filterComponents.not.join(", "), "] as const, optional: [").concat(q.filterComponents.optional.join(", "), "] as const } }");
+                    })
+                        .join(", ");
+                    systemDefinitions.add("export const ".concat((_b = func.name) === null || _b === void 0 ? void 0 : _b.text, "Definition: SystemDefinition = {\n  system: ").concat((_c = func.name) === null || _c === void 0 ? void 0 : _c.text, ",\n  queries: [").concat(queriesStr, "]\n};"));
                 });
                 var importStatements = getImportStatements(sourceFile);
                 importStatements.forEach(function (stmt) { return importStatementsSet.add(stmt); });
@@ -182,7 +228,9 @@ directoryPaths.forEach(function (dirPath) {
     });
 });
 var compiledFilePath = path.join(process.cwd(), "src", pathArg, "systemDefinitions.ts");
-var contents = __spreadArray(__spreadArray(__spreadArray(__spreadArray([], Array.from(importStatementsSet), true), [
+var contents = __spreadArray(__spreadArray(__spreadArray(__spreadArray([
+    'import { SystemDefinition } from "@/conduct-ecs/system";'
+], Array.from(importStatementsSet), true), [
     "\n"
 ], false), Array.from(systemDefinitions), true), [
     "\n",

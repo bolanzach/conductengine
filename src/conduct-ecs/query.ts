@@ -1,8 +1,41 @@
 import { Archetype } from "@/conduct-ecs/archetype";
 import { Component, ComponentType } from "@/conduct-ecs/component";
 import { Entity } from "@/conduct-ecs/entity";
-import { Signature, signatureContains } from "@/conduct-ecs/signature";
+import { QueryElement, QueryOperator } from "@/conduct-ecs/operators";
+import {
+  Signature,
+  signatureContains,
+  signatureOverlaps,
+} from "@/conduct-ecs/signature";
 import { World } from "@/conduct-ecs/world";
+
+/**
+ * Filter configuration for query operators like Not and Optional.
+ */
+export interface QueryFilter {
+  /** Signature of components that must NOT be present (for Not operator) */
+  notSignature: Signature;
+  /** Component types that are optional (for Optional operator) */
+  optionalTypes: ComponentType[];
+}
+
+/**
+ * Extract only data components from a tuple that may contain operators.
+ */
+type FilterDataComponents<T extends QueryElement[]> = T extends [
+  infer Element,
+  ...infer Rest,
+]
+  ? Element extends QueryOperator
+    ? Rest extends QueryElement[]
+      ? FilterDataComponents<Rest>
+      : []
+    : Element extends Component
+      ? Rest extends QueryElement[]
+        ? [Element, ...FilterDataComponents<Rest>]
+        : [Element]
+      : []
+  : [];
 
 type ServiceArgs<T extends Component[]> = [Entity, ...T];
 
@@ -11,8 +44,14 @@ type ServiceArgs<T extends Component[]> = [Entity, ...T];
  * When iterating over a Query, the first element is always the Entity, followed
  * by the declared Components. A Query contains additional properties for
  * accessing global variables, such as the World.
+ *
+ * Supports operators like Not<[...]> and Optional<[...]> to filter entities.
+ *
+ * @example
+ * // Query entities with PersonComponent but NOT DeadComponent
+ * Query<[PersonComponent, Not<[DeadComponent]>]>
  */
-export class Query<T extends Component[]> {
+export class Query<T extends QueryElement[]> {
   public world: World = undefined as unknown as World;
 
   /**
@@ -25,12 +64,21 @@ export class Query<T extends Component[]> {
 
   constructor(
     private signature: Signature = [],
-    private componentTypes: ComponentType[] = []
+    private componentTypes: ComponentType[] = [],
+    private filter: QueryFilter = { notSignature: [], optionalTypes: [] }
   ) {}
 
   handleNewArchetype(archetype: Archetype) {
+    // Must contain all required components
     if (!signatureContains(this.signature, archetype.signature)) {
-      // Signature does not match, skip this archetype
+      return;
+    }
+
+    // Must NOT contain any excluded components (Not operator)
+    if (
+      this.filter.notSignature.length > 0 &&
+      signatureOverlaps(this.filter.notSignature, archetype.signature)
+    ) {
       return;
     }
 
@@ -55,7 +103,7 @@ export class Query<T extends Component[]> {
    * Query. The callback is passed the Entity and the requested Components.
    * @param iteree
    */
-  iter(iteree: (arg: ServiceArgs<T>) => void) {
+  iter(iteree: (arg: ServiceArgs<FilterDataComponents<T>>) => void) {
     const length = this.componentTypes.length;
     const params = new Array(length + 1);
     for (let a = 0; a < this.records.length; a++) {
@@ -78,8 +126,8 @@ export class Query<T extends Component[]> {
    * The `filter` function is optional and can be used to refine the search.
    */
   findOne(
-    filter: (arg: ServiceArgs<T>) => boolean = () => true
-  ): ServiceArgs<T> | undefined {
+    filter: (arg: ServiceArgs<FilterDataComponents<T>>) => boolean = () => true
+  ): ServiceArgs<FilterDataComponents<T>> | undefined {
     const length = this.componentTypes.length;
     const params = new Array(length + 1);
     for (let a = 0; a < this.records.length; a++) {

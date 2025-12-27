@@ -33,9 +33,6 @@ export interface Optional<T extends Component[]> extends QueryOperator {
   readonly [OPERATOR_TYPE]: "Optional";
 }
 
-/**
- * A query element can be either a Component or an operator like Not/Optional.
- */
 export type QueryElement = Component | QueryOperator;
 
 /**

@@ -1,6 +1,5 @@
 import raf from "raf";
 
-import { Query } from "@/conduct-ecs/query";
 import { STATE_ID, StateKey } from "@/conduct-ecs/state";
 import {
   RegisteredSystem,

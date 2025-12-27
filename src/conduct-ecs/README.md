@@ -24,7 +24,7 @@ class PersonComponent extends Component {
 export default function TestSystem(query: Query<[PersonComponent]>) {
   // Iterates over all entities that have the PersonComponent
   query.iter(([_, person]) => {
-    if (person.age > 40) {
+    if (person.age > 100) {
       console.log(person.name, "is old!");
     }
   });
@@ -72,7 +72,7 @@ class DogComponent extends Component {
 
 function PersonSystem(query: Query<[PersonComponent, NameComponent, AgeComponent]>) {
   query.iter(([entity, person, name, age]) => {
-    if (age.value > 40) {
+    if (age.value > 100) {
       console.log(name.value, "is old!");
     }
   });

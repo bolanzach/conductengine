@@ -96,6 +96,60 @@ interface ParsedQuery {
   };
 }
 
+const directoryPaths = [
+  path.join(__dirname, "../src/conduct-ecs"),
+  path.join(__dirname, "../src/game/src"),
+  path.join(__dirname, "../src/", pathArg),
+];
+
+function getAllFiles(dirPath: string, arrayOfFiles: string[] = []): string[] {
+  const files = fs.readdirSync(dirPath);
+
+  files.forEach((file) => {
+    if (fs.statSync(path.join(dirPath, file)).isDirectory()) {
+      arrayOfFiles = getAllFiles(path.join(dirPath, file), arrayOfFiles);
+    } else if (ignoreGlob && !file.includes(ignoreGlob)) {
+      arrayOfFiles.push(path.join(dirPath, file));
+    }
+  });
+
+  return arrayOfFiles;
+}
+
+function findSystemFunctions(
+  sourceFile: ts.SourceFile
+): ts.FunctionDeclaration[] {
+  const systemFunctions: ts.FunctionDeclaration[] = [];
+
+  function visit(node: ts.Node) {
+    if (
+      ts.isFunctionDeclaration(node) &&
+      node.name?.text.endsWith("System") &&
+      !node.name?.text.endsWith("InitSystem")
+    ) {
+      systemFunctions.push(node);
+    }
+    ts.forEachChild(node, visit);
+  }
+
+  visit(sourceFile);
+  return systemFunctions;
+}
+
+function getImportStatements(sourceFile: ts.SourceFile): string[] {
+  const importStatements: string[] = [];
+
+  function visit(node: ts.Node) {
+    if (ts.isImportDeclaration(node) && node.getText().includes("Component")) {
+      importStatements.push(node.getText());
+    }
+    ts.forEachChild(node, visit);
+  }
+
+  visit(sourceFile);
+  return importStatements;
+}
+
 function parseTypeNode(node: ts.TypeNode): ParsedQuery {
   const result: ParsedQuery = {
     dataComponents: [],
@@ -159,64 +213,11 @@ function parseQueryParameters(func: ts.FunctionDeclaration): ParsedQuery[] {
     });
 }
 
-const directoryPaths = [
-  path.join(__dirname, "../src/conduct-ecs"),
-  path.join(__dirname, "../src/game/src"),
-  path.join(__dirname, "../src/", pathArg),
-];
-
-function getAllFiles(dirPath: string, arrayOfFiles: string[] = []): string[] {
-  const files = fs.readdirSync(dirPath);
-
-  files.forEach((file) => {
-    if (fs.statSync(path.join(dirPath, file)).isDirectory()) {
-      arrayOfFiles = getAllFiles(path.join(dirPath, file), arrayOfFiles);
-    } else if (ignoreGlob && !file.includes(ignoreGlob)) {
-      arrayOfFiles.push(path.join(dirPath, file));
-    }
-  });
-
-  return arrayOfFiles;
-}
-
-function findSystemFunctions(
-  sourceFile: ts.SourceFile
-): ts.FunctionDeclaration[] {
-  const systemFunctions: ts.FunctionDeclaration[] = [];
-
-  function visit(node: ts.Node) {
-    if (
-      ts.isFunctionDeclaration(node) &&
-      node.name?.text.endsWith("System") &&
-      !node.name?.text.endsWith("InitSystem")
-    ) {
-      systemFunctions.push(node);
-    }
-    ts.forEachChild(node, visit);
-  }
-
-  visit(sourceFile);
-  return systemFunctions;
-}
-
-function getImportStatements(sourceFile: ts.SourceFile): string[] {
-  const importStatements: string[] = [];
-
-  function visit(node: ts.Node) {
-    if (ts.isImportDeclaration(node) && node.getText().includes("Component")) {
-      importStatements.push(node.getText());
-    }
-    ts.forEachChild(node, visit);
-  }
-
-  visit(sourceFile);
-  return importStatements;
-}
-
 // const allFiles = getAllFiles(directoryPath);
 const importStatementsSet = new Set<string>();
 const systemDefinitions = new Set<string>();
 
+// Entry point
 directoryPaths.forEach((dirPath) => {
   const allFiles = getAllFiles(dirPath);
 

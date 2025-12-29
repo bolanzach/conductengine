@@ -1,5 +1,6 @@
 import { Component } from "@/conduct-ecs";
 
 export default class PerformanceTestTwoComponent extends Component {
-  value = 0;
+  mass = 1;
+  friction = 0.98;
 }

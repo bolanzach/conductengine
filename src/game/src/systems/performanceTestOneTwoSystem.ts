@@ -5,7 +5,11 @@ import PerformanceTestTwoComponent from "@/game/src/components/performanceTestTw
 export default function PerformanceTestOneTwoSystem(
   query: Query<[PerformanceTestOneComponent, PerformanceTestTwoComponent]>
 ) {
-  query.iter(([_, one, two]) => {
-    one.value += two.value;
+  query.iter(([_, pos, phys]) => {
+    // Apply friction scaled by mass
+    const drag = phys.friction / phys.mass;
+    pos.vx *= drag;
+    pos.vy *= drag;
+    pos.vz *= drag;
   });
 }

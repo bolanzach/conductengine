@@ -4,7 +4,9 @@ import PerformanceTestOneComponent from "@/game/src/components/performanceTestOn
 export default function PerformanceTestOneSystem(
   query: Query<[PerformanceTestOneComponent]>
 ) {
-  query.iter(([entity, componentOne]) => {
-    componentOne.value += entity;
+  query.iter(([_, c]) => {
+    c.x += c.vx;
+    c.y += c.vy;
+    c.z += c.vz;
   });
 }

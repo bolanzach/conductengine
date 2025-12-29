@@ -62,11 +62,364 @@ export class Query<T extends QueryElement[]> {
     Component[][],
   ][];
 
+  private readonly params: unknown[];
+
+  iter: (iteree: (arg: ServiceArgs<FilterDataComponents<T>>) => void) => void;
+
   constructor(
     private signature: Signature = [],
     private componentTypes: ComponentType[] = [],
     private filter: QueryFilter = { notSignature: [], optionalTypes: [] }
-  ) {}
+  ) {
+    const count = componentTypes.length;
+    this.params = new Array(count + 1);
+
+    const iterFns = [
+      this.#iter0,
+      this.#iter1,
+      this.#iter2,
+      this.#iter3,
+      this.#iter4,
+      this.#iter5,
+      this.#iter6,
+      this.#iter7,
+      this.#iter8,
+      this.#iter9,
+      this.#iter10,
+      this.#iter11,
+      this.#iter12,
+    ];
+
+    this.iter = (iterFns[count] ?? this.#iterN).bind(this);
+  }
+
+  #iter0(iteree: (arg: ServiceArgs<FilterDataComponents<T>>) => void) {
+    const params = this.params;
+    for (let a = 0; a < this.records.length; a++) {
+      const entities = this.records[a][0];
+      for (let e = 0, eCount = entities.length; e < eCount; e++) {
+        params[0] = entities[e];
+        // @ts-expect-error intentional
+        iteree(params);
+      }
+    }
+  }
+
+  #iter1(iteree: (arg: ServiceArgs<FilterDataComponents<T>>) => void) {
+    const params = this.params;
+    for (let a = 0; a < this.records.length; a++) {
+      const [entities, components] = this.records[a];
+      const c0 = components[0];
+      for (let e = 0, eCount = entities.length; e < eCount; e++) {
+        params[0] = entities[e];
+        params[1] = c0[e];
+        // @ts-expect-error intentional
+        iteree(params);
+      }
+    }
+  }
+
+  #iter2(iteree: (arg: ServiceArgs<FilterDataComponents<T>>) => void) {
+    const params = this.params;
+    for (let a = 0; a < this.records.length; a++) {
+      const [entities, components] = this.records[a];
+      const c0 = components[0];
+      const c1 = components[1];
+      for (let e = 0, eCount = entities.length; e < eCount; e++) {
+        params[0] = entities[e];
+        params[1] = c0[e];
+        params[2] = c1[e];
+        // @ts-expect-error intentional
+        iteree(params);
+      }
+    }
+  }
+
+  #iter3(iteree: (arg: ServiceArgs<FilterDataComponents<T>>) => void) {
+    const params = this.params;
+    for (let a = 0; a < this.records.length; a++) {
+      const [entities, components] = this.records[a];
+      const c0 = components[0];
+      const c1 = components[1];
+      const c2 = components[2];
+      for (let e = 0, eCount = entities.length; e < eCount; e++) {
+        params[0] = entities[e];
+        params[1] = c0[e];
+        params[2] = c1[e];
+        params[3] = c2[e];
+        // @ts-expect-error intentional
+        iteree(params);
+      }
+    }
+  }
+
+  #iter4(iteree: (arg: ServiceArgs<FilterDataComponents<T>>) => void) {
+    const params = this.params;
+    for (let a = 0; a < this.records.length; a++) {
+      const [entities, components] = this.records[a];
+      const c0 = components[0],
+        c1 = components[1],
+        c2 = components[2],
+        c3 = components[3];
+      for (let e = 0, eCount = entities.length; e < eCount; e++) {
+        params[0] = entities[e];
+        params[1] = c0[e];
+        params[2] = c1[e];
+        params[3] = c2[e];
+        params[4] = c3[e];
+        // @ts-expect-error intentional
+        iteree(params);
+      }
+    }
+  }
+
+  #iter5(iteree: (arg: ServiceArgs<FilterDataComponents<T>>) => void) {
+    const params = this.params;
+    for (let a = 0; a < this.records.length; a++) {
+      const [entities, components] = this.records[a];
+      const c0 = components[0],
+        c1 = components[1],
+        c2 = components[2],
+        c3 = components[3],
+        c4 = components[4];
+      for (let e = 0, eCount = entities.length; e < eCount; e++) {
+        params[0] = entities[e];
+        params[1] = c0[e];
+        params[2] = c1[e];
+        params[3] = c2[e];
+        params[4] = c3[e];
+        params[5] = c4[e];
+        // @ts-expect-error intentional
+        iteree(params);
+      }
+    }
+  }
+
+  #iter6(iteree: (arg: ServiceArgs<FilterDataComponents<T>>) => void) {
+    const params = this.params;
+    for (let a = 0; a < this.records.length; a++) {
+      const [entities, components] = this.records[a];
+      const c0 = components[0],
+        c1 = components[1],
+        c2 = components[2],
+        c3 = components[3],
+        c4 = components[4],
+        c5 = components[5];
+      for (let e = 0, eCount = entities.length; e < eCount; e++) {
+        params[0] = entities[e];
+        params[1] = c0[e];
+        params[2] = c1[e];
+        params[3] = c2[e];
+        params[4] = c3[e];
+        params[5] = c4[e];
+        params[6] = c5[e];
+        // @ts-expect-error intentional
+        iteree(params);
+      }
+    }
+  }
+
+  #iter7(iteree: (arg: ServiceArgs<FilterDataComponents<T>>) => void) {
+    const params = this.params;
+    for (let a = 0; a < this.records.length; a++) {
+      const [entities, components] = this.records[a];
+      const c0 = components[0],
+        c1 = components[1],
+        c2 = components[2],
+        c3 = components[3],
+        c4 = components[4],
+        c5 = components[5],
+        c6 = components[6];
+      for (let e = 0, eCount = entities.length; e < eCount; e++) {
+        params[0] = entities[e];
+        params[1] = c0[e];
+        params[2] = c1[e];
+        params[3] = c2[e];
+        params[4] = c3[e];
+        params[5] = c4[e];
+        params[6] = c5[e];
+        params[7] = c6[e];
+        // @ts-expect-error intentional
+        iteree(params);
+      }
+    }
+  }
+
+  #iter8(iteree: (arg: ServiceArgs<FilterDataComponents<T>>) => void) {
+    const params = this.params;
+    for (let a = 0; a < this.records.length; a++) {
+      const [entities, components] = this.records[a];
+      const c0 = components[0],
+        c1 = components[1],
+        c2 = components[2],
+        c3 = components[3],
+        c4 = components[4],
+        c5 = components[5],
+        c6 = components[6],
+        c7 = components[7];
+      for (let e = 0, eCount = entities.length; e < eCount; e++) {
+        params[0] = entities[e];
+        params[1] = c0[e];
+        params[2] = c1[e];
+        params[3] = c2[e];
+        params[4] = c3[e];
+        params[5] = c4[e];
+        params[6] = c5[e];
+        params[7] = c6[e];
+        params[8] = c7[e];
+        // @ts-expect-error intentional
+        iteree(params);
+      }
+    }
+  }
+
+  #iter9(iteree: (arg: ServiceArgs<FilterDataComponents<T>>) => void) {
+    const params = this.params;
+    for (let a = 0; a < this.records.length; a++) {
+      const [entities, components] = this.records[a];
+      const c0 = components[0],
+        c1 = components[1],
+        c2 = components[2],
+        c3 = components[3],
+        c4 = components[4],
+        c5 = components[5],
+        c6 = components[6],
+        c7 = components[7],
+        c8 = components[8];
+      for (let e = 0, eCount = entities.length; e < eCount; e++) {
+        params[0] = entities[e];
+        params[1] = c0[e];
+        params[2] = c1[e];
+        params[3] = c2[e];
+        params[4] = c3[e];
+        params[5] = c4[e];
+        params[6] = c5[e];
+        params[7] = c6[e];
+        params[8] = c7[e];
+        params[9] = c8[e];
+        // @ts-expect-error intentional
+        iteree(params);
+      }
+    }
+  }
+
+  #iter10(iteree: (arg: ServiceArgs<FilterDataComponents<T>>) => void) {
+    const params = this.params;
+    for (let a = 0; a < this.records.length; a++) {
+      const [entities, components] = this.records[a];
+      const c0 = components[0],
+        c1 = components[1],
+        c2 = components[2],
+        c3 = components[3],
+        c4 = components[4],
+        c5 = components[5],
+        c6 = components[6],
+        c7 = components[7],
+        c8 = components[8],
+        c9 = components[9];
+      for (let e = 0, eCount = entities.length; e < eCount; e++) {
+        params[0] = entities[e];
+        params[1] = c0[e];
+        params[2] = c1[e];
+        params[3] = c2[e];
+        params[4] = c3[e];
+        params[5] = c4[e];
+        params[6] = c5[e];
+        params[7] = c6[e];
+        params[8] = c7[e];
+        params[9] = c8[e];
+        params[10] = c9[e];
+        // @ts-expect-error intentional
+        iteree(params);
+      }
+    }
+  }
+
+  #iter11(iteree: (arg: ServiceArgs<FilterDataComponents<T>>) => void) {
+    const params = this.params;
+    for (let a = 0; a < this.records.length; a++) {
+      const [entities, components] = this.records[a];
+      const c0 = components[0],
+        c1 = components[1],
+        c2 = components[2],
+        c3 = components[3],
+        c4 = components[4],
+        c5 = components[5],
+        c6 = components[6],
+        c7 = components[7],
+        c8 = components[8],
+        c9 = components[9],
+        c10 = components[10];
+      for (let e = 0, eCount = entities.length; e < eCount; e++) {
+        params[0] = entities[e];
+        params[1] = c0[e];
+        params[2] = c1[e];
+        params[3] = c2[e];
+        params[4] = c3[e];
+        params[5] = c4[e];
+        params[6] = c5[e];
+        params[7] = c6[e];
+        params[8] = c7[e];
+        params[9] = c8[e];
+        params[10] = c9[e];
+        params[11] = c10[e];
+        // @ts-expect-error intentional
+        iteree(params);
+      }
+    }
+  }
+
+  #iter12(iteree: (arg: ServiceArgs<FilterDataComponents<T>>) => void) {
+    const params = this.params;
+    for (let a = 0; a < this.records.length; a++) {
+      const [entities, components] = this.records[a];
+      const c0 = components[0],
+        c1 = components[1],
+        c2 = components[2],
+        c3 = components[3],
+        c4 = components[4],
+        c5 = components[5],
+        c6 = components[6],
+        c7 = components[7],
+        c8 = components[8],
+        c9 = components[9],
+        c10 = components[10],
+        c11 = components[11];
+      for (let e = 0, eCount = entities.length; e < eCount; e++) {
+        params[0] = entities[e];
+        params[1] = c0[e];
+        params[2] = c1[e];
+        params[3] = c2[e];
+        params[4] = c3[e];
+        params[5] = c4[e];
+        params[6] = c5[e];
+        params[7] = c6[e];
+        params[8] = c7[e];
+        params[9] = c8[e];
+        params[10] = c9[e];
+        params[11] = c10[e];
+        params[12] = c11[e];
+        // @ts-expect-error intentional
+        iteree(params);
+      }
+    }
+  }
+
+  #iterN(iteree: (arg: ServiceArgs<FilterDataComponents<T>>) => void) {
+    const params = this.params;
+    const length = this.componentTypes.length;
+    for (let a = 0; a < this.records.length; a++) {
+      const [entities, components] = this.records[a];
+      for (let e = 0, eCount = entities.length; e < eCount; e++) {
+        params[0] = entities[e];
+        for (let p = 0; p < length; p++) {
+          params[p + 1] = components[p][e];
+        }
+        // @ts-expect-error intentional
+        iteree(params);
+      }
+    }
+  }
 
   handleNewArchetype(archetype: Archetype) {
     // Must contain all required components
@@ -96,29 +449,6 @@ export class Query<T extends QueryElement[]> {
       components[i] = archetype.components[componentIndex];
     }
     this.records.push([archetype.entities, components]);
-  }
-
-  /**
-   * Invoke the `iteree` callback function for each Entity that matches the
-   * Query. The callback is passed the Entity and the requested Components.
-   * @param iteree
-   */
-  iter(iteree: (arg: ServiceArgs<FilterDataComponents<T>>) => void) {
-    const length = this.componentTypes.length;
-    const params = new Array(length + 1);
-    for (let a = 0; a < this.records.length; a++) {
-      const record = this.records[a];
-      const entities = record[0];
-      const components = record[1];
-      for (let e = 0, eCount = entities.length; e < eCount; e++) {
-        params[0] = entities[e];
-        for (let p = 0; p < length; p++) {
-          params[p + 1] = components[p][e];
-        }
-        // @ts-expect-error this is fine.
-        iteree(params);
-      }
-    }
   }
 
   /**

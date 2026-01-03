@@ -1,49 +1,20 @@
 {
   "name": "conductengine",
-  "version": "1.0.0",
-  "main": "index.js",
-  "license": "MIT",
-  "private": false,
-  "scripts": {
-    "clean": "rm -rf dist",
-    "lint": "eslint src",
-    "dev": "node_modules/nodemon/bin/nodemon.js --watch src --ext ts,wgsl,svelte --ignore **/*systemDefinitions.ts --exec 'yarn clean && (yarn server:compile & yarn client:compile & yarn ui:build & wait) && yarn ui:dist && yarn server:start'",
-    "server:compile": "yarn cli:run conduct-core-server client.ts && node_modules/@swc/cli/bin/swc.js src/conduct-core src/conduct-core-server src/conduct-ecs src/game -d dist --config-file .swcrc --ignore **/*client.ts",
-    "server:start": "node --enable-source-maps dist/src/conduct-core-server",
-    "client:compile": "yarn cli:run conduct-core-client server.ts && node_modules/webpack/bin/webpack.js --mode development && cp src/conduct-core-client/main.html dist/src/conduct-core-server/static/main.html",
-    "ui:build": "cd src/conduct-ui && yarn build",
-    "ui:dist": "cp -r src/conduct-ui/dist/assets dist/src/conduct-core-server/static/ && node cli/merge-ui.js",
-    "cli:compile": "node_modules/typescript/bin/tsc cli/main.ts",
-    "cli:run": "node cli/main.js",
-    "foo": "node cli/main.js client server.ts"
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.11.0",
+    "pnpm": ">=9.0.0"
   },
-  "dependencies": {
-    "@webgpu/types": "^0.1.48",
-    "express": "^4.21.0",
-    "gl-matrix": "^3.4.3",
-    "nodemon": "^3.1.7",
-    "raf": "^3.4.1",
-    "reflect-metadata": "^0.2.2",
-    "ws": "^8.18.0"
+  "scripts": {
+    "build": "pnpm -r build",
+    "dev": "pnpm -r dev",
+    "clean": "pnpm -r clean && rm -rf node_modules",
+    "typecheck": "pnpm -r typecheck"
   },
   "devDependencies": {
-    "@eslint/js": "^9.12.0",
-    "@swc/cli": "^0.4.1-nightly.20240914",
-    "@swc/core": "^1.7.26",
-    "@types/express": "^5.0.0",
-    "@types/lodash": "^4.17.10",
-    "@types/raf": "^3.4.3",
-    "@types/ws": "^8.5.12",
-    "eslint": "^9.12.0",
-    "eslint-config-prettier": "^9.1.0",
-    "eslint-plugin-prettier": "^5.2.1",
-    "eslint-plugin-simple-import-sort": "^12.1.1",
-    "globals": "^15.10.0",
-    "prettier": "3.1.1",
-    "ts-loader": "^9.5.1",
-    "typescript": "^5.8.3",
-    "typescript-eslint": "^8.8.0",
-    "webpack": "^5.95.0",
-    "webpack-cli": "^5.1.4"
-  }
+    "typescript": "^5.7.2"
+  },
+  "packageManager": "pnpm@9.15.0"
 }

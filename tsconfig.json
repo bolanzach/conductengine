@@ -1,43 +1,48 @@
 {
   "compilerOptions": {
-    "lib": [
-      "esNext",
-      "dom"
-    ],
-    "module": "es2022",
-    "target": "es2022",
-
-    "rootDir": "src",
-    "noEmit": true,
-    "declaration": true,
-
+    // Language and Environment
+    "target": "ES2024",
+    "lib": ["ES2024", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
     "moduleResolution": "bundler",
-//    "isolatedModules": true,
-    "moduleDetection": "force",
+    "resolveJsonModule": true,
 
-    "strict": true,
+    // Emit
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "./dist",
+    "removeComments": false,
+    "noEmit": false,
+
+    // Interop Constraints
     "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": false,
+
+    // Type Checking
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "allowUnusedLabels": false,
+    "allowUnreachableCode": false,
+
+    // Completeness
     "skipLibCheck": true,
 
-    "types": ["@webgpu/types", "node"],
-
-    "allowSyntheticDefaultImports": true,
-    "sourceMap": true,
-    "allowJs": true,
-
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
-    "forceConsistentCasingInFileNames": true,
-    "noImplicitReturns": true,
-    "noImplicitThis": true,
-    "noImplicitAny": true,
-    "strictNullChecks": true,
-    "noUnusedLocals": false,
-
-    "paths": {
-      "@/*": ["./src/*"]
-    }
+    // Monorepo
+    "composite": true,
+    "incremental": true
   },
-  "include": ["**/*.ts"],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/node_modules",
+    "**/dist"
+  ]
 }

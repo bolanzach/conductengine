@@ -1,15 +1,133 @@
-// @ts-nocheck
+export type ConductEntity = number;
+
+export type ConductComponent = object;
+
+export type ConductSystem = (query: Query<QueryElement[]>) => void;
 
 export const ComponentId = Symbol("ComponentId");
-
-export type Entity = number;
 
 /**
  * A bit mask signature for a set of components.
  */
 export type Signature = number[];
 
+type ComponentConstructor = {
+  /**
+   * Unique component ID assigned at runtime.
+   */
+  [ComponentId]?: number;
+} & (new () => ConductComponent);
+
+// Marker for operator type identification at runtime
+const OPERATOR_TYPE = Symbol("OPERATOR_TYPE");
+
+/**
+ * Base interface for query operators.
+ */
+interface QueryOperator {
+  readonly [OPERATOR_TYPE]: string;
+}
+
+/**
+ * Exclude entities that have any of the specified components.
+ *
+ * @example
+ * // Query entities with PersonComponent but NOT DeadComponent
+ * Query<[PersonComponent, Not<[DeadComponent]>]>
+ */
+// @ts-ignore - Need Generic T
+export interface Not<T extends ConductComponent[]> extends QueryOperator {
+  readonly [OPERATOR_TYPE]: "Not";
+}
+
+/**
+ * Include a component optionally - the component will be undefined if not present.
+ *
+ * @example
+ * Query<[PlayerComponent, Optional<[DebugComponent]>]>
+ */
+// @ts-ignore - Need Generic T
+export interface Optional<T extends ConductComponent[]> extends QueryOperator {
+  readonly [OPERATOR_TYPE]: "Optional";
+}
+
+export type QueryElement = ConductComponent | QueryOperator;
+
+type ServiceArgs<T extends object[]> = [ConductEntity, ...T];
+
+/**
+ * Extract only data components from a tuple that may contain operators.
+ */
+type FilterDataComponents<T extends QueryElement[]> = T extends [
+  infer Element,
+  ...infer Rest,
+]
+  ? Element extends QueryOperator
+    ? Rest extends QueryElement[]
+      ? FilterDataComponents<Rest>
+      : []
+    : Element extends object
+      ? Rest extends QueryElement[]
+        ? [Element, ...FilterDataComponents<Rest>]
+        : [Element]
+      : []
+  : [];
+
+export interface Query<T extends QueryElement[]> {
+  /**
+   * Iterate over all matching entities and their components. The logic within
+   * the `iteree` callback is executed for each matching entity. The first
+   * argument is always the entity ID, followed by the requested components.
+   *
+   * @example
+   * // Query for entities with Position and Velocity components
+   * export default function MoveSystem(query: Query<[Position, Velocity]>) {
+   *  query.iter(([entity, position, velocity]) => {
+   *     position.x += velocity.vx;
+   *     position.y += velocity.vy;
+   *   });
+   * }
+   */
+  iter: (iteree: (arg: ServiceArgs<FilterDataComponents<T>>) => void) => void;
+}
+
+interface Archetype {
+  signature: Signature;
+  columns: Record<string, unknown[]>;
+  entities: number[];
+  count: number;
+  capacity: number;
+}
+
+interface QueryGenerated {
+  required: Signature;
+  not: Signature;
+  cache: Archetype[] | null;
+  cacheGeneration: number;
+}
+
+// Entity location tracking: entityId -> { archetype, row }
+interface EntityLocation {
+  archetype: Archetype;
+  row: number;
+}
+
+const ARCHETYPE_INITIAL_CAPACITY = 64;
+const ARCHETYPE_GROWTH_FACTOR = 2;
 const BIT_CHUNK_SIZE = 32;
+
+let nextComponentId = 0;
+
+const archetypes: Archetype[] = [];
+const archetypesBySignature = new Map<string, Archetype>();
+
+// Generation counter for cache invalidation - increments when archetypes are added
+let archetypeGeneration = 0;
+
+const entityLocations = new Map<number, EntityLocation>();
+
+// Recycled entity IDs
+const freeEntityIds: number[] = [];
 
 /**
  * Constructs a signature from a list of component ids.
@@ -25,7 +143,7 @@ export function createSignature(components: number[]): Signature {
   ).fill(0);
 
   for (let i = 0; i < components.length; i++) {
-    const component = components[i];
+    const component = components[i]!;
     const chunkIndex = Math.floor(component / BIT_CHUNK_SIZE);
     const bitIndex = component % BIT_CHUNK_SIZE;
     signatureMask[chunkIndex] |= 1 << bitIndex;
@@ -35,9 +153,9 @@ export function createSignature(components: number[]): Signature {
 }
 
 export function createSignatureFromComponents(
-  Components: ComponentConstructor[]
+  components: ComponentConstructor[]
 ): Signature {
-  const componentIds = Components.map((Component) => {
+  const componentIds = components.map((Component) => {
     let componentId = Component[ComponentId];
     if (componentId === undefined) {
       componentId = nextComponentId++;
@@ -54,7 +172,7 @@ export function createSignatureFromComponents(
 export function signatureContains(sig: Signature, other: Signature): boolean {
   for (let i = 0; i < other.length; i++) {
     const sigChunk = sig[i] ?? 0;
-    if ((sigChunk & other[i]) !== other[i]) {
+    if ((sigChunk & other[i]!) !== other[i]) {
       return false;
     }
   }
@@ -81,7 +199,7 @@ export function signatureEquals(sig: Signature, other: Signature): boolean {
 export function signatureOverlaps(sig: Signature, other: Signature): boolean {
   const minLength = Math.min(sig.length, other.length);
   for (let i = 0; i < minLength; i++) {
-    if ((sig[i] & other[i]) !== 0) {
+    if ((sig[i]! & other[i]!) !== 0) {
       return true;
     }
   }
@@ -100,7 +218,7 @@ function signatureAdd(sig: Signature, componentId: number): Signature {
   while (result.length <= chunkIndex) {
     result.push(0);
   }
-  result[chunkIndex] |= 1 << bitIndex;
+  result[chunkIndex]! |= 1 << bitIndex;
 
   return result;
 }
@@ -114,7 +232,7 @@ function signatureRemove(sig: Signature, componentId: number): Signature {
 
   const result = sig.slice();
   if (chunkIndex < result.length) {
-    result[chunkIndex] &= ~(1 << bitIndex);
+    result[chunkIndex]! &= ~(1 << bitIndex);
   }
 
   // Trim trailing zeros
@@ -135,8 +253,6 @@ function signatureIsEmpty(sig: Signature): boolean {
   return true;
 }
 
-let nextComponentId = 0;
-
 /**
  * Converts a Signature to a string key for Map lookups.
  * TODO: Optimize by caching key in Signature object if this becomes a bottleneck.
@@ -144,104 +260,6 @@ let nextComponentId = 0;
 function signatureToKey(sig: Signature): string {
   return sig.join(",");
 }
-
-type ComponentConstructor = new () => any & {
-  [ComponentId]: Signature;
-};
-
-// Marker for operator type identification at runtime
-const OPERATOR_TYPE = Symbol("OPERATOR_TYPE");
-
-/**
- * Base interface for query operators.
- */
-export interface QueryOperator {
-  readonly [OPERATOR_TYPE]: string;
-}
-
-/**
- * Exclude entities that have any of the specified components.
- *
- * @example
- * // Query entities with PersonComponent but NOT DeadComponent
- * Query<[PersonComponent, Not<[DeadComponent]>]>
- */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export interface Not<T extends object[]> extends QueryOperator {
-  readonly [OPERATOR_TYPE]: "Not";
-}
-
-/**
- * Include a component optionally - the component will be undefined if not present.
- *
- * @example
- * Query<[PlayerComponent, Optional<[DebugComponent]>]>
- */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export interface Optional<T extends object[]> extends QueryOperator {
-  readonly [OPERATOR_TYPE]: "Optional";
-}
-
-export type QueryElement = object | QueryOperator;
-
-type ServiceArgs<T extends object[]> = [Entity, ...T];
-
-/**
- * Extract only data components from a tuple that may contain operators.
- */
-type FilterDataComponents<T extends QueryElement[]> = T extends [
-  infer Element,
-  ...infer Rest,
-]
-  ? Element extends QueryOperator
-    ? Rest extends QueryElement[]
-      ? FilterDataComponents<Rest>
-      : []
-    : Element extends object
-      ? Rest extends QueryElement[]
-        ? [Element, ...FilterDataComponents<Rest>]
-        : [Element]
-      : []
-  : [];
-
-export interface Query<T extends QueryElement[]> {
-  iter: (iteree: (arg: ServiceArgs<FilterDataComponents<T>>) => void) => void;
-}
-
-interface Archetype {
-  signature: Signature;
-  columns: Record<string, unknown[]>;
-  entities: number[];
-  count: number;
-  capacity: number;
-}
-
-interface QueryGenerated {
-  required: Signature;
-  not: Signature;
-  cache: Archetype[] | null;
-  cacheGeneration: number;
-}
-
-// Entity location tracking: entityId -> { archetype, row }
-interface EntityLocation {
-  archetype: Archetype;
-  row: number;
-}
-
-const INITIAL_CAPACITY = 64;
-const GROWTH_FACTOR = 2;
-
-const archetypes: Archetype[] = [];
-const archetypesBySignature = new Map<string, Archetype>();
-
-// Generation counter for cache invalidation - increments when archetypes are added
-let archetypeGeneration = 0;
-
-const entityLocations = new Map<number, EntityLocation>();
-
-// Recycled entity IDs
-const freeEntityIds: number[] = [];
 
 export function spawnEntity(): number {
   if (freeEntityIds.length > 0) {
@@ -254,9 +272,9 @@ function createArchetype(signature: Signature): Archetype {
   const archetype: Archetype = {
     signature,
     columns: {},
-    entities: new Array(INITIAL_CAPACITY).fill(0), // Fill to make PACKED
+    entities: new Array(ARCHETYPE_INITIAL_CAPACITY).fill(0), // Fill to make PACKED
     count: 0,
-    capacity: INITIAL_CAPACITY,
+    capacity: ARCHETYPE_INITIAL_CAPACITY,
   };
 
   archetypes.push(archetype);
@@ -269,18 +287,18 @@ function createArchetype(signature: Signature): Archetype {
 }
 
 function growArchetype(archetype: Archetype): void {
-  const newCapacity = archetype.capacity * GROWTH_FACTOR;
+  const newCapacity = archetype.capacity * ARCHETYPE_GROWTH_FACTOR;
 
-  // Grow entities array - fill to make PACKED
+  // Grow entities array - fill to make packed array
   const newEntities = new Array(newCapacity).fill(0);
   for (let i = 0; i < archetype.count; i++) {
     newEntities[i] = archetype.entities[i];
   }
   archetype.entities = newEntities;
 
-  // Grow all column arrays - fill to make PACKED
+  // Grow all column arrays - fill to make packed array
   for (const columnKey in archetype.columns) {
-    const oldColumn = archetype.columns[columnKey];
+    const oldColumn = archetype.columns[columnKey]!;
     const newColumn = new Array(newCapacity).fill(0);
     for (let i = 0; i < archetype.count; i++) {
       newColumn[i] = oldColumn[i];
@@ -295,11 +313,11 @@ export function addComponent(
   entityId: number,
   component: ComponentConstructor
 ) {
-  // Get or assign ComponentId using the Symbol (lazy registration)
-  let componentId = (component as any)[ComponentId] as number | undefined;
+  // Get or assign ComponentId using the Symbol
+  let componentId = component[ComponentId];
   if (componentId === undefined) {
     componentId = nextComponentId++;
-    (component as any)[ComponentId] = componentId;
+    component[ComponentId] = componentId;
   }
   const existingLocation = entityLocations.get(entityId);
 
@@ -334,18 +352,18 @@ export function addComponent(
       if (!dstArch.columns[columnKey]) {
         dstArch.columns[columnKey] = new Array(dstArch.capacity).fill(0);
       }
-      dstArch.columns[columnKey][dstRow] = srcArch.columns[columnKey][srcRow];
+      dstArch.columns[columnKey][dstRow] = srcArch.columns[columnKey]![srcRow];
     }
 
     // Remove from source archetype using swap-remove
     const lastRow = srcArch.count - 1;
     if (srcRow !== lastRow) {
-      const lastEntityId = srcArch.entities[lastRow];
+      const lastEntityId = srcArch.entities[lastRow]!;
       srcArch.entities[srcRow] = lastEntityId;
 
       for (const columnKey in srcArch.columns) {
-        srcArch.columns[columnKey][srcRow] =
-          srcArch.columns[columnKey][lastRow];
+        srcArch.columns[columnKey]![srcRow] =
+          srcArch.columns[columnKey]![lastRow];
       }
 
       entityLocations.set(lastEntityId, { archetype: srcArch, row: srcRow });
@@ -361,6 +379,7 @@ export function addComponent(
     if (!dstArch.columns[columnKey]) {
       dstArch.columns[columnKey] = new Array(dstArch.capacity).fill(0);
     }
+    // @ts-ignore
     dstArch.columns[columnKey][dstRow] = instance[key];
   }
 
@@ -369,6 +388,7 @@ export function addComponent(
 }
 
 // Remove a component from an entity (moves entity to new archetype)
+// @ts-ignore - Reserved for future use
 function removeComponent(
   entityId: number,
   component: ComponentConstructor
@@ -377,7 +397,8 @@ function removeComponent(
   if (!location) return false;
 
   const { archetype: srcArch, row: srcRow } = location;
-  const componentId = (component as any).ComponentId as number;
+  const componentId = component[ComponentId];
+  if (componentId === undefined) return false;
 
   // Check if entity actually has this component
   const componentSig = createSignature([componentId]);
@@ -415,23 +436,22 @@ function removeComponent(
     if (!dstArch.columns[columnKey]) {
       dstArch.columns[columnKey] = new Array(dstArch.capacity).fill(0);
     }
-    dstArch.columns[columnKey][dstRow] = srcArch.columns[columnKey][srcRow];
+    dstArch.columns[columnKey][dstRow] = srcArch.columns[columnKey]![srcRow];
   }
 
   // Remove from source archetype using swap-remove
   const lastRow = srcArch.count - 1;
   if (srcRow !== lastRow) {
-    const lastEntityId = srcArch.entities[lastRow];
+    const lastEntityId = srcArch.entities[lastRow]!;
     srcArch.entities[srcRow] = lastEntityId;
 
     for (const columnKey in srcArch.columns) {
-      srcArch.columns[columnKey][srcRow] = srcArch.columns[columnKey][lastRow];
+      srcArch.columns[columnKey]![srcRow] = srcArch.columns[columnKey]![lastRow];
     }
 
     entityLocations.set(lastEntityId, { archetype: srcArch, row: srcRow });
   }
 
-  // Just decrement count - no need to pop, we track via count
   srcArch.count--;
 
   // Update entity location to new archetype
@@ -449,14 +469,14 @@ function deleteEntity(entityId: number): boolean {
 
   if (row !== lastRow) {
     // Swap last entity into the deleted slot
-    const lastEntityId = archetype.entities[lastRow];
+    const lastEntityId = archetype.entities[lastRow]!;
 
     // Swap entity ID
     archetype.entities[row] = lastEntityId;
 
     // Swap all column data
     for (const columnKey in archetype.columns) {
-      const column = archetype.columns[columnKey];
+      const column = archetype.columns[columnKey]!;
       column[row] = column[lastRow];
     }
 
@@ -464,7 +484,6 @@ function deleteEntity(entityId: number): boolean {
     entityLocations.set(lastEntityId, { archetype, row });
   }
 
-  // Just decrement count - no need to pop, we track via count
   archetype.count--;
 
   // Clean up deleted entity
@@ -475,14 +494,14 @@ function deleteEntity(entityId: number): boolean {
 }
 
 export function query(q: QueryGenerated): Archetype[] {
-  // Check if cache is valid (exists and generation matches)
+  // Check if cache is valid
   if (q.cache && q.cacheGeneration === archetypeGeneration) {
     return q.cache;
   }
 
   const results: Archetype[] = [];
   for (let i = 0; i < archetypes.length; i++) {
-    const arch = archetypes[i];
+    const arch = archetypes[i]!;
     // Must have all required components
     if (!signatureContains(arch.signature, q.required)) {
       continue;
@@ -501,7 +520,7 @@ export function query(q: QueryGenerated): Archetype[] {
   return results;
 }
 
-export function runSystem(system: (q: Query<QueryElement[]>) => void) {
+export function runSystem(system: ConductSystem) {
   // Type erasure - the system gets compiled to a function without arguments
-  system();
+  (system as unknown as () => void)();
 }

@@ -324,12 +324,23 @@ export function addComponent(
     componentId = nextComponentId++;
     component[ComponentId] = componentId;
   }
+
   const existingLocation = entityLocations.get(entityId);
+  const componentSig = createSignature([componentId]);
+
+  if (existingLocation) {
+    // Check if entity already has this component
+    const existingSig = existingLocation.archetype.signature;
+    if (signatureContains(existingSig, componentSig)) {
+      // Component already exists on entity - no-op
+      return;
+    }
+  }
 
   // Build the new signature: existing components + new component
   const newSignature = existingLocation
     ? signatureAdd(existingLocation.archetype.signature, componentId)
-    : createSignature([componentId]);
+    : componentSig;
 
   // Get or create target archetype
   const newKey = signatureToKey(newSignature);

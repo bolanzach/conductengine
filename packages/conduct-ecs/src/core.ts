@@ -121,6 +121,7 @@ const ARCHETYPE_GROWTH_FACTOR = 2;
 const BIT_CHUNK_SIZE = 32;
 
 let nextComponentId = 0;
+let nextEntityId = 0;
 
 const archetypes: Archetype[] = [];
 const archetypesBySignature = new Map<string, Archetype>();
@@ -269,7 +270,7 @@ export function spawnEntity(): number {
   if (freeEntityIds.length > 0) {
     return freeEntityIds.pop()!;
   }
-  return nextComponentId++;
+  return nextEntityId++;
 }
 
 function createArchetype(signature: Signature): Archetype {

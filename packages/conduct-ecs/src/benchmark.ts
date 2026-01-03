@@ -1,4 +1,4 @@
-import { addComponent, runSystem, spawnEntity } from "./core.js";
+import { addComponent, registerSystem, spawnEntity } from "./core.js";
 import BasicSystem from "./basicSystem.js";
 import FooSystem from "./fooSystem.js";
 import BarSystem from "./barSystem.js";
@@ -8,12 +8,18 @@ import { ValueA, ValueB, ValueC, ValueD, ValueE } from "./basicComponents.js";
 
 console.log('CONDUCT ENGINE Main Benchmark');
 
+const runBasicSystem = registerSystem(BasicSystem);
+const runFooSystem = registerSystem(FooSystem);
+const runBarSystem = registerSystem(BarSystem);
+const runBazSystem = registerSystem(BazSystem);
+const runTestSystem = registerSystem(TestSystem);
+
 function execute() {
-  runSystem(BasicSystem);
-  runSystem(FooSystem);
-  runSystem(BarSystem);
-  runSystem(BazSystem);
-  runSystem(TestSystem);
+  runBarSystem();
+  runFooSystem();
+  runBazSystem();
+  runBasicSystem();
+  runTestSystem();
 }
 
 const ITERATIONS = 1_000;

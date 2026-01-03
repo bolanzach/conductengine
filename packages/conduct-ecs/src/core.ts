@@ -53,7 +53,7 @@ export interface Optional<T extends ConductComponent[]> extends QueryOperator {
 
 export type QueryElement = ConductComponent | QueryOperator;
 
-type ServiceArgs<T extends object[]> = [ConductEntity, ...T];
+type SystemArgs<T extends object[]> = [ConductEntity, ...T];
 
 /**
  * Extract only data components from a tuple that may contain operators.
@@ -73,6 +73,10 @@ type FilterDataComponents<T extends QueryElement[]> = T extends [
       : []
   : [];
 
+/**
+ * A Query declares a set of Components to filter Entities by, and provides
+ * an interface to iterate over those matching Entities and their Components.
+ */
 export interface Query<T extends QueryElement[]> {
   /**
    * Iterate over all matching entities and their components. The logic within
@@ -88,7 +92,7 @@ export interface Query<T extends QueryElement[]> {
    *   });
    * }
    */
-  iter: (iteree: (arg: ServiceArgs<FilterDataComponents<T>>) => void) => void;
+  iter: (iteree: (arg: SystemArgs<FilterDataComponents<T>>) => void) => void;
 }
 
 interface Archetype {
@@ -520,7 +524,10 @@ export function query(q: QueryGenerated): Archetype[] {
   return results;
 }
 
-export function runSystem(system: ConductSystem) {
+/**
+ * Register a System function so that it can be executed.
+ */
+export function registerSystem(system: ConductSystem): () => void {
   // Type erasure - the system gets compiled to a function without arguments
-  (system as unknown as () => void)();
+  return (system as unknown as () => void);
 }

@@ -207,7 +207,7 @@ function createQueryConstant(systemInfo, factory) {
 function transformCallbackBody(body, paramToComponent, columnRefs, context) {
     const factory = context.factory;
     function visit(node) {
-        // Transform property access: transform.rx -> Transform_rx[c]
+        // Transform property access: transform.rx -> Transform_rx[$__conduct_engine_c]
         if (ts.isPropertyAccessExpression(node)) {
             const obj = node.expression;
             const prop = node.name.text;
@@ -218,11 +218,11 @@ function transformCallbackBody(body, paramToComponent, columnRefs, context) {
                     const columnKey = `${componentType}.${prop}`;
                     columnRefs.add(columnKey);
                     const localVarName = `${componentType}_${prop}`;
-                    return factory.createElementAccessExpression(factory.createIdentifier(localVarName), factory.createIdentifier("c"));
+                    return factory.createElementAccessExpression(factory.createIdentifier(localVarName), factory.createIdentifier("$__conduct_engine_c"));
                 }
             }
         }
-        // Transform standalone entity identifier: entity -> arch.entities[c]
+        // Transform standalone entity identifier: entity -> $__conduct_engine_arch.entities[$__conduct_engine_c]
         if (ts.isIdentifier(node)) {
             const paramName = node.text;
             const componentType = paramToComponent.get(paramName);
@@ -233,7 +233,7 @@ function transformCallbackBody(body, paramToComponent, columnRefs, context) {
                     parent.expression === node) {
                     return node;
                 }
-                return factory.createElementAccessExpression(factory.createPropertyAccessExpression(factory.createIdentifier("arch"), "entities"), factory.createIdentifier("c"));
+                return factory.createElementAccessExpression(factory.createPropertyAccessExpression(factory.createIdentifier("$__conduct_engine_arch"), "entities"), factory.createIdentifier("$__conduct_engine_c"));
             }
         }
         return ts.visitEachChild(node, visit, context);
@@ -264,27 +264,27 @@ function createOptimizedSystemBody(systemInfo, callbackInfo, factory, context) {
             factory.createExpressionStatement(transformedBody),
         ];
     }
-    // Create column extractions: const Transform_x = arch.columns['Transform.x'];
+    // Create column extractions: const Transform_x = $__conduct_engine_arch.columns['Transform.x'];
     const columnExtractions = Array.from(columnRefs).map((colKey) => {
         const localVarName = colKey.replace(".", "_");
         return factory.createVariableStatement(undefined, factory.createVariableDeclarationList([
-            factory.createVariableDeclaration(localVarName, undefined, undefined, factory.createElementAccessExpression(factory.createPropertyAccessExpression(factory.createIdentifier("arch"), "columns"), factory.createStringLiteral(colKey))),
+            factory.createVariableDeclaration(localVarName, undefined, undefined, factory.createElementAccessExpression(factory.createPropertyAccessExpression(factory.createIdentifier("$__conduct_engine_arch"), "columns"), factory.createStringLiteral(colKey))),
         ], ts.NodeFlags.Const));
     });
-    // const $__conduct_engine_count = arch.count;
+    // const $__conduct_engine_count = $__conduct_engine_arch.count;
     const countDecl = factory.createVariableStatement(undefined, factory.createVariableDeclarationList([
-        factory.createVariableDeclaration("$__conduct_engine_count", undefined, undefined, factory.createPropertyAccessExpression(factory.createIdentifier("arch"), "count")),
+        factory.createVariableDeclaration("$__conduct_engine_count", undefined, undefined, factory.createPropertyAccessExpression(factory.createIdentifier("$__conduct_engine_arch"), "count")),
     ], ts.NodeFlags.Const));
-    // Inner loop: for (let c = 0; c < $__conduct_engine_count; c++) { ... }
+    // Inner loop: for (let $__conduct_engine_c = 0; $__conduct_engine_c < $__conduct_engine_count; $__conduct_engine_c++) { ... }
     const innerLoop = factory.createForStatement(factory.createVariableDeclarationList([
-        factory.createVariableDeclaration("c", undefined, undefined, factory.createNumericLiteral(0)),
-    ], ts.NodeFlags.Let), factory.createBinaryExpression(factory.createIdentifier("c"), ts.SyntaxKind.LessThanToken, factory.createIdentifier("$__conduct_engine_count")), factory.createPostfixIncrement(factory.createIdentifier("c")), factory.createBlock(bodyStatements, true));
-    // Outer loop: for (let i = 0; i < $__conduct_engine_matches.length; i++) { const arch = $__conduct_engine_matches[i]; ... }
+        factory.createVariableDeclaration("$__conduct_engine_c", undefined, undefined, factory.createNumericLiteral(0)),
+    ], ts.NodeFlags.Let), factory.createBinaryExpression(factory.createIdentifier("$__conduct_engine_c"), ts.SyntaxKind.LessThanToken, factory.createIdentifier("$__conduct_engine_count")), factory.createPostfixIncrement(factory.createIdentifier("$__conduct_engine_c")), factory.createBlock(bodyStatements, true));
+    // Outer loop: for (let $__conduct_engine_i = 0; $__conduct_engine_i < $__conduct_engine_matches.length; $__conduct_engine_i++) { const $__conduct_engine_arch = $__conduct_engine_matches[$__conduct_engine_i]; ... }
     const outerLoop = factory.createForStatement(factory.createVariableDeclarationList([
-        factory.createVariableDeclaration("i", undefined, undefined, factory.createNumericLiteral(0)),
-    ], ts.NodeFlags.Let), factory.createBinaryExpression(factory.createIdentifier("i"), ts.SyntaxKind.LessThanToken, factory.createPropertyAccessExpression(factory.createIdentifier("$__conduct_engine_matches"), "length")), factory.createPostfixIncrement(factory.createIdentifier("i")), factory.createBlock([
+        factory.createVariableDeclaration("$__conduct_engine_i", undefined, undefined, factory.createNumericLiteral(0)),
+    ], ts.NodeFlags.Let), factory.createBinaryExpression(factory.createIdentifier("$__conduct_engine_i"), ts.SyntaxKind.LessThanToken, factory.createPropertyAccessExpression(factory.createIdentifier("$__conduct_engine_matches"), "length")), factory.createPostfixIncrement(factory.createIdentifier("$__conduct_engine_i")), factory.createBlock([
         factory.createVariableStatement(undefined, factory.createVariableDeclarationList([
-            factory.createVariableDeclaration("arch", undefined, undefined, factory.createElementAccessExpression(factory.createIdentifier("$__conduct_engine_matches"), factory.createIdentifier("i"))),
+            factory.createVariableDeclaration("$__conduct_engine_arch", undefined, undefined, factory.createElementAccessExpression(factory.createIdentifier("$__conduct_engine_matches"), factory.createIdentifier("$__conduct_engine_i"))),
         ], ts.NodeFlags.Const)),
         ...columnExtractions,
         countDecl,

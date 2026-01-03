@@ -60,3 +60,11 @@ console.log(`Average per iteration: ${(totalMs / ITERATIONS).toFixed(4)} ms`);
 console.log(
   `Iterations per second: ${(1000 / (totalMs / ITERATIONS)).toFixed(2)}`
 );
+
+// CONDUCT ENGINE Main Benchmark
+// Starting benchmark...
+//
+// === ConductEngine Benchmark ===
+// Total time: 9.68 ms
+// Average per iteration: 0.0097 ms
+// Iterations per second: 103313.79

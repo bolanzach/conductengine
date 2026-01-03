@@ -39,8 +39,6 @@ export interface WorldConfig {
   fps?: number;
 }
 
-let LAST_RUN_TIME = performance.now();
-
 export class World {
   // The index is the entity ID and the value is the entity state.
   private entityList = new Int32Array(80_000);
@@ -65,8 +63,9 @@ export class World {
 
   private states: unknown[] = [];
 
+  private boundUpdate = this.update.bind(this);
+
   private tick = 0;
-  #previousTimestamp = 0;
   #gameStarted = false;
 
   constructor(private config: WorldConfig) {
@@ -237,36 +236,16 @@ export class World {
   private update(timestamp: number): void {
     this.tick++;
 
-    // const runs: number[] = [];
-    // while (true) {
-    //   if (runs.length >= 8_000) {
-    //     runs.splice(0, 10);
-    //     console.log(
-    //       "AVG RUN TIME",
-    //       runs.reduce((a, b) => a + b, 0) / runs.length
-    //     );
-    //     break;
-    //   }
-    //   runs.push(performance.now() - LAST_RUN_TIME);
-    //   LAST_RUN_TIME = performance.now();
-    //
-    //   this.#handleEntityEvents();
-    //
-    //   this.#runUpdateSystems(timestamp);
-    // }
-    // console.log(
-    //   this.tick,
-    //   " | LAST RUN TIME DIFF",
-    //   performance.now() - LAST_RUN_TIME
-    // );
-    LAST_RUN_TIME = performance.now();
+    const workStart = performance.now();
 
     this.#handleEntityEvents();
 
     this.#runUpdateSystems(timestamp);
 
+    console.log(this.tick, " | LAST TIME: ", performance.now() - workStart);
+
     // For now we bind the update to the next frame
-    raf(this.update.bind(this));
+    raf(this.boundUpdate);
   }
 
   #handleEntityEvents() {
@@ -339,15 +318,12 @@ export class World {
   }
 
   #runUpdateSystems(timestamp: number) {
-    const secondsPassed = (timestamp - this.#previousTimestamp) / 1000;
-    this.#previousTimestamp = timestamp;
-
-    // Update all systems
     for (let s = 0; s < this.systems.length; s++) {
       const system = this.systems[s] as RegisteredSystem;
       const { queries } = system[SYSTEM_SIGNATURE];
-      //queries.forEach((query) => (query.archetypes = this.archetypes));
+      const start = performance.now();
       system(...queries);
+      console.log(system.name, performance.now() - start);
     }
   }
 }

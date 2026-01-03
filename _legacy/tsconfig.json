@@ -1,0 +1,43 @@
+{
+  "compilerOptions": {
+    "lib": [
+      "esNext",
+      "dom"
+    ],
+    "module": "es2022",
+    "target": "es2022",
+
+    "rootDir": "src",
+    "noEmit": true,
+    "declaration": true,
+
+    "moduleResolution": "bundler",
+//    "isolatedModules": true,
+    "moduleDetection": "force",
+
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+
+    "types": ["@webgpu/types", "node"],
+
+    "allowSyntheticDefaultImports": true,
+    "sourceMap": true,
+    "allowJs": true,
+
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "forceConsistentCasingInFileNames": true,
+    "noImplicitReturns": true,
+    "noImplicitThis": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "noUnusedLocals": false,
+
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["**/*.ts"],
+  "exclude": ["node_modules"]
+}

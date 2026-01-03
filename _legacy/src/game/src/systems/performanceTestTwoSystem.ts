@@ -4,7 +4,7 @@ import PerformanceTestTwoComponent from "@/game/src/components/performanceTestTw
 export default function PerformanceTestTwoSystem(
   query: Query<[PerformanceTestTwoComponent]>
 ) {
-  query.iter(([_, two]) => {
-    two.value += two.value;
+  query.iter(([_, phys]) => {
+    phys.mass *= phys.friction;
   });
 }

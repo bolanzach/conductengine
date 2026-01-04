@@ -4,6 +4,10 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "composite": true,
+    "baseUrl": ".",
+    "paths": {
+      "@conduct/ecs": ["./src/index.ts"]
+    },
     "plugins": [
       { "transform": "./src/compiler.cjs" }
     ]

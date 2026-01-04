@@ -1,5 +1,5 @@
 {
-  "name": "@conductengine/ecs",
+  "name": "@conduct/ecs",
   "version": "0.0.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -7,9 +7,13 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "default": "./dist/index.js"
     }
   },
+  "sideEffects": false,
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build:compiler": "rm tsconfig.tsbuildinfo && npx tsc -p tsconfig.compiler.json && mv src/compiler.js src/compiler.cjs",
     "build": "tsc",

@@ -135,6 +135,25 @@ const entityLocations = new Map<number, EntityLocation>();
 const freeEntityIds: number[] = [];
 
 const allRegisteredSystems = new Set<() => void>();
+const allRegisteredComponents = new Map<string, ComponentConstructor>();
+
+/**
+ * Assigns and returns a unique component ID for the given component if
+ * the component is not already registered.
+ * @param component
+ */
+function registerComponentId(
+  component: ComponentConstructor
+): number {
+  let componentId = component[ComponentId];
+
+  if (componentId === undefined) {
+    allRegisteredComponents.set(component.name, component);
+    componentId = nextComponentId++;
+    component[ComponentId] = componentId;
+  }
+  return componentId;
+}
 
 /**
  * Constructs a signature from a list of component ids.
@@ -162,14 +181,7 @@ export function createSignature(components: number[]): Signature {
 export function createSignatureFromComponents(
   components: ComponentConstructor[]
 ): Signature {
-  const componentIds = components.map((Component) => {
-    let componentId = Component[ComponentId];
-    if (componentId === undefined) {
-      componentId = nextComponentId++;
-      Component[ComponentId] = componentId;
-    }
-    return componentId;
-  });
+  const componentIds = components.map(registerComponentId);
   return createSignature(componentIds);
 }
 
@@ -321,11 +333,15 @@ export function addComponent<T extends ComponentConstructor>(
   componentArgs: T | [T, Partial<InstanceType<T>>],
 ) {
   let component = Array.isArray(componentArgs) ? componentArgs[0] : componentArgs;
-  let componentId = component[ComponentId];
-  if (componentId === undefined) {
-    componentId = nextComponentId++;
-    component[ComponentId] = componentId;
-  }
+  const componentId = registerComponentId(component);
+
+  // const componentId = component[ComponentId];
+  // if (componentId === undefined) {
+  //   // Component was never registered which means it's never used in a query/system.
+  //   // While maybe this is unexpected behavior, we don't need to add a component
+  //   // that is never queried for.
+  //   return;
+  // }
 
   const existingLocation = entityLocations.get(entityId);
   const componentSig = createSignature([componentId]);

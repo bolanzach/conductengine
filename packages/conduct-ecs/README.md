@@ -5,14 +5,16 @@ At its core, Conduct implements a simple yet high-performance ECS system that al
 
 ## Usage
 
+`person.ts` Define a component class that holds data
 ```ts
-// Define a component class that holds data
 class Person {
   name = "";
   age = 0;
 }
+```
 
-// Define a System that operates on the data
+`testSystem.ts` Define a System that operates on the data
+```ts
 export default function TestSystem(query: Query<[Person]>) {
   // Iterates over all entities that have the Person component
   query.iter(([_, person]) => {
@@ -21,7 +23,10 @@ export default function TestSystem(query: Query<[Person]>) {
     }
   });
 }
+```
 
+`main.ts` Your main entrypoint
+```ts
 // Register the system
 registerSystem(TestSystem);
 

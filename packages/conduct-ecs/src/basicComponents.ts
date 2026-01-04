@@ -22,3 +22,9 @@ export class ValueE {
   x = 1;
   y = 1;
 }
+
+export class Person {
+  name = "";
+  age = 10;
+  someArray: number[] = [];
+}

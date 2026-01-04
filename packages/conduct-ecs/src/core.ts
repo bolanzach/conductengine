@@ -134,6 +134,8 @@ const entityLocations = new Map<number, EntityLocation>();
 // Recycled entity IDs
 const freeEntityIds: number[] = [];
 
+const allRegisteredSystems = new Set<() => void>();
+
 /**
  * Constructs a signature from a list of component ids.
  */
@@ -314,11 +316,11 @@ function growArchetype(archetype: Archetype): void {
   archetype.capacity = newCapacity;
 }
 
-export function addComponent(
+export function addComponent<T extends ComponentConstructor>(
   entityId: number,
-  component: ComponentConstructor
+  componentArgs: T | [T, Partial<InstanceType<T>>],
 ) {
-  // Get or assign ComponentId using the Symbol
+  let component = Array.isArray(componentArgs) ? componentArgs[0] : componentArgs;
   let componentId = component[ComponentId];
   if (componentId === undefined) {
     componentId = nextComponentId++;
@@ -390,6 +392,18 @@ export function addComponent(
   // Add the new component's data
   const instance = new component();
   const componentName = component.name;
+
+  // If data was provided, copy it into the instance
+  if (Array.isArray(componentArgs)) {
+    const data = componentArgs[1];
+    for (const key in data) {
+      if (Object.hasOwn(instance, key)) {
+        // @ts-ignore
+        instance[key] = data[key];
+      }
+    }
+  }
+
   for (const key of Object.keys(instance)) {
     const columnKey = `${componentName}.${key}`;
     if (!dstArch.columns[columnKey]) {
@@ -537,9 +551,30 @@ export function query(q: QueryGenerated): Archetype[] {
 }
 
 /**
- * Register a System function so that it can be executed.
+ * Register a System function so that it can be executed. Systems are
+ * executed in the same order they are registered. Systems must be
+ * registered before starting the Conduct ECS loop.
  */
 export function registerSystem(system: ConductSystem): () => void {
   // Type erasure - the system gets compiled to a function without arguments
-  return (system as unknown as () => void);
+  const registeredSystem = (system as unknown as () => void);
+  allRegisteredSystems.add(registeredSystem);
+  return registeredSystem;
+}
+
+/**
+ * Start the main Conduct ECS loop, executing all registered systems.
+ */
+export function startConduct(): void {
+  // let count = 0
+  const allSystems = Array.from(allRegisteredSystems);
+  while (true) {
+    for (const system of allSystems) {
+      system();
+    }
+    // count++;
+    // if (count > 1000) {
+    //   break;
+    // }
+  }
 }

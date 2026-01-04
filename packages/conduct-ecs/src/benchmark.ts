@@ -1,10 +1,11 @@
-import { addComponent, registerSystem, spawnEntity } from "./core.js";
+import { addComponent, registerSystem, spawnEntity, startConduct } from "./core.js";
 import BasicSystem from "./basicSystem.js";
 import FooSystem from "./fooSystem.js";
 import BarSystem from "./barSystem.js";
 import BazSystem from "./bazSystem.js";
 import TestSystem from "./testSystem.js";
-import { ValueA, ValueB, ValueC, ValueD, ValueE } from "./basicComponents.js";
+import PersonSystem from "./personSystem.js";
+import { Person, ValueA, ValueB, ValueC, ValueD, ValueE } from "./basicComponents.js";
 
 console.log('CONDUCT ENGINE Main Benchmark');
 
@@ -50,9 +51,7 @@ for (let i = 0; i < 10; i++) {
 console.log("Starting benchmark...");
 const startTime = performance.now();
 
-for (let i = 0; i < ITERATIONS; i++) {
-  execute();
-}
+startConduct();
 
 const endTime = performance.now();
 const totalMs = endTime - startTime;
@@ -74,3 +73,10 @@ console.log(
 // Total time: 9.68 ms
 // Average per iteration: 0.0097 ms
 // Iterations per second: 103313.79
+
+const runPersonSystem = registerSystem(PersonSystem);
+
+const p = spawnEntity();
+addComponent(p, [Person, { age: 100, name: 'a', someArray: [1] }]);
+
+runPersonSystem();

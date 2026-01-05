@@ -26,16 +26,19 @@ export default function TestSystem(query: Query<[Person]>) {
 ```
 
 `main.ts` Your main entrypoint
+
 ```ts
+import { ConductAddComponent, ConductRegisterSystem, ConductSpawnEntity, ConductStart } from "@conduct/ecs";
+
 // Register the system
-registerSystem(TestSystem);
+ConductRegisterSystem(TestSystem);
 
 // Spawn an Entity
-const p = spawnEntity();
+const p = ConductSpawnEntity();
 
 // Add the Person component to the entity with some data
-addComponent(p, [Person, { age: 69 }]);
+ConductAddComponent(p, [Person, { age: 69 }]);
 
 // Once all systems are registered, run the main loop
-startConduct();
+ConductStart();
 ```

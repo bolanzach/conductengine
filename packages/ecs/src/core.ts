@@ -116,6 +116,11 @@ interface EntityLocation {
   row: number;
 }
 
+type Command =
+  | { type: 'addComponent'; entity: number; component: ComponentConstructor; data?: object }
+  | { type: 'removeComponent'; entity: number; component: ComponentConstructor }
+  | { type: 'deleteEntity'; entity: number };
+
 const ARCHETYPE_INITIAL_CAPACITY = 64;
 const ARCHETYPE_GROWTH_FACTOR = 2;
 const BIT_CHUNK_SIZE = 32;
@@ -136,6 +141,8 @@ const freeEntityIds: number[] = [];
 
 const allRegisteredSystems = new Set<() => void>();
 const allRegisteredComponents = new Map<string, ComponentConstructor>();
+
+const commandQueue: Command[] = [];
 
 /**
  * Assigns and returns a unique component ID for the given component if
@@ -280,7 +287,7 @@ function signatureToKey(sig: Signature): string {
   return sig.join(",");
 }
 
-export function spawnEntity(): number {
+export function ConductSpawnEntity(): number {
   if (freeEntityIds.length > 0) {
     return freeEntityIds.pop()!;
   }
@@ -328,7 +335,7 @@ function growArchetype(archetype: Archetype): void {
   archetype.capacity = newCapacity;
 }
 
-export function addComponent<T extends ComponentConstructor>(
+function addComponent<T extends ComponentConstructor>(
   entityId: number,
   componentArgs: T | [T, Partial<InstanceType<T>>],
 ) {
@@ -433,8 +440,6 @@ export function addComponent<T extends ComponentConstructor>(
   entityLocations.set(entityId, { archetype: dstArch, row: dstRow });
 }
 
-// Remove a component from an entity (moves entity to new archetype)
-// @ts-ignore - Reserved for future use
 function removeComponent(
   entityId: number,
   component: ComponentConstructor
@@ -506,6 +511,21 @@ function removeComponent(
   return true;
 }
 
+// export function getComponentRead<T extends ComponentConstructor>(entity: ConductEntity, Component: T): Readonly<InstanceType<T>> | undefined {
+//   const location = entityLocations.get(entity);
+//   if (!location) return;
+//
+//   const component = {};
+//   for (const key in location.archetype.columns[location.row]) {
+//     if (key.startsWith(Component.name + ".")) {
+//       // @ts-ignore
+//       component[key.substring(Component.name.length + 1)] = location.archetype.columns[location.row][key];
+//     }
+//   }
+//   // @ts-ignore
+//   return component;
+// }
+
 function deleteEntity(entityId: number): boolean {
   const location = entityLocations.get(entityId);
   if (!location) return false;
@@ -537,6 +557,43 @@ function deleteEntity(entityId: number): boolean {
   freeEntityIds.push(entityId);
 
   return true;
+}
+
+export function ConductAddComponent<T extends ComponentConstructor>(
+  entity: ConductEntity,
+  component: T,
+  data?: Partial<InstanceType<T>>
+): void {
+  commandQueue.push({ type: 'addComponent', entity, component, data });
+}
+
+export function ConductRemoveComponent<T extends ComponentConstructor>(
+  entity: ConductEntity,
+  component: T
+): void {
+  commandQueue.push({ type: 'removeComponent', entity, component });
+}
+
+export function ConductDeleteEntity(entity: ConductEntity): void {
+  commandQueue.push({ type: 'deleteEntity', entity });
+}
+
+function flushCommands(): void {
+  for (let i = 0; i < commandQueue.length; i++) {
+    const cmd = commandQueue[i]!;
+    switch (cmd.type) {
+      case 'addComponent':
+        addComponent(cmd.entity, cmd.data ? [cmd.component, cmd.data] : cmd.component);
+        break;
+      case 'removeComponent':
+        removeComponent(cmd.entity, cmd.component);
+        break;
+      case 'deleteEntity':
+        deleteEntity(cmd.entity);
+        break;
+    }
+  }
+  commandQueue.length = 0;
 }
 
 export function query(q: QueryGenerated): Archetype[] {
@@ -571,7 +628,7 @@ export function query(q: QueryGenerated): Archetype[] {
  * executed in the same order they are registered. Systems must be
  * registered before starting the Conduct ECS loop.
  */
-export function registerSystem(system: ConductSystem): () => void {
+export function ConductRegisterSystem(system: ConductSystem): () => void {
   // Type erasure - the system gets compiled to a function without arguments
   const registeredSystem = (system as unknown as () => void);
   allRegisteredSystems.add(registeredSystem);
@@ -581,16 +638,17 @@ export function registerSystem(system: ConductSystem): () => void {
 /**
  * Start the main Conduct ECS loop, executing all registered systems.
  */
-export function startConduct(): void {
-  // let count = 0
-  const allSystems = Array.from(allRegisteredSystems);
+export function ConductStart(): void {
+  let count = 0
+  const systems = Array.from(allRegisteredSystems);
   while (true) {
-    for (const system of allSystems) {
+    for (const system of systems) {
       system();
     }
-    // count++;
-    // if (count > 1000) {
-    //   break;
-    // }
+    flushCommands();
+    count++;
+    if (count > 1000) {
+      break;
+    }
   }
 }

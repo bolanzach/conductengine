@@ -1,4 +1,4 @@
-import { addComponent, registerSystem, spawnEntity, startConduct } from "./core.js";
+import { ConductAddComponent, ConductRegisterSystem, ConductSpawnEntity, ConductStart } from "./core.js";
 import BasicSystem from "./basicSystem.js";
 import FooSystem from "./fooSystem.js";
 import BarSystem from "./barSystem.js";
@@ -9,49 +9,39 @@ import { Person, ValueA, ValueB, ValueC, ValueD, ValueE } from "./basicComponent
 
 console.log('CONDUCT ENGINE Main Benchmark');
 
-const runBasicSystem = registerSystem(BasicSystem);
-const runFooSystem = registerSystem(FooSystem);
-const runBarSystem = registerSystem(BarSystem);
-const runBazSystem = registerSystem(BazSystem);
-const runTestSystem = registerSystem(TestSystem);
-
-function execute() {
-  runBarSystem();
-  runFooSystem();
-  runBazSystem();
-  runBasicSystem();
-  runTestSystem();
-}
+ConductRegisterSystem(BasicSystem);
+ConductRegisterSystem(FooSystem);
+ConductRegisterSystem(BarSystem);
+ConductRegisterSystem(BazSystem);
+ConductRegisterSystem(TestSystem);
 
 const ITERATIONS = 1_000;
 const NUM_ENTITIES = 1_000;
 
 for (let i = 0; i < NUM_ENTITIES; i++) {
-  const a = spawnEntity();
-  addComponent(a, ValueA);
+  const a = ConductSpawnEntity();
+  ConductAddComponent(a, ValueA);
 
-  const b = spawnEntity();
-  addComponent(b, ValueB);
+  const b = ConductSpawnEntity();
+  ConductAddComponent(b, ValueB, { x: 100 });
 
-  const c = spawnEntity();
-  addComponent(c, ValueC);
+  const c = ConductSpawnEntity();
+  ConductAddComponent(c, ValueC);
 
-  const d = spawnEntity();
-  addComponent(d, ValueD);
+  const d = ConductSpawnEntity();
+  ConductAddComponent(d, ValueD, { y: 10});
 
-  const e = spawnEntity();
-  addComponent(e, ValueE);
+  const e = ConductSpawnEntity();
+  ConductAddComponent(e, ValueE);
 }
 
 // Warm up
-for (let i = 0; i < 10; i++) {
-  execute();
-}
+ConductStart();
 
 console.log("Starting benchmark...");
 const startTime = performance.now();
 
-startConduct();
+ConductStart();
 
 const endTime = performance.now();
 const totalMs = endTime - startTime;
@@ -74,9 +64,11 @@ console.log(
 // Average per iteration: 0.0097 ms
 // Iterations per second: 103313.79
 
-const runPersonSystem = registerSystem(PersonSystem);
+console.log('Other tests...')
 
-const p = spawnEntity();
-addComponent(p, [Person, { age: 100, name: 'a', someArray: [1] }]);
+const runPersonSystem = ConductRegisterSystem(PersonSystem);
+
+const p = ConductSpawnEntity();
+ConductAddComponent(p, Person, { age: 100, name: 'a', someArray: [1] });
 
 runPersonSystem();

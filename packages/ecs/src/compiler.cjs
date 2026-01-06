@@ -240,7 +240,7 @@ function transformCallbackBody(body, paramToComponent, columnRefs, context) {
     }
     return ts.visitNode(body, visit);
 }
-function createOptimizedSystemBody(systemInfo, callbackInfo, factory, context) {
+function createOptimizedSystemBody(systemInfo, callbackInfo, factory, context, componentCounters) {
     const queryName = `__query_${systemInfo.name}`;
     // Build param -> component mapping
     const paramToComponent = new Map();
@@ -264,13 +264,27 @@ function createOptimizedSystemBody(systemInfo, callbackInfo, factory, context) {
             factory.createExpressionStatement(transformedBody),
         ];
     }
-    // Create column extractions: const Transform_x = $__conduct_engine_arch.columns['Transform.x'];
-    const columnExtractions = Array.from(columnRefs).map((colKey) => {
+    // Generate column key constants and extractions
+    // Column key constant: const $__conduct_engine_ValueA1_x = "ValueA." + ValueA[ComponentId] + ".x";
+    // Column extraction: const ValueA_x = $__conduct_engine_arch.columns[$__conduct_engine_ValueA1_x];
+    const columnKeyConstants = [];
+    const columnExtractions = [];
+    for (const colKey of columnRefs) {
+        const [componentName, propName] = colKey.split(".");
+        const componentCounter = componentCounters.get(componentName);
+        // Variable name for the column key constant: $__conduct_engine_ValueA1_x
+        const columnKeyVarName = `$__conduct_engine_${componentName}${componentCounter}_${propName}`;
+        // Column key constant: "ValueA." + ValueA[ComponentId] + ".x"
+        const columnKeyExpr = factory.createBinaryExpression(factory.createBinaryExpression(factory.createStringLiteral(`${componentName}.`), ts.SyntaxKind.PlusToken, factory.createElementAccessExpression(factory.createIdentifier(componentName), factory.createIdentifier("ComponentId"))), ts.SyntaxKind.PlusToken, factory.createStringLiteral(`.${propName}`));
+        columnKeyConstants.push(factory.createVariableStatement(undefined, factory.createVariableDeclarationList([
+            factory.createVariableDeclaration(columnKeyVarName, undefined, undefined, columnKeyExpr),
+        ], ts.NodeFlags.Const)));
+        // Column extraction: const ValueA_x = $__conduct_engine_arch.columns[$__conduct_engine_ValueA1_x];
         const localVarName = colKey.replace(".", "_");
-        return factory.createVariableStatement(undefined, factory.createVariableDeclarationList([
-            factory.createVariableDeclaration(localVarName, undefined, undefined, factory.createElementAccessExpression(factory.createPropertyAccessExpression(factory.createIdentifier("$__conduct_engine_arch"), "columns"), factory.createStringLiteral(colKey))),
-        ], ts.NodeFlags.Const));
-    });
+        columnExtractions.push(factory.createVariableStatement(undefined, factory.createVariableDeclarationList([
+            factory.createVariableDeclaration(localVarName, undefined, undefined, factory.createElementAccessExpression(factory.createPropertyAccessExpression(factory.createIdentifier("$__conduct_engine_arch"), "columns"), factory.createIdentifier(columnKeyVarName))),
+        ], ts.NodeFlags.Const)));
+    }
     // const $__conduct_engine_count = $__conduct_engine_arch.count;
     const countDecl = factory.createVariableStatement(undefined, factory.createVariableDeclarationList([
         factory.createVariableDeclaration("$__conduct_engine_count", undefined, undefined, factory.createPropertyAccessExpression(factory.createIdentifier("$__conduct_engine_arch"), "count")),
@@ -294,7 +308,10 @@ function createOptimizedSystemBody(systemInfo, callbackInfo, factory, context) {
     const $__conduct_engine_matchesDecl = factory.createVariableStatement(undefined, factory.createVariableDeclarationList([
         factory.createVariableDeclaration("$__conduct_engine_matches", undefined, undefined, factory.createCallExpression(factory.createIdentifier("query"), undefined, [factory.createIdentifier(queryName)])),
     ], ts.NodeFlags.Const));
-    return factory.createBlock([$__conduct_engine_matchesDecl, outerLoop], true);
+    return {
+        body: factory.createBlock([$__conduct_engine_matchesDecl, outerLoop], true),
+        columnKeyConstants,
+    };
 }
 // =============================================================================
 // Main Transformer
@@ -304,6 +321,7 @@ function createTransformer(_) {
         const factory = context.factory;
         return (sourceFile) => {
             const queryConstants = [];
+            const allColumnKeyConstants = [];
             // Build a map of imported identifiers -> module path
             // This helps us re-add imports that TypeScript strips as "type-only"
             const importMap = new Map();
@@ -324,6 +342,10 @@ function createTransformer(_) {
             }
             // Track all components used in queries (need to re-import these)
             const usedComponents = new Set();
+            // Track component counters for unique naming (ComponentName -> counter)
+            // This allows same-named components from different modules to have different column keys
+            const componentCounters = new Map();
+            let nextComponentCounter = 1;
             function visit(node) {
                 // Find system functions
                 if (isSystemFunction(node)) {
@@ -350,19 +372,28 @@ function createTransformer(_) {
                         return node;
                     }
                     // Track components used in this query (both required and not)
+                    // and assign counters to new components
                     for (const comp of systemInfo.queryComponents) {
                         usedComponents.add(comp);
+                        if (!componentCounters.has(comp)) {
+                            componentCounters.set(comp, nextComponentCounter++);
+                        }
                     }
                     for (const comp of systemInfo.notComponents) {
                         usedComponents.add(comp);
+                        if (!componentCounters.has(comp)) {
+                            componentCounters.set(comp, nextComponentCounter++);
+                        }
                     }
                     // Create query constant (will be added at top of file)
                     queryConstants.push(createQueryConstant(systemInfo, factory));
                     // Create optimized function body
-                    const optimizedBody = createOptimizedSystemBody(systemInfo, callbackInfo, factory, context);
+                    const optimizedResult = createOptimizedSystemBody(systemInfo, callbackInfo, factory, context, componentCounters);
+                    // Collect column key constants
+                    allColumnKeyConstants.push(...optimizedResult.columnKeyConstants);
                     // Return new function with optimized body (remove query parameter)
                     return factory.updateFunctionDeclaration(node, node.modifiers, node.asteriskToken, node.name, node.typeParameters, [], // Remove query parameter
-                    node.type, optimizedBody);
+                    node.type, optimizedResult.body);
                 }
                 return ts.visitEachChild(node, visit, context);
             }
@@ -377,8 +408,9 @@ function createTransformer(_) {
                         lastImportIndex = i;
                     }
                 }
-                // Create runtime import: import { createSignatureFromComponents, query } from "./core.js";
+                // Create runtime import: import { ComponentId, createSignatureFromComponents, query } from "./core.js";
                 const runtimeImport = factory.createImportDeclaration(undefined, factory.createImportClause(false, undefined, factory.createNamedImports([
+                    factory.createImportSpecifier(false, undefined, factory.createIdentifier("ComponentId")),
                     factory.createImportSpecifier(false, undefined, factory.createIdentifier("createSignatureFromComponents")),
                     factory.createImportSpecifier(false, undefined, factory.createIdentifier("query")),
                 ])), factory.createStringLiteral("./core.js"));
@@ -400,8 +432,8 @@ function createTransformer(_) {
                     const importDecl = factory.createImportDeclaration(undefined, factory.createImportClause(false, undefined, factory.createNamedImports(components.map((comp) => factory.createImportSpecifier(false, undefined, factory.createIdentifier(comp))))), factory.createStringLiteral(modulePath));
                     componentImports.push(importDecl);
                 }
-                // Insert runtime import, component imports, then query constants
-                statements.splice(lastImportIndex + 1, 0, runtimeImport, ...componentImports, ...queryConstants);
+                // Insert runtime import, component imports, query constants, then column key constants
+                statements.splice(lastImportIndex + 1, 0, runtimeImport, ...componentImports, ...queryConstants, ...allColumnKeyConstants);
                 return factory.updateSourceFile(transformedFile, statements);
             }
             return transformedFile;

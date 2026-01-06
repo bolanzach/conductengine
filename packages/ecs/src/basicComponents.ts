@@ -28,3 +28,16 @@ export class Person {
   age = 10;
   someArray: number[] = [];
 }
+
+export class Position {
+  x = 0;
+  y = 0;
+  z = 0;
+}
+
+export class Velocity {
+  x = 0;
+  y = 0;
+  z = 0;
+  gravity = 9.81;
+}

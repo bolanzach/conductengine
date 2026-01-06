@@ -5,7 +5,8 @@ import BarSystem from "./barSystem.js";
 import BazSystem from "./bazSystem.js";
 import TestSystem from "./testSystem.js";
 import PersonSystem from "./personSystem.js";
-import { Person, ValueA, ValueB, ValueC, ValueD, ValueE } from "./basicComponents.js";
+import { Person, Position, ValueA, ValueB, ValueC, ValueD, ValueE, Velocity } from "./basicComponents.js";
+import PhysicsSystem from "./physicsSystem.js";
 
 console.log('CONDUCT ENGINE Main Benchmark');
 
@@ -14,6 +15,9 @@ ConductRegisterSystem(FooSystem);
 ConductRegisterSystem(BarSystem);
 ConductRegisterSystem(BazSystem);
 ConductRegisterSystem(TestSystem);
+
+ConductRegisterSystem(PersonSystem);
+ConductRegisterSystem(PhysicsSystem);
 
 const ITERATIONS = 1_000;
 const NUM_ENTITIES = 1_000;
@@ -66,9 +70,9 @@ console.log(
 
 console.log('Other tests...')
 
-const runPersonSystem = ConductRegisterSystem(PersonSystem);
-
 const p = ConductSpawnEntity();
 ConductAddComponent(p, Person, { age: 100, name: 'a', someArray: [1] });
+ConductAddComponent(p, Position);
+ConductAddComponent(p, Velocity, { x: 1, y: 1, z: 1 });
 
-runPersonSystem();
+ConductStart();

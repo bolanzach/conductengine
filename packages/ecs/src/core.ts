@@ -140,7 +140,6 @@ const entityLocations = new Map<number, EntityLocation>();
 const freeEntityIds: number[] = [];
 
 const allRegisteredSystems = new Set<() => void>();
-const allRegisteredComponents = new Map<string, ComponentConstructor>();
 
 const commandQueue: Command[] = [];
 
@@ -155,7 +154,6 @@ function registerComponentId(
   let componentId = component[ComponentId];
 
   if (componentId === undefined) {
-    allRegisteredComponents.set(component.name, component);
     componentId = nextComponentId++;
     component[ComponentId] = componentId;
   }
@@ -428,7 +426,7 @@ function addComponent<T extends ComponentConstructor>(
   }
 
   for (const key of Object.keys(instance)) {
-    const columnKey = `${componentName}.${key}`;
+    const columnKey = `${componentName}.${componentId}.${key}`;
     if (!dstArch.columns[columnKey]) {
       dstArch.columns[columnKey] = new Array(dstArch.capacity).fill(0);
     }
@@ -480,7 +478,7 @@ function removeComponent(
   dstArch.count++;
 
   // Copy component data (except the removed component)
-  const componentPrefix = component.name + ".";
+  const componentPrefix = `${component.name}.${componentId}.`;
   for (const columnKey in srcArch.columns) {
     if (columnKey.startsWith(componentPrefix)) continue;
 

@@ -265,21 +265,17 @@ function createOptimizedSystemBody(systemInfo, callbackInfo, factory, context, c
         ];
     }
     // Generate column key constants and extractions
-    // Column key constant: const $__conduct_engine_ValueA1_x = "ValueA." + ValueA[ComponentId] + ".x";
-    // Column extraction: const ValueA_x = $__conduct_engine_arch.columns[$__conduct_engine_ValueA1_x];
     const columnKeyConstants = [];
     const columnExtractions = [];
     for (const colKey of columnRefs) {
         const [componentName, propName] = colKey.split(".");
         const componentCounter = componentCounters.get(componentName);
-        // Variable name for the column key constant: $__conduct_engine_ValueA1_x
         const columnKeyVarName = `$__conduct_engine_${componentName}${componentCounter}_${propName}`;
-        // Column key constant: "ValueA." + ValueA[ComponentId] + ".x"
+        // Build column key: "<ComponentName>." + <Component>[ComponentId] + ".<prop>"
         const columnKeyExpr = factory.createBinaryExpression(factory.createBinaryExpression(factory.createStringLiteral(`${componentName}.`), ts.SyntaxKind.PlusToken, factory.createElementAccessExpression(factory.createIdentifier(componentName), factory.createIdentifier("ComponentId"))), ts.SyntaxKind.PlusToken, factory.createStringLiteral(`.${propName}`));
         columnKeyConstants.push(factory.createVariableStatement(undefined, factory.createVariableDeclarationList([
             factory.createVariableDeclaration(columnKeyVarName, undefined, undefined, columnKeyExpr),
         ], ts.NodeFlags.Const)));
-        // Column extraction: const ValueA_x = $__conduct_engine_arch.columns[$__conduct_engine_ValueA1_x];
         const localVarName = colKey.replace(".", "_");
         columnExtractions.push(factory.createVariableStatement(undefined, factory.createVariableDeclarationList([
             factory.createVariableDeclaration(localVarName, undefined, undefined, factory.createElementAccessExpression(factory.createPropertyAccessExpression(factory.createIdentifier("$__conduct_engine_arch"), "columns"), factory.createIdentifier(columnKeyVarName))),
@@ -408,12 +404,12 @@ function createTransformer(_) {
                         lastImportIndex = i;
                     }
                 }
-                // Create runtime import: import { ComponentId, createSignatureFromComponents, query } from "./core.js";
+                // Create runtime import from @conduct/ecs
                 const runtimeImport = factory.createImportDeclaration(undefined, factory.createImportClause(false, undefined, factory.createNamedImports([
                     factory.createImportSpecifier(false, undefined, factory.createIdentifier("ComponentId")),
                     factory.createImportSpecifier(false, undefined, factory.createIdentifier("createSignatureFromComponents")),
                     factory.createImportSpecifier(false, undefined, factory.createIdentifier("query")),
-                ])), factory.createStringLiteral("./core.js"));
+                ])), factory.createStringLiteral("@conduct/ecs"));
                 // Group components by their source module for efficient imports
                 const componentsByModule = new Map();
                 for (const comp of usedComponents) {

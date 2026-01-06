@@ -10,9 +10,14 @@
       "default": "./dist/index.js"
     }
   },
+  "bin": {
+    "conduct-compile": "./bin/compile.js"
+  },
   "sideEffects": false,
   "files": [
-    "dist"
+    "dist",
+    "bin",
+    "src/compiler.cjs"
   ],
   "scripts": {
     "build:compiler": "rm tsconfig.tsbuildinfo && npx tsc -p tsconfig.compiler.json && mv src/compiler.js src/compiler.cjs",

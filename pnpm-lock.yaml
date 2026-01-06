@@ -12,7 +12,7 @@ importers:
         specifier: ^5.7.2
         version: 5.9.3
 
-  packages/conduct-ecs:
+  packages/ecs:
     devDependencies:
       ts-patch:
         specifier: ^3.3.0
@@ -23,6 +23,12 @@ importers:
       typescript:
         specifier: ^5.7.2
         version: 5.9.3
+
+  packages/simulation:
+    dependencies:
+      '@conduct/ecs':
+        specifier: workspace:*
+        version: link:../ecs
 
 packages:
 

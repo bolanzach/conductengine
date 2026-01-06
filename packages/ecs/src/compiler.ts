@@ -699,7 +699,7 @@ function createTransformer(
           }
         }
 
-        // Create runtime import: import { ComponentId, createSignatureFromComponents, query } from "./core.js";
+        // Create runtime import from @conduct/ecs
         const runtimeImport = factory.createImportDeclaration(
           undefined,
           factory.createImportClause(
@@ -723,7 +723,7 @@ function createTransformer(
               ),
             ])
           ),
-          factory.createStringLiteral("./core.js")
+          factory.createStringLiteral("@conduct/ecs")
         );
 
         // Group components by their source module for efficient imports

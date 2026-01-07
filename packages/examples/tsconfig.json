@@ -4,13 +4,7 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "composite": true,
-    "baseUrl": ".",
-    "paths": {
-      "@conduct/ecs": ["./src/index.ts"]
-    },
-    "plugins": [
-      { "transform": "./dist/compiler.cjs" }
-    ]
+    "baseUrl": "."
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]

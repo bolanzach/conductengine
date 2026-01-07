@@ -117,7 +117,7 @@ interface EntityLocation {
 }
 
 type Command =
-  | { type: 'addComponent'; entity: number; component: ComponentConstructor; data?: object }
+  | { type: 'addComponent'; entity: number; component: ComponentConstructor; data?: object | ((instance: object) => void) }
   | { type: 'removeComponent'; entity: number; component: ComponentConstructor }
   | { type: 'deleteEntity'; entity: number };
 
@@ -335,9 +335,9 @@ function growArchetype(archetype: Archetype): void {
 
 function addComponent<T extends ComponentConstructor>(
   entityId: number,
-  componentArgs: T | [T, Partial<InstanceType<T>>],
+  component: T,
+  data?: Partial<InstanceType<T>> | ((instance: InstanceType<T>) => void),
 ) {
-  let component = Array.isArray(componentArgs) ? componentArgs[0] : componentArgs;
   const componentId = registerComponentId(component);
 
   // const componentId = component[ComponentId];
@@ -414,13 +414,15 @@ function addComponent<T extends ComponentConstructor>(
   const instance = new component();
   const componentName = component.name;
 
-  // If data was provided, copy it into the instance
-  if (Array.isArray(componentArgs)) {
-    const data = componentArgs[1];
-    for (const key in data) {
-      if (Object.hasOwn(instance, key)) {
-        // @ts-ignore
-        instance[key] = data[key];
+  if (data) {
+    if (typeof data === "function") {
+      data(instance as InstanceType<T>);
+    } else {
+      for (const key in data) {
+        if (Object.hasOwn(instance, key)) {
+          // @ts-ignore
+          instance[key] = data[key];
+        }
       }
     }
   }
@@ -560,7 +562,7 @@ function deleteEntity(entityId: number): boolean {
 export function ConductAddComponent<T extends ComponentConstructor>(
   entity: ConductEntity,
   component: T,
-  data?: Partial<InstanceType<T>>
+  data?: Partial<InstanceType<T>> | ((instance: InstanceType<T>) => void),
 ): void {
   commandQueue.push({ type: 'addComponent', entity, component, data });
 }
@@ -581,7 +583,11 @@ function flushCommands(): void {
     const cmd = commandQueue[i]!;
     switch (cmd.type) {
       case 'addComponent':
-        addComponent(cmd.entity, cmd.data ? [cmd.component, cmd.data] : cmd.component);
+        addComponent(
+          cmd.entity,
+          cmd.component,
+          cmd.data,
+        );
         break;
       case 'removeComponent':
         removeComponent(cmd.entity, cmd.component);
@@ -633,10 +639,55 @@ export function ConductRegisterSystem(system: ConductSystem): () => void {
   return registeredSystem;
 }
 
+/** Current delta time in seconds since last frame */
+export let deltaTime = 0;
+
+/** Time of the current frame in seconds */
+export let time = 0;
+
+let loopId: number | null = null;
+let lastFrameTime = 0;
+
+/**
+ * Start the main Conduct ECS loop, executing all registered systems.
+ * Uses requestAnimationFrame for browser-compatible rendering.
+ */
+export function ConductStart(): void {
+  if (loopId !== null) return; // Already running
+
+  const systems = Array.from(allRegisteredSystems);
+  lastFrameTime = performance.now();
+
+  function loop(currentTime: number): void {
+    deltaTime = (currentTime - lastFrameTime) / 1000; // Convert to seconds
+    time = currentTime / 1000;
+    lastFrameTime = currentTime;
+
+    for (const system of systems) {
+      system();
+    }
+    flushCommands();
+
+    loopId = requestAnimationFrame(loop);
+  }
+
+  loopId = requestAnimationFrame(loop);
+}
+
+/**
+ * Stop the main Conduct ECS loop.
+ */
+export function ConductStop(): void {
+  if (loopId !== null) {
+    cancelAnimationFrame(loopId);
+    loopId = null;
+  }
+}
+
 /**
  * Start the main Conduct ECS loop, executing all registered systems.
  */
-export function ConductStart(): void {
+export function ConductBenchmarkStart(iterations = 1_000): void {
   let count = 0
   const systems = Array.from(allRegisteredSystems);
   while (true) {
@@ -645,7 +696,7 @@ export function ConductStart(): void {
     }
     flushCommands();
     count++;
-    if (count > 1000) {
+    if (count > iterations) {
       break;
     }
   }

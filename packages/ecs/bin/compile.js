@@ -8,7 +8,7 @@ import { fileURLToPath } from "url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // Path to the compiler relative to this script
-const compilerPath = resolve(__dirname, "../src/compiler.cjs");
+const compilerPath = resolve(__dirname, "../dist/compiler.cjs");
 
 // Working directory (where the command is run from)
 const cwd = process.cwd();

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Conduct Engine</title>
+  <style>
+    body {
+      margin: 0;
+      background: #1a1a2e;
+      color: #eee;
+      font-family: system-ui, sans-serif;
+    }
+    #app {
+      padding: 20px;
+    }
+    #conduct {
+        width: 800px;
+        height: 600px;
+        position: relative;
+        background: white;
+    }
+    #player {
+        position: absolute;
+        width: 45px;
+        height: 45px;
+        background: red;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <h1>Conduct Engine</h1>
+    <p>Check the console for output.</p>
+    <div id="conduct">
+<!--      <div id="player"></div>-->
+    </div>
+  </div>
+  <script type="module" src="./index.ts"></script>
+</body>
+</html>

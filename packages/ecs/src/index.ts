@@ -20,4 +20,5 @@ export {
   ConductRemoveComponent,
   ConductRegisterSystem,
   ConductStart,
+  ConductBenchmarkStart,
 } from "./core.js";

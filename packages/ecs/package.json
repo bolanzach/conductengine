@@ -8,6 +8,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./vite": {
+      "types": "./dist/vite-plugin.d.ts",
+      "default": "./dist/vite-plugin.js"
     }
   },
   "bin": {
@@ -16,19 +20,28 @@
   "sideEffects": false,
   "files": [
     "dist",
-    "bin",
-    "src/compiler.cjs"
+    "bin"
   ],
   "scripts": {
-    "build:compiler": "rm tsconfig.tsbuildinfo && npx tsc -p tsconfig.compiler.json && mv src/compiler.js src/compiler.cjs",
+    "build:compiler": "rm -f tsconfig.tsbuildinfo && npx tsc -p tsconfig.compiler.json && mv dist/compiler.js dist/compiler.cjs",
     "build": "tsc",
     "benchmark:node": "node dist/benchmark.js",
     "clean": "rm -rf dist",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "@types/node": "^25.0.3",
     "ts-patch": "^3.3.0",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "vite": "^6.0.0"
+  },
+  "peerDependencies": {
+    "vite": ">=5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "vite": {
+      "optional": true
+    }
   }
 }

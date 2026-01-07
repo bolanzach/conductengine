@@ -1,0 +1,18 @@
+{
+  "name": "@conduct/examples",
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "conduct-compile && vite build",
+    "preview": "vite preview",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@conduct/ecs": "workspace:*",
+    "@conduct/simulation": "workspace:*"
+  },
+  "devDependencies": {
+    "vite": "^6.0.0"
+  }
+}

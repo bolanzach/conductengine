@@ -1,4 +1,4 @@
-import { ConductAddComponent, ConductRegisterSystem, ConductSpawnEntity, ConductStart } from "./core.js";
+import { ConductAddComponent, ConductRegisterSystem, ConductSpawnEntity, ConductBenchmarkStart } from "./core.js";
 import BasicSystem from "./basicSystem.js";
 import FooSystem from "./fooSystem.js";
 import BarSystem from "./barSystem.js";
@@ -40,12 +40,12 @@ for (let i = 0; i < NUM_ENTITIES; i++) {
 }
 
 // Warm up
-ConductStart();
+ConductBenchmarkStart(100);
 
 console.log("Starting benchmark...");
 const startTime = performance.now();
 
-ConductStart();
+ConductBenchmarkStart(1_000);
 
 const endTime = performance.now();
 const totalMs = endTime - startTime;
@@ -75,4 +75,4 @@ ConductAddComponent(p, Person, { age: 100, name: 'a', someArray: [1] });
 ConductAddComponent(p, Position);
 ConductAddComponent(p, Velocity, { x: 1, y: 1, z: 1 });
 
-ConductStart();
+ConductBenchmarkStart();

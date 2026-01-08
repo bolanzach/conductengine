@@ -9,7 +9,5 @@ export default function PhysicsSystem(query: Query<[Position, Velocity]>): void 
 
     // Simple gravity effect
     v.y -= v.gravity * 0.016; // Assuming 60 FPS, so ~16ms per frame
-
-    console.log(p.x, p.y, p.z);
   });
 }

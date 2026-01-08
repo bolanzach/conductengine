@@ -9,7 +9,7 @@ import * as ts from "typescript";
  * ergonomic query.iter() calls into cache-friendly, unrolled loops.
  *
  * # 1. Build the compiler (one-time, or when compiler changes)
- *   npx tsc -p tsconfig.compiler.json && mv src/compiler.js src/compiler.cjs
+ *   npx tsc -p tsconfig.compiler.json && mv src/compiler.js dist/compiler.cjs
  *
  * # 2. Build the project (transformer runs automatically)
  *   npx tsc
@@ -275,11 +275,28 @@ function transformCallbackBody(
   body: ts.Node,
   paramToComponent: Map<string, string | null>,
   columnRefs: Set<string>,
-  context: ts.TransformationContext
+  context: ts.TransformationContext,
+  entityLoopLabel: string
 ): ts.Node {
   const factory = context.factory;
 
+  // Track nesting depth to avoid transforming returns inside nested functions
+  let functionNestingDepth = 0;
+
   function visit(node: ts.Node): ts.Node {
+    // Track entering/exiting nested functions
+    if (ts.isArrowFunction(node) || ts.isFunctionExpression(node) || ts.isFunctionDeclaration(node)) {
+      functionNestingDepth++;
+      const result = ts.visitEachChild(node, visit, context);
+      functionNestingDepth--;
+      return result;
+    }
+
+    // Transform return statements to labeled continue (only at callback level)
+    if (ts.isReturnStatement(node) && functionNestingDepth === 0) {
+      return factory.createContinueStatement(factory.createIdentifier(entityLoopLabel));
+    }
+
     // Transform property access: transform.rx -> Transform_rx[$__conduct_engine_c]
     if (ts.isPropertyAccessExpression(node)) {
       const obj = node.expression;
@@ -345,6 +362,7 @@ function createOptimizedSystemBody(
   componentCounters: Map<string, number>
 ): OptimizedSystemResult {
   const queryName = `__query_${systemInfo.name}`;
+  const entityLoopLabel = "$__conduct_engine_entity_label";
 
   // Build param -> component mapping
   const paramToComponent = new Map<string, string | null>();
@@ -371,7 +389,8 @@ function createOptimizedSystemBody(
     callbackInfo.body,
     paramToComponent,
     columnRefs,
-    context
+    context,
+    entityLoopLabel
   );
 
   // Get statements from body
@@ -436,10 +455,7 @@ function createOptimizedSystemBody(
               undefined,
               undefined,
               factory.createElementAccessExpression(
-                factory.createPropertyAccessExpression(
-                  factory.createIdentifier("$__conduct_engine_arch"),
-                  "columns"
-                ),
+                factory.createIdentifier("$__conduct_engine_columns"),
                 factory.createIdentifier(columnKeyVarName)
               )
             ),
@@ -469,26 +485,48 @@ function createOptimizedSystemBody(
     )
   );
 
-  // Inner loop: for (let $__conduct_engine_c = 0; $__conduct_engine_c < $__conduct_engine_count; $__conduct_engine_c++) { ... }
-  const innerLoop = factory.createForStatement(
+  // Inner loop: $__conduct_engine_entity_label: for (let $__conduct_engine_c = 0; $__conduct_engine_c < $__conduct_engine_count; $__conduct_engine_c++) { ... }
+  const innerLoop = factory.createLabeledStatement(
+    factory.createIdentifier(entityLoopLabel),
+    factory.createForStatement(
+      factory.createVariableDeclarationList(
+        [
+          factory.createVariableDeclaration(
+            "$__conduct_engine_c",
+            undefined,
+            undefined,
+            factory.createNumericLiteral(0)
+          ),
+        ],
+        ts.NodeFlags.Let
+      ),
+      factory.createBinaryExpression(
+        factory.createIdentifier("$__conduct_engine_c"),
+        ts.SyntaxKind.LessThanToken,
+        factory.createIdentifier("$__conduct_engine_count")
+      ),
+      factory.createPostfixIncrement(factory.createIdentifier("$__conduct_engine_c")),
+      factory.createBlock(bodyStatements, true)
+    )
+  );
+
+  // const $__conduct_engine_columns = $__conduct_engine_arch.columns;
+  const columnsDecl = factory.createVariableStatement(
+    undefined,
     factory.createVariableDeclarationList(
       [
         factory.createVariableDeclaration(
-          "$__conduct_engine_c",
+          "$__conduct_engine_columns",
           undefined,
           undefined,
-          factory.createNumericLiteral(0)
+          factory.createPropertyAccessExpression(
+            factory.createIdentifier("$__conduct_engine_arch"),
+            "columns"
+          )
         ),
       ],
-      ts.NodeFlags.Let
-    ),
-    factory.createBinaryExpression(
-      factory.createIdentifier("$__conduct_engine_c"),
-      ts.SyntaxKind.LessThanToken,
-      factory.createIdentifier("$__conduct_engine_count")
-    ),
-    factory.createPostfixIncrement(factory.createIdentifier("$__conduct_engine_c")),
-    factory.createBlock(bodyStatements, true)
+      ts.NodeFlags.Const
+    )
   );
 
   // Outer loop: for (let $__conduct_engine_i = 0; $__conduct_engine_i < $__conduct_engine_matches.length; $__conduct_engine_i++) { const $__conduct_engine_arch = $__conduct_engine_matches[$__conduct_engine_i]; ... }
@@ -532,6 +570,7 @@ function createOptimizedSystemBody(
             ts.NodeFlags.Const
           )
         ),
+        columnsDecl,
         ...columnExtractions,
         countDecl,
         innerLoop,

@@ -8,6 +8,5 @@ export default function PersonSystem(query: Query<[Person]>): void {
     } else {
       p.name = "Adult";
     }
-    console.log(p.name)
   });
 }

@@ -42,3 +42,7 @@ ConductAddComponent(p, [Person, { age: 69 }]);
 // Once all systems are registered, run the main loop
 ConductStart();
 ```
+
+## Development
+
+You likely have to run `npx ts-patch install`

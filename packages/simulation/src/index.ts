@@ -7,7 +7,7 @@ export {
 } from  './components/transform2D.js';
 
 export {
-  CURRENT_INPUTS,
+  Inputs,
   listenForInput,
   default,
 } from './systems/input.js'

@@ -1,0 +1,1 @@
+{"version":3,"file":"physicsSystem.d.ts","sourceRoot":"","sources":["../src/physicsSystem.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,KAAK,EAAE,MAAM,WAAW,CAAC;AAClC,OAAO,EAAE,QAAQ,EAAE,QAAQ,EAAE,MAAM,sBAAsB,CAAC;AAE1D,MAAM,CAAC,OAAO,UAAU,aAAa,CAAC,KAAK,EAAE,KAAK,CAAC,CAAC,QAAQ,EAAE,QAAQ,CAAC,CAAC,GAAG,IAAI,CAS9E"}

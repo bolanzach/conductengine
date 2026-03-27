@@ -1,0 +1,2 @@
+export { type ConductEntity, type ConductComponent, type ConductSystem, type Query, type QueryElement, type Not, type Optional, type Signature, ComponentId, createSignature, createSignatureFromComponents, signatureContains, signatureEquals, signatureOverlaps, query, ConductSpawnEntity, ConductDeleteEntity, ConductAddComponent, ConductRemoveComponent, ConductRegisterSystem, ConductStart, ConductBenchmarkStart, } from "./core.js";
+//# sourceMappingURL=index.d.ts.map

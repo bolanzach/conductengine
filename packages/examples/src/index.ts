@@ -9,6 +9,14 @@ const player = ConductSpawnEntity();
 
 ConductAddComponent(player, Player);
 ConductAddComponent(player, Transform2D);
+
+const playerElementId = 'player';
+const playerElementType = 'div';
+const playerElement = document.createElement(playerElementType);
+playerElement.setAttribute('id', playerElementId);
+document.getElementById("conduct")?.appendChild(playerElement);
+
+
 ConductAddComponent(player, DomRenderer, (dom) => {
   dom.elementId = 'player';
   dom.elementType = 'div';

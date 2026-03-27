@@ -1,0 +1,15 @@
+[package]
+name = "conduct-server"
+version = "0.1.0"
+edition = "2024"
+description = "Server for Conduct Engine"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+bincode = "1"
+crc32fast = "1"
+thiserror = "2"
+uuid = { version = "1", features = ["v4", "serde"] }
+
+[dev-dependencies]
+tempfile = "3"

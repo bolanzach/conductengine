@@ -1,5 +1,5 @@
 use std::alloc::Layout;
-use std::any::TypeId;
+use std::any::{Any, TypeId};
 use std::collections::HashMap;
 
 /// Marker trait for types that can be stored as ECS components.
@@ -62,6 +62,10 @@ impl Column {
     /// Size of one item in bytes.
     pub fn item_size(&self) -> usize {
         self.item_layout.size()
+    }
+
+    pub fn component_type(&self) -> TypeId {
+        self.component_type
     }
 
     /// Push a component value into this column.
@@ -146,6 +150,42 @@ impl Entity {
     }
 }
 
+pub struct Archetype {
+    /// The component types in this archetype, sorted for consistent identity.
+    component_ids: Vec<TypeId>,
+    /// One Column per component type, keyed by TypeId.
+    columns: HashMap<TypeId, Column>,
+    /// The entities stored in this archetype, in row order.
+    entities: Vec<Entity>,
+    /// Reverse map: entity → row index.
+    entity_index: HashMap<Entity, usize>,
+}
+
+impl Archetype {
+    pub fn new(columns: Vec<Column>) -> Self {
+        let mut column_map = HashMap::new();
+        let mut component_ids: Vec<TypeId> = Vec::new();
+
+        for col in columns {
+            let type_id = col.component_type();
+            component_ids.push(type_id);
+            column_map.insert(type_id, col);
+        }
+
+        Archetype {
+            component_ids,
+            columns: column_map,
+            entities: Vec::new(),
+            entity_index: HashMap::new(),
+        }
+    }
+
+    pub fn add_entity(&mut self, component_map: HashMap<TypeId, Box<dyn Any>>) {
+
+        for col in component_map.
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -155,11 +195,6 @@ mod tests {
         y: f32,
     }
     impl Component for Position {}
-
-    struct Health {
-        value: i32,
-    }
-    impl Component for Health {}
 
     #[test]
     fn new_column_is_empty() {

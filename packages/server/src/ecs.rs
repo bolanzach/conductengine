@@ -75,23 +75,22 @@ impl Column {
     pub fn push<T: Component>(&mut self, value: T) {
         debug_assert_eq!(TypeId::of::<T>(), self.component_type);
 
-        let size = self.item_layout.size();
-
         // Get a byte pointer to `value`. This doesn't move or copy anything yet —
         // it's just "look at this value as raw bytes."
         let ptr = &value as *const T as *const u8;
-
-        // Copy those bytes into our data buffer.
-        // SAFETY: ptr points to a valid T, and size matches T's size.
-        let bytes = unsafe { std::slice::from_raw_parts(ptr, size) };
-        self.data.extend_from_slice(bytes);
+        unsafe { self.push_raw(ptr); }
 
         // Tell Rust NOT to drop `value` — we now own those bytes in self.data.
         // Without this, Rust would drop `value` at the end of this function,
         // which would free any heap data (like a String's buffer) that we
         // just copied a pointer to.
         std::mem::forget(value);
+    }
 
+    pub unsafe fn push_raw(&mut self, ptr: *const u8) {
+        let size = self.item_layout.size();
+        let bytes = unsafe { std::slice::from_raw_parts(ptr, size) };
+        self.data.extend_from_slice(bytes);
         self.len += 1;
     }
 
@@ -123,6 +122,23 @@ impl Column {
         let ptr = self.data[offset..].as_mut_ptr() as *mut T;
 
         Some(unsafe { &mut *ptr })
+    }
+
+    pub fn swap_remove(&mut self, index: usize) {
+        let size = self.item_layout.size();
+        let removed_offset = index * size;
+
+        let ptr = self.data[removed_offset..].as_mut_ptr();
+        unsafe { (self.drop_fn)(ptr); }
+
+        let last = self.len() - 1;
+        if index != last {
+            let last_offset = last * size;
+            self.data.copy_within(last_offset..last_offset + size, removed_offset);
+        }
+
+        self.data.truncate(last * size);
+        self.len -= 1;
     }
 }
 
@@ -180,9 +196,40 @@ impl Archetype {
         }
     }
 
-    pub fn add_entity(&mut self, component_map: HashMap<TypeId, Box<dyn Any>>) {
+    pub fn contains(&self, entity: Entity) -> bool {
+        self.entity_index.contains_key(&entity)
+    }
 
-        for col in component_map.
+    pub fn add_entity(&mut self, entity: Entity) {
+        self.entity_index.insert(entity, self.entities.len());
+        self.entities.push(entity);
+    }
+
+    pub fn remove_entity(&mut self, entity: Entity) {
+        if !self.entity_index.contains_key(&entity) {
+            return;
+        }
+
+        let index = self.entity_index[&entity];
+        self.entities.swap_remove(index);
+        self.entity_index.remove(&entity);
+
+        if index < self.entities.len() {
+            let swapped = self.entities[index];
+            self.entity_index.insert(swapped, index);
+        }
+
+        for col in self.columns.values_mut() {
+            col.swap_remove(index);
+        }
+    }
+
+    pub fn add_component<T: Component>(&mut self, component: T) {
+        let type_id = TypeId::of::<T>();
+        let column = self.columns.get_mut(&type_id).unwrap();
+
+        unsafe { column.push_raw(&component as *const T as *const u8); }
+        std::mem::forget(component);
     }
 }
 
@@ -250,5 +297,73 @@ mod tests {
 
         assert_eq!(col.get::<Name>(0).unwrap().value, "hello");
         assert_eq!(col.get::<Name>(1).unwrap().value, "world");
+    }
+
+    struct Velocity {
+        dx: f32,
+        dy: f32,
+    }
+    impl Component for Velocity {}
+
+    #[test]
+    fn archetype_add_entity_and_components() {
+        let mut arch = Archetype::new(vec![
+            Column::new::<Position>(),
+            Column::new::<Velocity>(),
+        ]);
+
+        let e0 = Entity::from_raw(0);
+        arch.add_entity(e0);
+        arch.add_component(Position { x: 1.0, y: 2.0 });
+        arch.add_component(Velocity { dx: 3.0, dy: 4.0 });
+
+        let pos = arch.columns.get(&TypeId::of::<Position>()).unwrap();
+        let vel = arch.columns.get(&TypeId::of::<Velocity>()).unwrap();
+
+        assert_eq!(pos.len(), 1);
+        assert_eq!(vel.len(), 1);
+
+        let p = pos.get::<Position>(0).unwrap();
+        assert_eq!(p.x, 1.0);
+        assert_eq!(p.y, 2.0);
+
+        let v = vel.get::<Velocity>(0).unwrap();
+        assert_eq!(v.dx, 3.0);
+        assert_eq!(v.dy, 4.0);
+    }
+
+    #[test]
+    fn archetype_remove_entity_swap_removes() {
+        let mut arch = Archetype::new(vec![
+            Column::new::<Position>(),
+        ]);
+
+        let e0 = Entity::from_raw(0);
+        let e1 = Entity::from_raw(1);
+        let e2 = Entity::from_raw(2);
+
+        arch.add_entity(e0);
+        arch.add_component(Position { x: 0.0, y: 0.0 });
+        arch.add_entity(e1);
+        arch.add_component(Position { x: 1.0, y: 1.0 });
+        arch.add_entity(e2);
+        arch.add_component(Position { x: 2.0, y: 2.0 });
+
+        arch.remove_entity(e0);
+
+        assert!(!arch.contains(e0));
+        assert!(arch.contains(e1));
+        assert!(arch.contains(e2));
+
+        let pos_col = arch.columns.get(&TypeId::of::<Position>()).unwrap();
+        assert_eq!(pos_col.len(), 2);
+
+        let e2_row = arch.entity_index[&e2];
+        let p2 = pos_col.get::<Position>(e2_row).unwrap();
+        assert_eq!(p2.x, 2.0);
+
+        let e1_row = arch.entity_index[&e1];
+        let p1 = pos_col.get::<Position>(e1_row).unwrap();
+        assert_eq!(p1.x, 1.0);
     }
 }

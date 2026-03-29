@@ -15,6 +15,3 @@ node_modules/
 .env.local
 
 tsconfig.tsbuildinfo
-
-CLAUDE.md
-architecture.md

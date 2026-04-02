@@ -140,6 +140,16 @@ impl Column {
         self.data.truncate(last * size);
         self.len -= 1;
     }
+
+    pub fn new_empty(&self) -> Self {
+        Column {
+            data: Vec::new(),
+            item_layout: self.item_layout,
+            len: 0,
+            drop_fn: self.drop_fn,
+            component_type: self.component_type,
+        }
+    }
 }
 
 /// Safety: ptr must point to a valid, initialized T.
@@ -188,6 +198,8 @@ impl Archetype {
             column_map.insert(type_id, col);
         }
 
+        component_ids.sort();
+
         Archetype {
             component_ids,
             columns: column_map,
@@ -230,6 +242,85 @@ impl Archetype {
 
         unsafe { column.push_raw(&component as *const T as *const u8); }
         std::mem::forget(component);
+    }
+
+    pub fn has_component<T: Component>(&self) -> bool {
+        self.component_ids.contains(&TypeId::of::<T>())
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.columns.is_empty()
+    }
+
+    pub fn get_components(&self) -> &Vec<TypeId> {
+        &self.component_ids
+    }
+
+    pub fn get_columns(&self) -> &Vec<&Column> {
+        &self.columns.values().collect::<Vec<_>>().copy_from_slice()
+    }
+
+    pub fn match_signature(&self, signature: &[TypeId]) -> bool {
+        self.component_ids == signature
+    }
+}
+
+struct World {
+    /// Monotonic entity ID counter.
+    next_entity_id: u64,
+    /// All archetypes, indexed by position in this Vec.
+    archetypes: Vec<Archetype>,
+
+    entities: Vec<Entity>,
+    map_entities_to_archetype: HashMap<Entity, usize>,
+}
+
+impl World {
+    pub fn new() -> Self {
+
+        let mut archetypes = Vec::new();
+        archetypes.push(Archetype::new(Vec::new()));
+
+        World {
+            next_entity_id: 0,
+            archetypes,
+            entities: Vec::new(),
+            map_entities_to_archetype: HashMap::new(),
+        }
+    }
+
+    pub fn spawn(&mut self) -> Entity {
+        let id = self.next_entity_id;
+        let entity = Entity::from_raw(id);
+        self.next_entity_id+=1;
+
+        let empty_archetype = self.archetypes.get_mut(0).unwrap();
+        empty_archetype.add_entity(entity);
+        self.entities.push(entity);
+        self.map_entities_to_archetype.insert(entity, 0);
+
+        Entity(id)
+    }
+
+    pub fn add_component<T: Component>(&mut self, entity: &Entity, component: T) {
+        let mut arch_idx = self.map_entities_to_archetype.get(entity).unwrap();
+        let current_archetype = self.archetypes.get_mut(*arch_idx).unwrap();
+
+        // TODO this is not the most performant
+        let mut new_component_ids = current_archetype.get_components().clone();
+        new_component_ids.push(TypeId::of::<T>());
+        let destination_archetype = match self.archetypes.iter().find(|&arch| arch.match_signature(&new_component_ids)) {
+            Some(arch) => arch,
+            None => {
+                let columns: Vec<Column> = Vec::new();
+                for c in new_component_ids {
+                    columns.push(Column::new::<c>())
+                }
+                &Archetype::new(columns)
+            },
+        };
+
+
     }
 }
 

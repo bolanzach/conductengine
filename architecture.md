@@ -40,7 +40,7 @@ Ours: the log is real, state is a side effect.
 
 ### What This Project Actually Is
 
-This is not a better ECS (Bevy already exists). The interesting and novel part is the **replication layer**: how state changes flow from the server ECS to clients efficiently, atomically, and durably. The ECS is the state container. The WAL is the persistence primitive. The sync layer is the point.
+This is not a better ECS (Bevy already exists). The interesting and novel part is the **replication layer**: how state changes flow from the server ECS to clients efficiently, atomically, and durably. The ECS is the state container and query engine. The WAL is the persistence primitive. The sync layer is the point.
 
 ---
 
@@ -95,16 +95,16 @@ TickEnd(t=42)
 
 ## 4. Technology Decisions
 
-| Component | Decision |
-|---|---|
-| Server language | Rust |
-| Client language | TypeScript (existing ECS impl) |
-| Transport | WebSockets |
+| Component | Decision                                   |
+|---|--------------------------------------------|
+| Server language | Rust                                       |
+| Client language | TypeScript (see existing ECS impl)         |
+| Transport | WebSockets                                 |
 | Storage | Write-Ahead Log (WAL) on disk, append-only |
-| Wire format | binary |
-| Rendering | Out of scope for now |
-| Async runtime | Tokio |
-| WebSocket library | tokio-tungstenite or Axum with WS upgrade |
+| Wire format | binary                                     |
+| Rendering | Out of scope for now                       |
+| Async runtime | Tokio                                      |
+| WebSocket library | tokio-tungstenite or Axum with WS upgrade  |
 
 ---
 

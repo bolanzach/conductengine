@@ -46,3 +46,7 @@ ConductStart();
 ## Development
 
 You likely have to run `npx ts-patch install`
+
+## Fast hot loop iteration
+
+There is a custom [Typescript transpiler](./src/compiler.ts) that transforms the System queries into highly performant Structure of Arrays (SOA).

@@ -256,8 +256,8 @@ impl Archetype {
         &self.component_ids
     }
 
-    pub fn get_columns(&self) -> &Vec<&Column> {
-        &self.columns.values().collect::<Vec<_>>().copy_from_slice()
+    pub fn get_columns(&self) -> Vec<Column> {
+        self.columns.values().map(|col| col.new_empty()).collect()
     }
 
     pub fn match_signature(&self, signature: &[TypeId]) -> bool {
@@ -303,25 +303,29 @@ impl World {
     }
 
     pub fn add_component<T: Component>(&mut self, entity: &Entity, component: T) {
-        let mut arch_idx = self.map_entities_to_archetype.get(entity).unwrap();
-        let current_archetype = self.archetypes.get_mut(*arch_idx).unwrap();
+        let arch_idx = *self.map_entities_to_archetype.get(entity).unwrap();
+        //let current_archetype = self.archetypes.get(arch_idx).unwrap();
 
         // TODO this is not the most performant
-        let mut new_component_ids = current_archetype.get_components().clone();
+        let mut new_component_ids = self.archetypes.get(arch_idx).unwrap().get_components().clone();
         new_component_ids.push(TypeId::of::<T>());
-        let destination_archetype = match self.archetypes.iter().find(|&arch| arch.match_signature(&new_component_ids)) {
+        let destination_archetype_idx = match self.archetypes.iter().position(|&arch| arch.match_signature(&new_component_ids)) {
             Some(arch) => arch,
             None => {
-                let columns: Vec<Column> = Vec::new();
-                for c in new_component_ids {
-                    columns.push(Column::new::<c>())
-                }
-                &Archetype::new(columns)
+                let mut columns = current_archetype.get_columns();
+                columns.push(Column::new::<T>());
+                self.archetypes.push(Archetype::new(columns));
+                self.archetypes.len() - 1
             },
         };
 
+        let destination_archetype = self.archetypes.get_mut(destination_archetype_idx).unwrap();
+        destination_archetype.add_entity(*entity);
+
 
     }
+
+
 }
 
 #[cfg(test)]

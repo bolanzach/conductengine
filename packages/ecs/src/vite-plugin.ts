@@ -9,7 +9,7 @@ const require = createRequire(import.meta.url);
 
 // The compiler is built as CommonJS for ts-patch compatibility
 const createTransformer: (program: ts.Program) => ts.TransformerFactory<ts.SourceFile> =
-  require("./compiler.cjs").default;
+  require("../bin/compiler.cjs").default;
 
 interface ConductPluginOptions {
   /** Additional file patterns to transform (default: files ending with System.ts) */

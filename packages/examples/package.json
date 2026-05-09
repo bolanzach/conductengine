@@ -6,7 +6,7 @@
     "dev": "vite",
     "build": "conduct-compile && vite build",
     "preview": "vite preview",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist *.tsbuildinfo"
   },
   "dependencies": {
     "@conduct/ecs": "workspace:*",

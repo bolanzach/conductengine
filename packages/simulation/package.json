@@ -17,7 +17,7 @@
   "scripts": {
     "build": "conduct-compile",
     "dev": "node dist/index.js",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist *.tsbuildinfo"
   },
   "dependencies": {
     "@conduct/ecs": "workspace:*"

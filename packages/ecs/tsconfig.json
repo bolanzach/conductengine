@@ -9,7 +9,7 @@
       "@conduct/ecs": ["./src/index.ts"]
     },
     "plugins": [
-      { "transform": "./dist/compiler.cjs" }
+      { "transform": "./bin/compiler.cjs" }
     ]
   },
   "include": ["src/**/*"],

@@ -23,10 +23,10 @@
     "bin"
   ],
   "scripts": {
-    "build:compiler": "rm -f tsconfig.tsbuildinfo && npx tsc -p tsconfig.compiler.json && mv dist/compiler.js dist/compiler.cjs",
+    "build:compiler": "rm -f tsconfig.tsbuildinfo && npx tsc -p tsconfig.compiler.json && mv dist/compiler.js bin/compiler.cjs",
     "build": "tsc",
     "benchmark:node": "node dist/benchmark.js",
-    "clean": "rm -rf dist",
+    "clean": "rm -rf dist *.tsbuildinfo",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

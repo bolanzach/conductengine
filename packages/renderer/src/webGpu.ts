@@ -10,6 +10,8 @@ export interface MeshGpuData {
 export const gpu = {
   device: null! as GPUDevice,
   uniformBuffer: null! as GPUBuffer,
+  uniformBindGroup: null! as GPUBindGroup,
+  uniformStride: 0,
   passEncoder: null! as GPURenderPassEncoder,
   meshRegistry: [] as (MeshGpuData | null)[],
 };
@@ -17,7 +19,6 @@ export const gpu = {
 let context: GPUCanvasContext;
 let pipeline: GPURenderPipeline;
 let depthTexture: GPUTexture;
-let uniformBindGroup: GPUBindGroup;
 let commandEncoder: GPUCommandEncoder;
 
 export function mat4Identity(): Float32Array {
@@ -100,8 +101,11 @@ export async function initRenderer(canvas: HTMLCanvasElement) {
     usage: GPUTextureUsage.RENDER_ATTACHMENT,
   });
 
+  const align = gpu.device.limits.minUniformBufferOffsetAlignment;
+  gpu.uniformStride = Math.ceil(208 / align) * align;
+
   gpu.uniformBuffer = gpu.device.createBuffer({
-    size: 208,
+    size: gpu.uniformStride * 1024,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
 
@@ -111,13 +115,13 @@ export async function initRenderer(canvas: HTMLCanvasElement) {
     entries: [{
       binding: 0,
       visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
-      buffer: { type: 'uniform' },
+      buffer: { type: 'uniform', hasDynamicOffset: true },
     }],
   });
 
-  uniformBindGroup = gpu.device.createBindGroup({
+  gpu.uniformBindGroup = gpu.device.createBindGroup({
     layout: bindGroupLayout,
-    entries: [{ binding: 0, resource: { buffer: gpu.uniformBuffer } }],
+    entries: [{ binding: 0, resource: { buffer: gpu.uniformBuffer, size: gpu.uniformStride } }],
   });
 
   pipeline = gpu.device.createRenderPipeline({
@@ -202,7 +206,6 @@ export function beginFrame() {
   });
 
   gpu.passEncoder.setPipeline(pipeline);
-  gpu.passEncoder.setBindGroup(0, uniformBindGroup);
 }
 
 export function endFrame() {

@@ -10,6 +10,7 @@
   "scripts": {
     "build": "pnpm -r build",
     "dev": "pnpm -r dev",
+    "example": "pnpm dev --filter @conduct/example",
     "clean": "pnpm -r clean && rm -rf node_modules",
     "typecheck": "pnpm -r typecheck",
     "playwright:install": "npx playwright-cli install-browser && npx playwright-cli install --skills"

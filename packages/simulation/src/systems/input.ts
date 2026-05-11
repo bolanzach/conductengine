@@ -2,6 +2,13 @@ let currentInputs: Set<string> = new Set();
 let bufferedInputs: Set<string> = new Set();
 let bufferedMouseInputs = new Map<number, MouseEvent>
 
+/**
+ * Sets up event listeners for keyboard and mouse events. This is required
+ * to capture user input.
+ *
+ * Apps must also register the `InputSystem` or manually call
+ * `flushInputBuffer` in order to update the current input state each frame.
+ */
 export function listenForInput() {
   window.addEventListener('keydown', (event) => {
     bufferedInputs.add(event.key);
@@ -20,7 +27,7 @@ export function listenForInput() {
   })
 }
 
-function flushInputBuffer() {
+export function flushInputBuffer() {
   currentInputs.clear();
   for (const input of bufferedInputs) {
     currentInputs.add(input);

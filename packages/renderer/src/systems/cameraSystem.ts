@@ -2,14 +2,13 @@ import { Query } from "@conduct/ecs";
 import { Transform3D } from "@conduct/simulation";
 import { Camera } from "../components/camera.js";
 import {
-  gpu,
   mat4Perspective, mat4Multiply, mat4Translation,
   mat4RotateX, mat4RotateY, mat4RotateZ,
   _tmp1, _tmp2, _tmp3,
 } from "../webGpu.js";
 
-const viewMatrix = new Float32Array(16);
-const projMatrix = new Float32Array(16);
+export const viewMatrix = new Float32Array(16);
+export const projMatrix = new Float32Array(16);
 
 export default function CameraSystem(query: Query<[Transform3D, Camera]>) {
   query.iter(([_, transform, camera]) => {
@@ -23,9 +22,6 @@ export default function CameraSystem(query: Query<[Transform3D, Camera]>) {
       mat4Multiply(_tmp2, _tmp3, _tmp1);
       mat4Translation(_tmp1, -transform.x, -transform.y, -transform.z);
       mat4Multiply(viewMatrix, _tmp2, _tmp1);
-
-      gpu.device.queue.writeBuffer(gpu.uniformBuffer, 64, viewMatrix);
-      gpu.device.queue.writeBuffer(gpu.uniformBuffer, 128, projMatrix);
     }
   });
 }

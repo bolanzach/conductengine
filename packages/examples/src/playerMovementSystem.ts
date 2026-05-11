@@ -1,22 +1,22 @@
 import { Query } from "@conduct/ecs";
-import { Inputs, Transform2D } from "@conduct/simulation";
-import { Player } from "./player.js";
+import { Inputs, Transform3D } from "@conduct/simulation";
+import { PlayerTag } from "./playerTag";
 
-export default function PlayerMovementSystem(query: Query<[Transform2D, Player]>) {
+export default function PlayerMovementSystem(query: Query<[Transform3D, PlayerTag]>) {
   query.iter(([_, transform]) => {
     let xVelocity = 0;
     let yVelocity = 0;
     if (Inputs.isKeyPressed('ArrowLeft')) {
-      xVelocity -= 1;
+      xVelocity -= 0.1;
     }
     if (Inputs.isKeyPressed('ArrowRight')) {
-      xVelocity += 1;
+      xVelocity += 0.1;
     }
     if (Inputs.isKeyPressed('ArrowUp')) {
-      yVelocity -= 1;
+      yVelocity += 0.1;
     }
     if (Inputs.isKeyPressed('ArrowDown')) {
-      yVelocity += 1;
+      yVelocity -= 0.1;
     }
 
     transform.x += xVelocity;

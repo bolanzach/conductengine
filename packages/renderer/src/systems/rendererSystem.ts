@@ -7,10 +7,13 @@ import {
   mat4Translation, mat4RotateX, mat4RotateY, mat4RotateZ, mat4Multiply,
   _model, _tmp1, _tmp2,
 } from "../webGpu.js";
+import { viewMatrix, projMatrix } from "./cameraSystem.js";
 
 const colorBuffer = new Float32Array(4);
+let entityDrawIndex = 0;
 
 export default function RendererSystem(query: Query<[Transform3D, MeshRenderer, Material]>) {
+  entityDrawIndex = 0;
   beginFrame();
 
   query.iter(([_, transform, mesh, material]) => {
@@ -22,18 +25,25 @@ export default function RendererSystem(query: Query<[Transform3D, MeshRenderer, 
     mat4RotateZ(_tmp1, transform.rz);
     mat4Multiply(_tmp2, _model, _tmp1);
 
-    gpu.device.queue.writeBuffer(gpu.uniformBuffer, 0, _tmp2);
+    const offset = entityDrawIndex * gpu.uniformStride;
+    gpu.device.queue.writeBuffer(gpu.uniformBuffer, offset, _tmp2);
+    gpu.device.queue.writeBuffer(gpu.uniformBuffer, offset + 64, viewMatrix);
+    gpu.device.queue.writeBuffer(gpu.uniformBuffer, offset + 128, projMatrix);
 
     colorBuffer[0] = material.r;
     colorBuffer[1] = material.g;
     colorBuffer[2] = material.b;
     colorBuffer[3] = material.a;
-    gpu.device.queue.writeBuffer(gpu.uniformBuffer, 192, colorBuffer);
+    gpu.device.queue.writeBuffer(gpu.uniformBuffer, offset + 192, colorBuffer);
+
+    gpu.passEncoder.setBindGroup(0, gpu.uniformBindGroup, [offset]);
 
     const meshData = gpu.meshRegistry[mesh.meshId]!;
     gpu.passEncoder.setVertexBuffer(0, meshData.vertexBuffer);
     gpu.passEncoder.setIndexBuffer(meshData.indexBuffer, 'uint16');
     gpu.passEncoder.drawIndexed(meshData.indexCount);
+
+    entityDrawIndex++;
   });
 
   endFrame();

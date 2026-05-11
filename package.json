@@ -11,9 +11,11 @@
     "build": "pnpm -r build",
     "dev": "pnpm -r dev",
     "clean": "pnpm -r clean && rm -rf node_modules",
-    "typecheck": "pnpm -r typecheck"
+    "typecheck": "pnpm -r typecheck",
+    "playwright:install": "npx playwright-cli install-browser && npx playwright-cli install --skills"
   },
   "devDependencies": {
+    "@playwright/cli": "^0.1.13",
     "typescript": "^5.7.2"
   },
   "packageManager": "pnpm@9.15.0"

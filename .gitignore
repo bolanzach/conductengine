@@ -125,3 +125,6 @@ web_modules/
 .pnp.*
 
 dist
+
+# Playwright CLI
+.playwright-cli/

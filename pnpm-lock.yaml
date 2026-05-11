@@ -8,6 +8,9 @@ importers:
 
   .:
     devDependencies:
+      '@playwright/cli':
+        specifier: ^0.1.13
+        version: 0.1.13
       typescript:
         specifier: ^5.7.2
         version: 5.9.3
@@ -35,6 +38,9 @@ importers:
       '@conduct/ecs':
         specifier: workspace:*
         version: link:../ecs
+      '@conduct/renderer':
+        specifier: workspace:*
+        version: link:../renderer
       '@conduct/simulation':
         specifier: workspace:*
         version: link:../simulation
@@ -42,6 +48,19 @@ importers:
       vite:
         specifier: ^6.0.0
         version: 6.4.1(@types/node@25.0.3)(tsx@4.21.0)
+
+  packages/renderer:
+    dependencies:
+      '@conduct/ecs':
+        specifier: workspace:*
+        version: link:../ecs
+      '@conduct/simulation':
+        specifier: workspace:*
+        version: link:../simulation
+    devDependencies:
+      '@webgpu/types':
+        specifier: ^0.1.69
+        version: 0.1.69
 
   packages/simulation:
     dependencies:
@@ -363,6 +382,11 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@playwright/cli@0.1.13':
+    resolution: {integrity: sha512-ntG80HgWp9y5HUDApoucNXx1Ny6YlCaRJdGpZZeY43Oh8Q+Iivs0hlEcGhnW/bEwsTkw72JxxlzEMOLwH42a9g==}
+    engines: {node: '>=18'}
+    hasBin: true
+
   '@rollup/rollup-android-arm-eabi@4.55.1':
     resolution: {integrity: sha512-9R0DM/ykwfGIlNu6+2U09ga0WXeZ9MRC2Ter8jnz8415VbuIykVuc6bhdrbORFZANDmTDvq26mJrEVTl8TdnDg==}
     cpu: [arm]
@@ -494,6 +518,9 @@ packages:
   '@types/node@25.0.3':
     resolution: {integrity: sha512-W609buLVRVmeW693xKfzHeIV6nJGGz98uCPfeXI1ELMLXVeKYZ9m15fAMSaUPBHYLGFsVRcMmSCksQOrZV9BYA==}
 
+  '@webgpu/types@0.1.69':
+    resolution: {integrity: sha512-RPmm6kgRbI8e98zSD3RVACvnuktIja5+yLgDAkTmxLr90BEwdTXRQWNLF3ETTTyH/8mKhznZuN5AveXYFEsMGQ==}
+
   ansi-regex@5.0.1:
     resolution: {integrity: sha512-quJQXlTSUGL2LH9SUXo8VwsY4soanhgo6LNSm84E1LBcE8s3O0wpdiRzyR9z/ZZJMlMWv37qOOb9pdJlMUEKFQ==}
     engines: {node: '>=8'}
@@ -531,6 +558,11 @@ packages:
     peerDependenciesMeta:
       picomatch:
         optional: true
+
+  fsevents@2.3.2:
+    resolution: {integrity: sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA==}
+    engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
+    os: [darwin]
 
   fsevents@2.3.3:
     resolution: {integrity: sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw==}
@@ -588,6 +620,16 @@ packages:
   picomatch@4.0.3:
     resolution: {integrity: sha512-5gTmgEY/sqK6gFXLIsQNH19lWb4ebPDLA4SdLP7dsWkIXHWlG66oPuVvXSGFPppYZz8ZDZq0dYYrbHfBCVUb1Q==}
     engines: {node: '>=12'}
+
+  playwright-core@1.61.0-alpha-1778188671000:
+    resolution: {integrity: sha512-nsw2Crz0uZS3IRHiEcOXUt+RaKB/Hna+GAD4oD6cPqCHfJfW77cJdgktC0jzp3Ndyv23EJI3bcWSqFIiqSNE5A==}
+    engines: {node: '>=18'}
+    hasBin: true
+
+  playwright@1.61.0-alpha-1778188671000:
+    resolution: {integrity: sha512-A6fFc7ExLRmvm0ZHqCyY2uHXSvEdpb8W+/HyIPK4ecRqNil8Mc1Vig1WFYoqk82x3+U9Qb571fQE95wgKqIQ1g==}
+    engines: {node: '>=18'}
+    hasBin: true
 
   postcss@8.5.6:
     resolution: {integrity: sha512-3Ybi1tAuwAP9s0r1UQ2J4n5Y0G05bJkpUIO0/bI9MhwmD70S5aTWbXGBwxHrelT+XM1k6dM0pk+SwNkpTRN7Pg==}
@@ -851,6 +893,11 @@ snapshots:
   '@esbuild/win32-x64@0.27.2':
     optional: true
 
+  '@playwright/cli@0.1.13':
+    dependencies:
+      playwright: 1.61.0-alpha-1778188671000
+      playwright-core: 1.61.0-alpha-1778188671000
+
   '@rollup/rollup-android-arm-eabi@4.55.1':
     optional: true
 
@@ -932,6 +979,8 @@ snapshots:
     dependencies:
       undici-types: 7.16.0
 
+  '@webgpu/types@0.1.69': {}
+
   ansi-regex@5.0.1: {}
 
   ansi-styles@4.3.0:
@@ -1011,6 +1060,9 @@ snapshots:
     optionalDependencies:
       picomatch: 4.0.3
 
+  fsevents@2.3.2:
+    optional: true
+
   fsevents@2.3.3:
     optional: true
 
@@ -1051,6 +1103,14 @@ snapshots:
   picocolors@1.1.1: {}
 
   picomatch@4.0.3: {}
+
+  playwright-core@1.61.0-alpha-1778188671000: {}
+
+  playwright@1.61.0-alpha-1778188671000:
+    dependencies:
+      playwright-core: 1.61.0-alpha-1778188671000
+    optionalDependencies:
+      fsevents: 2.3.2
 
   postcss@8.5.6:
     dependencies:

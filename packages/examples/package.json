@@ -10,7 +10,8 @@
   },
   "dependencies": {
     "@conduct/ecs": "workspace:*",
-    "@conduct/simulation": "workspace:*"
+    "@conduct/simulation": "workspace:*",
+    "@conduct/renderer": "workspace:*"
   },
   "devDependencies": {
     "vite": "^6.0.0"

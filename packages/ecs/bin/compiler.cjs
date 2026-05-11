@@ -253,7 +253,7 @@ function transformCallbackBody(body, paramToComponent, columnRefs, context, enti
     }
     return ts.visitNode(body, visit);
 }
-function createOptimizedSystemBody(systemInfo, callbackInfo, factory, context, componentCounters) {
+function createOptimizedSystemBody(systemInfo, callbackInfo, factory, context, componentCounters, preStatements, postStatements) {
     const queryName = `__query_${systemInfo.name}`;
     const entityLoopLabel = "$__conduct_engine_entity_label";
     // Build param -> component mapping
@@ -324,7 +324,7 @@ function createOptimizedSystemBody(systemInfo, callbackInfo, factory, context, c
         factory.createVariableDeclaration("$__conduct_engine_matches", undefined, undefined, factory.createCallExpression(factory.createIdentifier("query"), undefined, [factory.createIdentifier(queryName)])),
     ], ts.NodeFlags.Const));
     return {
-        body: factory.createBlock([$__conduct_engine_matchesDecl, outerLoop], true),
+        body: factory.createBlock([...preStatements, $__conduct_engine_matchesDecl, outerLoop, ...postStatements], true),
         columnKeyConstants,
     };
 }
@@ -371,21 +371,38 @@ function createTransformer(_) {
                     // Find the query.iter() call in the function body
                     let iterCall = null;
                     let callbackInfo = null;
-                    function findIterCall(n) {
-                        if (ts.isCallExpression(n) &&
-                            ts.isPropertyAccessExpression(n.expression) &&
-                            n.expression.name.text === "iter") {
-                            iterCall = n;
-                            callbackInfo = extractCallbackInfo(n);
-                        }
-                        ts.forEachChild(n, findIterCall);
-                    }
+                    let iterStatementIndex = -1;
                     if (node.body) {
-                        findIterCall(node.body);
+                        const statements = node.body.statements;
+                        for (let si = 0; si < statements.length; si++) {
+                            const stmt = statements[si];
+                            let found = false;
+                            function findIterCall(n) {
+                                if (found)
+                                    return;
+                                if (ts.isCallExpression(n) &&
+                                    ts.isPropertyAccessExpression(n.expression) &&
+                                    n.expression.name.text === "iter") {
+                                    iterCall = n;
+                                    callbackInfo = extractCallbackInfo(n);
+                                    found = true;
+                                    return;
+                                }
+                                ts.forEachChild(n, findIterCall);
+                            }
+                            findIterCall(stmt);
+                            if (found) {
+                                iterStatementIndex = si;
+                                break;
+                            }
+                        }
                     }
-                    if (!iterCall || !callbackInfo) {
+                    if (!iterCall || !callbackInfo || iterStatementIndex === -1) {
                         return node;
                     }
+                    const bodyStatements = Array.from(node.body.statements);
+                    const preStatements = bodyStatements.slice(0, iterStatementIndex);
+                    const postStatements = bodyStatements.slice(iterStatementIndex + 1);
                     // Track components used in this query (both required and not)
                     // and assign counters to new components
                     for (const comp of systemInfo.queryComponents) {
@@ -403,7 +420,7 @@ function createTransformer(_) {
                     // Create query constant (will be added at top of file)
                     queryConstants.push(createQueryConstant(systemInfo, factory));
                     // Create optimized function body
-                    const optimizedResult = createOptimizedSystemBody(systemInfo, callbackInfo, factory, context, componentCounters);
+                    const optimizedResult = createOptimizedSystemBody(systemInfo, callbackInfo, factory, context, componentCounters, preStatements, postStatements);
                     // Collect column key constants
                     allColumnKeyConstants.push(...optimizedResult.columnKeyConstants);
                     // Return new function with optimized body (remove query parameter)

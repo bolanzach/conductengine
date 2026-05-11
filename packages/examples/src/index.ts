@@ -1,27 +1,32 @@
 import { ConductAddComponent, ConductRegisterSystem, ConductSpawnEntity, ConductStart } from "@conduct/ecs";
-import InputSystem, { listenForInput, Transform2D } from "@conduct/simulation";
-import PlayerMovementSystem from "./playerMovementSystem";
-import { DomRenderer } from "./domRenderer";
-import DomRendererSystem from "./domRendererSystem";
-import { Player } from "./player";
+import { Transform3D } from "@conduct/simulation";
+import { Camera } from "@conduct/renderer/components/camera";
+import { Material } from "@conduct/renderer/components/material";
+import { MeshRenderer } from "@conduct/renderer/components/meshRenderer";
+import { initRenderer, registerMesh } from "@conduct/renderer/webGpu";
+import { createCubeGeometry } from "@conduct/renderer/geometry/cube";
+import CameraSystem from "@conduct/renderer/systems/cameraSystem";
+import RendererSystem from "@conduct/renderer/systems/rendererSystem";
+import { Rotator } from "./rotator";
+import RotatorSystem from "./rotatorSystem";
 
-const player = ConductSpawnEntity();
+const canvas = document.getElementById("conduct") as HTMLCanvasElement;
+await initRenderer(canvas);
 
-ConductAddComponent(player, Player);
-ConductAddComponent(player, Transform2D);
-ConductAddComponent(player, DomRenderer, (dom) => {
-  dom.elementId = 'player';
-  dom.elementType = 'div';
-  dom.element = document.createElement(dom.elementType);
-  dom.element.setAttribute('id', dom.elementId);
-  document.getElementById("conduct")?.appendChild(dom.element);
-});
+const cubeMeshId = registerMesh(createCubeGeometry());
 
-ConductRegisterSystem(InputSystem);
-ConductRegisterSystem(PlayerMovementSystem);
-ConductRegisterSystem(DomRendererSystem);
+const camera = ConductSpawnEntity();
+ConductAddComponent(camera, Transform3D, { z: 3 });
+ConductAddComponent(camera, Camera, { aspect: 800 / 600 });
 
-listenForInput();
+const cube = ConductSpawnEntity();
+ConductAddComponent(cube, Transform3D);
+ConductAddComponent(cube, MeshRenderer, { meshId: cubeMeshId });
+ConductAddComponent(cube, Material, { r: 0.2, g: 0.6, b: 1.0 });
+ConductAddComponent(cube, Rotator);
 
+ConductRegisterSystem(CameraSystem);
+ConductRegisterSystem(RotatorSystem);
+ConductRegisterSystem(RendererSystem);
 
 ConductStart();

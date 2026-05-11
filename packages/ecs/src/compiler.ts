@@ -359,7 +359,9 @@ function createOptimizedSystemBody(
   callbackInfo: CallbackInfo,
   factory: ts.NodeFactory,
   context: ts.TransformationContext,
-  componentCounters: Map<string, number>
+  componentCounters: Map<string, number>,
+  preStatements: ts.Statement[],
+  postStatements: ts.Statement[]
 ): OptimizedSystemResult {
   const queryName = `__query_${systemInfo.name}`;
   const entityLoopLabel = "$__conduct_engine_entity_label";
@@ -600,7 +602,7 @@ function createOptimizedSystemBody(
   );
 
   return {
-    body: factory.createBlock([$__conduct_engine_matchesDecl, outerLoop], true),
+    body: factory.createBlock([...preStatements, $__conduct_engine_matchesDecl, outerLoop, ...postStatements], true),
     columnKeyConstants,
   };
 }
@@ -657,26 +659,42 @@ function createTransformer(
           // Find the query.iter() call in the function body
           let iterCall: ts.CallExpression | null = null;
           let callbackInfo: CallbackInfo | null = null;
-
-          function findIterCall(n: ts.Node) {
-            if (
-              ts.isCallExpression(n) &&
-              ts.isPropertyAccessExpression(n.expression) &&
-              n.expression.name.text === "iter"
-            ) {
-              iterCall = n;
-              callbackInfo = extractCallbackInfo(n);
-            }
-            ts.forEachChild(n, findIterCall);
-          }
+          let iterStatementIndex = -1;
 
           if (node.body) {
-            findIterCall(node.body);
+            const statements = node.body.statements;
+            for (let si = 0; si < statements.length; si++) {
+              const stmt = statements[si];
+              let found = false;
+              function findIterCall(n: ts.Node) {
+                if (found) return;
+                if (
+                  ts.isCallExpression(n) &&
+                  ts.isPropertyAccessExpression(n.expression) &&
+                  n.expression.name.text === "iter"
+                ) {
+                  iterCall = n;
+                  callbackInfo = extractCallbackInfo(n);
+                  found = true;
+                  return;
+                }
+                ts.forEachChild(n, findIterCall);
+              }
+              findIterCall(stmt);
+              if (found) {
+                iterStatementIndex = si;
+                break;
+              }
+            }
           }
 
-          if (!iterCall || !callbackInfo) {
+          if (!iterCall || !callbackInfo || iterStatementIndex === -1) {
             return node;
           }
+
+          const bodyStatements = Array.from(node.body!.statements);
+          const preStatements = bodyStatements.slice(0, iterStatementIndex);
+          const postStatements = bodyStatements.slice(iterStatementIndex + 1);
 
           // Track components used in this query (both required and not)
           // and assign counters to new components
@@ -702,7 +720,9 @@ function createTransformer(
             callbackInfo,
             factory,
             context,
-            componentCounters
+            componentCounters,
+            preStatements,
+            postStatements
           );
 
           // Collect column key constants

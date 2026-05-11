@@ -35,7 +35,18 @@ cd packages/examples
 pnpm dev
 ```
 
+Use playwright to open and test in the browser:
+
+```bash
+npx playwright-cli open http://localhost:5173
+npx playwright-cli screenshot
+npx playwright-cli reload
+npx playwright-cli close
+```
+
 ## Packages
+
+Treat `examples` as a separate driver application that consumes the Conduct Engine packages.
 
 | Package | Description |
 |---|---|

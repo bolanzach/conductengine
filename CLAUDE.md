@@ -12,3 +12,5 @@ When updating the engine packages we must `build` them in order for the examples
 
 - You must follow existing patterns found in the codebase.
 - Code is in `packages` with each package being a separate module with `pnpm`. When exploring the codebase, only look at the package(s) that are relevant to your task. Do not look at all packages at once, unless your task requires it.
+- We can change the core engine packages as needed.
+- When modifying core engine packages, you must always consider performance as it relates to a game engine.

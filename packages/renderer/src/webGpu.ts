@@ -1,5 +1,4 @@
 import { BASIC_SHADER } from './shaders/basic.js';
-import type { GeometryData } from './geometry/types.js';
 
 export interface MeshGpuData {
   vertexBuffer: GPUBuffer;
@@ -83,6 +82,48 @@ export function mat4Scale(out: Float32Array, sx: number, sy: number, sz: number)
   out[10] = sz;
 }
 
+export function mat4Invert(out: Float32Array, m: Float32Array): boolean {
+  const m0 = m[0]!, m1 = m[1]!, m2 = m[2]!, m3 = m[3]!;
+  const m4 = m[4]!, m5 = m[5]!, m6 = m[6]!, m7 = m[7]!;
+  const m8 = m[8]!, m9 = m[9]!, m10 = m[10]!, m11 = m[11]!;
+  const m12 = m[12]!, m13 = m[13]!, m14 = m[14]!, m15 = m[15]!;
+
+  const b0 = m0 * m5 - m1 * m4;
+  const b1 = m0 * m6 - m2 * m4;
+  const b2 = m0 * m7 - m3 * m4;
+  const b3 = m1 * m6 - m2 * m5;
+  const b4 = m1 * m7 - m3 * m5;
+  const b5 = m2 * m7 - m3 * m6;
+  const b6 = m8 * m13 - m9 * m12;
+  const b7 = m8 * m14 - m10 * m12;
+  const b8 = m8 * m15 - m11 * m12;
+  const b9 = m9 * m14 - m10 * m13;
+  const b10 = m9 * m15 - m11 * m13;
+  const b11 = m10 * m15 - m11 * m14;
+
+  const det = b0 * b11 - b1 * b10 + b2 * b9 + b3 * b8 - b4 * b7 + b5 * b6;
+  if (Math.abs(det) < 1e-8) return false;
+
+  const invDet = 1.0 / det;
+  out[0] = (m5 * b11 - m6 * b10 + m7 * b9) * invDet;
+  out[1] = (m2 * b10 - m1 * b11 - m3 * b9) * invDet;
+  out[2] = (m13 * b5 - m14 * b4 + m15 * b3) * invDet;
+  out[3] = (m10 * b4 - m9 * b5 - m11 * b3) * invDet;
+  out[4] = (m6 * b8 - m4 * b11 - m7 * b7) * invDet;
+  out[5] = (m0 * b11 - m2 * b8 + m3 * b7) * invDet;
+  out[6] = (m14 * b2 - m12 * b5 - m15 * b1) * invDet;
+  out[7] = (m8 * b5 - m10 * b2 + m11 * b1) * invDet;
+  out[8] = (m4 * b10 - m5 * b8 + m7 * b6) * invDet;
+  out[9] = (m1 * b8 - m0 * b10 - m3 * b6) * invDet;
+  out[10] = (m12 * b4 - m13 * b2 + m15 * b0) * invDet;
+  out[11] = (m9 * b2 - m8 * b4 - m11 * b0) * invDet;
+  out[12] = (m5 * b7 - m4 * b9 - m6 * b6) * invDet;
+  out[13] = (m0 * b9 - m1 * b7 + m2 * b6) * invDet;
+  out[14] = (m13 * b1 - m12 * b3 - m14 * b0) * invDet;
+  out[15] = (m8 * b3 - m9 * b1 + m10 * b0) * invDet;
+  return true;
+}
+
 
 
 export async function initRenderer(canvas: HTMLCanvasElement) {
@@ -153,43 +194,6 @@ export async function initRenderer(canvas: HTMLCanvasElement) {
       depthCompare: 'less',
     },
   });
-}
-
-const freeMeshIds: number[] = [];
-
-export function registerMesh(geometry: GeometryData): number {
-  const vertexBuffer = gpu.device.createBuffer({
-    size: geometry.positions.byteLength,
-    usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
-  });
-  gpu.device.queue.writeBuffer(vertexBuffer, 0, geometry.positions as unknown as ArrayBuffer);
-
-  const indexBuffer = gpu.device.createBuffer({
-    size: geometry.indices.byteLength,
-    usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
-  });
-  gpu.device.queue.writeBuffer(indexBuffer, 0, geometry.indices as unknown as ArrayBuffer);
-
-  const entry: MeshGpuData = { vertexBuffer, indexBuffer, indexCount: geometry.indices.length };
-
-  if (freeMeshIds.length > 0) {
-    const id = freeMeshIds.pop()!;
-    gpu.meshRegistry[id] = entry;
-    return id;
-  }
-
-  const id = gpu.meshRegistry.length;
-  gpu.meshRegistry.push(entry);
-  return id;
-}
-
-export function unregisterMesh(id: number): void {
-  const entry = gpu.meshRegistry[id];
-  if (!entry) return;
-  entry.vertexBuffer.destroy();
-  entry.indexBuffer.destroy();
-  gpu.meshRegistry[id] = null;
-  freeMeshIds.push(id);
 }
 
 export function beginFrame() {

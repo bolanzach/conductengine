@@ -4,11 +4,13 @@ import { MeshRenderer } from "../components/meshRenderer.js";
 import { Material } from "../components/material.js";
 import {
   gpu, beginFrame, endFrame,
-  mat4Translation, mat4RotateX, mat4RotateY, mat4RotateZ, mat4Multiply,
-  _model, _tmp1, _tmp2,
+  mat4Translation, mat4RotateX, mat4RotateY, mat4RotateZ, mat4Scale, mat4Multiply,
 } from "../webGpu.js";
 import { viewMatrix, projMatrix } from "./cameraSystem.js";
 
+const modelMatrix = new Float32Array(16);
+const scratchA = new Float32Array(16);
+const scratchB = new Float32Array(16);
 const colorBuffer = new Float32Array(4);
 let entityDrawIndex = 0;
 
@@ -17,16 +19,18 @@ export default function RendererSystem(query: Query<[Transform3D, MeshRenderer, 
   beginFrame();
 
   query.iter(([_, transform, mesh, material]) => {
-    mat4Translation(_model, transform.x, transform.y, transform.z);
-    mat4RotateY(_tmp1, transform.ry);
-    mat4Multiply(_tmp2, _model, _tmp1);
-    mat4RotateX(_tmp1, transform.rx);
-    mat4Multiply(_model, _tmp2, _tmp1);
-    mat4RotateZ(_tmp1, transform.rz);
-    mat4Multiply(_tmp2, _model, _tmp1);
+    mat4Translation(modelMatrix, transform.x, transform.y, transform.z);
+    mat4RotateY(scratchA, transform.ry);
+    mat4Multiply(scratchB, modelMatrix, scratchA);
+    mat4RotateX(scratchA, transform.rx);
+    mat4Multiply(modelMatrix, scratchB, scratchA);
+    mat4RotateZ(scratchA, transform.rz);
+    mat4Multiply(scratchB, modelMatrix, scratchA);
+    mat4Scale(scratchA, transform.sx, transform.sy, transform.sz);
+    mat4Multiply(modelMatrix, scratchB, scratchA);
 
     const offset = entityDrawIndex * gpu.uniformStride;
-    gpu.device.queue.writeBuffer(gpu.uniformBuffer, offset, _tmp2);
+    gpu.device.queue.writeBuffer(gpu.uniformBuffer, offset, modelMatrix);
     gpu.device.queue.writeBuffer(gpu.uniformBuffer, offset + 64, viewMatrix);
     gpu.device.queue.writeBuffer(gpu.uniformBuffer, offset + 128, projMatrix);
 

@@ -76,10 +76,14 @@ export function mat4RotateZ(out: Float32Array, angle: number) {
   out[4] = -s; out[5] = c;
 }
 
-export const _tmp1 = new Float32Array(16);
-export const _tmp2 = new Float32Array(16);
-export const _tmp3 = new Float32Array(16);
-export const _model = new Float32Array(16);
+export function mat4Scale(out: Float32Array, sx: number, sy: number, sz: number) {
+  out.set(mat4Identity());
+  out[0] = sx;
+  out[5] = sy;
+  out[10] = sz;
+}
+
+
 
 export async function initRenderer(canvas: HTMLCanvasElement) {
   const adapter = await navigator.gpu.requestAdapter();

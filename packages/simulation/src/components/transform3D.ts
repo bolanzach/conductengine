@@ -6,4 +6,8 @@ export class Transform3D {
   rx = 0;
   ry = 0
   rz = 0;
+
+  sx = 1;
+  sy = 1;
+  sz = 1;
 }

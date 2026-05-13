@@ -16,3 +16,5 @@ The generated code is not meant to be super readable, reusable, etc.
 Instead, it is meant to be as fast as possible, and should use all known optimization techniques to achieve that goal.
 
 The underlying engine code should also strive to be as optimal as possible.
+
+The implementation is inspired by Bevy and Flecs.

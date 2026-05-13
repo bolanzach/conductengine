@@ -202,6 +202,29 @@ function validateNoComponentPassing(
         }
       });
     }
+    // Check for destructuring: const { x } = component or const { x } = component as T
+    if (ts.isVariableStatement(node)) {
+      for (const decl of node.declarationList.declarations) {
+        if (ts.isObjectBindingPattern(decl.name) && decl.initializer) {
+          let init = decl.initializer;
+          // Unwrap `as` expressions: const { x } = component as Foo
+          if (ts.isAsExpression(init)) init = init.expression;
+          if (ts.isIdentifier(init)) {
+            const paramName = init.text;
+            const componentType = paramToComponent.get(paramName);
+            if (componentType !== undefined && componentType !== null) {
+              throw new CompilerError(
+                "Cannot destructure component parameter",
+                systemName,
+                `'${paramName}' (${componentType}) used in destructuring assignment. ` +
+                  `Use direct property access instead, e.g., 'const x = ${paramName}.x'`
+              );
+            }
+          }
+        }
+      }
+    }
+
     ts.forEachChild(node, visit);
   }
   visit(body);

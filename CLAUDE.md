@@ -1,5 +1,7 @@
 # Conduct Engine
 
+See the [MVP doc](docs/game-mvp.md) for the one-month vision.
+
 ## Project Structure
 
 This is a game engine library built with TypeScript that is meant to be consumed by other applications.

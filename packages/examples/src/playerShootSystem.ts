@@ -9,20 +9,19 @@ import { MESH } from "@conduct/renderer/mesh";
 
 let cooldown = 0;
 const FIRE_RATE = 0.2;
+const canvas = document.getElementById("conduct") as HTMLCanvasElement;
 
 export default function PlayerShootSystem(query: Query<[Transform3D, PlayerTag]>) {
   cooldown -= deltaTime;
 
   query.iter(([_, transform]) => {
-    const mouseEvent = Inputs.getMouseEvent(0);
-    if (!mouseEvent) return;
-    if (mouseEvent.type !== 'mousedown') return;
+    if (!Inputs.isKeyPressed('mousedown')) return;
     if (cooldown > 0) return;
 
     cooldown = FIRE_RATE;
 
-    const canvas = mouseEvent.target as HTMLCanvasElement;
-    const ray = screenToRay(mouseEvent.clientX, mouseEvent.clientY, canvas.width, canvas.height);
+    const mouse = Inputs.getMousePosition();
+    const ray = screenToRay(mouse.x, mouse.y, canvas.width, canvas.height);
     const hit = rayPlaneY(ray, transform.y);
 
     let dx = 0;

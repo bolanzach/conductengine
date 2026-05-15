@@ -1,4 +1,4 @@
-import { ConductAddComponent, ConductRegisterSystem, ConductSpawnEntity, ConductBenchmarkStart } from "./core.js";
+import { ConductAddComponent, ConductRegisterSystem, ConductSpawnEntity, ConductBenchmarkStart, FixedUpdate } from "./core.js";
 import BasicSystem from "./basicSystem.js";
 import FooSystem from "./fooSystem.js";
 import BarSystem from "./barSystem.js";
@@ -10,14 +10,14 @@ import PhysicsSystem from "./physicsSystem.js";
 
 console.log('CONDUCT ENGINE Main Benchmark');
 
-ConductRegisterSystem(BasicSystem);
-ConductRegisterSystem(FooSystem);
-ConductRegisterSystem(BarSystem);
-ConductRegisterSystem(BazSystem);
-ConductRegisterSystem(TestSystem);
+ConductRegisterSystem(FixedUpdate, BasicSystem);
+ConductRegisterSystem(FixedUpdate, FooSystem);
+ConductRegisterSystem(FixedUpdate, BarSystem);
+ConductRegisterSystem(FixedUpdate, BazSystem);
+ConductRegisterSystem(FixedUpdate, TestSystem);
 
-ConductRegisterSystem(PersonSystem);
-ConductRegisterSystem(PhysicsSystem);
+ConductRegisterSystem(FixedUpdate, PersonSystem);
+ConductRegisterSystem(FixedUpdate, PhysicsSystem);
 
 const ITERATIONS = 1_000;
 const NUM_ENTITIES = 1_000;

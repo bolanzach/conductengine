@@ -7,6 +7,7 @@ export {
   type Not,
   type Optional,
   type Signature,
+  type Schedule,
   ComponentId,
   createSignature,
   createSignatureFromComponents,
@@ -22,6 +23,9 @@ export {
   ConductStart,
   ConductStop,
   ConductBenchmarkStart,
+  FixedUpdate,
+  Update,
   deltaTime,
   time,
+  tick,
 } from "./core.js";

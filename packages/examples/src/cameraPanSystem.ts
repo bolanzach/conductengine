@@ -1,4 +1,4 @@
-import { Query } from "@conduct/ecs";
+import { Query, deltaTime } from "@conduct/ecs";
 import { Inputs, Transform3D } from "@conduct/simulation";
 import { CameraPan } from "./cameraPan";
 
@@ -33,7 +33,7 @@ export default function CameraPanSystem(query: Query<[Transform3D, CameraPan]>) 
     if (localY >= 0 && localY < edgeThreshold) panZ = -panSpeed;
     else if (localY > rect.height - edgeThreshold && localY <= rect.height) panZ = panSpeed;
 
-    transform.x += panX;
-    transform.z += panZ;
+    transform.x += panX * deltaTime;
+    transform.z += panZ * deltaTime;
   });
 }

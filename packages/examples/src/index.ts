@@ -1,4 +1,4 @@
-import { ConductAddComponent, ConductRegisterSystem, ConductSpawnEntity, ConductStart } from "@conduct/ecs";
+import { ConductAddComponent, ConductRegisterSystem, ConductSpawnEntity, ConductStart, FixedUpdate, Update } from "@conduct/ecs";
 import InputSystem, { listenForInput, Transform3D } from "@conduct/simulation";
 import { Camera } from "@conduct/renderer/components/camera";
 import { Material } from "@conduct/renderer/components/material";
@@ -42,13 +42,13 @@ ConductAddComponent(sphere, MeshRenderer, { meshId: MESH.SPHERE });
 ConductAddComponent(sphere, Material, { r: 0.2, g: 0.6, b: 0.3 });
 ConductAddComponent(sphere, Rotator);
 
-ConductRegisterSystem(InputSystem);
-ConductRegisterSystem(CameraPanSystem);
-ConductRegisterSystem(CameraSystem);
-ConductRegisterSystem(RotatorSystem);
-ConductRegisterSystem(PlayerMovementSystem);
-ConductRegisterSystem(PlayerShootSystem);
-ConductRegisterSystem(BulletMovementSystem);
-ConductRegisterSystem(RendererSystem);
+ConductRegisterSystem(FixedUpdate, InputSystem);
+ConductRegisterSystem(FixedUpdate, CameraPanSystem);
+ConductRegisterSystem(FixedUpdate, RotatorSystem);
+ConductRegisterSystem(FixedUpdate, PlayerMovementSystem);
+ConductRegisterSystem(FixedUpdate, PlayerShootSystem);
+ConductRegisterSystem(FixedUpdate, BulletMovementSystem);
+ConductRegisterSystem(Update, CameraSystem);
+ConductRegisterSystem(Update, RendererSystem);
 
-ConductStart();
+ConductStart(60);

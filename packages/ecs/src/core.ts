@@ -148,7 +148,21 @@ const entityLocations: (EntityLocation | undefined)[] = [];
  */
 const freeEntityIds: number[] = [];
 
-const allRegisteredSystems = new Set<() => void>();
+/**
+ * A schedule determines when a system runs within the game loop.
+ * - FixedUpdate: Runs at a fixed tick rate (0-N times per frame). deltaTime is always TICK_DT.
+ * - Update: Runs once per frame at variable frame rate. deltaTime is the actual frame delta.
+ */
+export type Schedule = 0 | 1;
+
+/** Fixed-rate simulation schedule. Runs 0-N times per frame at constant deltaTime. */
+export const FixedUpdate: Schedule = 0;
+
+/** Variable-rate rendering schedule. Runs once per frame. */
+export const Update: Schedule = 1;
+
+const fixedUpdateSystems: (() => void)[] = [];
+const updateSystems: (() => void)[] = [];
 
 const commandQueue: Command[] = [];
 
@@ -654,68 +668,129 @@ export function query(q: QueryGenerated): Archetype[] {
  * Register a System function so that it can be executed. Systems are
  * executed in the same order they are registered. Systems must be
  * registered before starting the Conduct ECS loop.
+ *
+ * @param schedule - FixedUpdate (deterministic tick rate) or Update (once per frame)
+ * @param system - The system function to register
  */
-export function ConductRegisterSystem(system: ConductSystem): () => void {
+export function ConductRegisterSystem(schedule: Schedule, system: ConductSystem): () => void {
   // Type erasure - the system gets compiled to a function without arguments
   const registeredSystem = (system as unknown as () => void);
-  allRegisteredSystems.add(registeredSystem);
+  if (schedule === FixedUpdate) {
+    fixedUpdateSystems.push(registeredSystem);
+  } else {
+    updateSystems.push(registeredSystem);
+  }
   return registeredSystem;
 }
 
-/** Current delta time in seconds since last frame */
+/** Current delta time in seconds. Fixed during FixedUpdate, variable during Update. */
 export let deltaTime = 0;
 
 /** Time of the current frame in seconds */
 export let time = 0;
 
-let loopId: number | null = null;
-let lastFrameTime = 0;
+/** Current simulation tick number, incremented each FixedUpdate step */
+export let tick = 0;
+
+let stopLoop: (() => void) | null = null;
+
+/** Maximum number of fixed steps per frame to prevent spiral of death */
+const MAX_FIXED_STEPS_PER_FRAME = 5;
 
 /**
  * Start the main Conduct ECS loop, executing all registered systems.
- * Uses requestAnimationFrame for browser-compatible rendering.
+ * Detects environment automatically: uses requestAnimationFrame in browsers,
+ * setInterval in Node.js.
+ *
+ * @param tickRateHz - Simulation tick rate in Hz (e.g., 20 for 20 ticks/sec)
  */
-export function ConductStart(): void {
-  if (loopId !== null) return; // Already running
+export function ConductStart(tickRateHz: number): void {
+  if (stopLoop !== null) return; // Already running
 
-  const systems = Array.from(allRegisteredSystems);
-  lastFrameTime = performance.now();
+  const TICK_DT = 1 / tickRateHz;
+  const TICK_MS = 1000 / tickRateHz;
+  let accumulator = 0;
 
-  function loop(currentTime: number): void {
-    deltaTime = (currentTime - lastFrameTime) / 1000; // Convert to seconds
-    time = currentTime / 1000;
-    lastFrameTime = currentTime;
+  const isBrowser = typeof requestAnimationFrame !== 'undefined';
 
-    for (const system of systems) {
-      system();
+  if (isBrowser) {
+    let lastFrameTime = performance.now();
+    let loopId: number;
+
+    function frame(currentTime: number): void {
+      const frameMs = currentTime - lastFrameTime;
+      lastFrameTime = currentTime;
+      time = currentTime / 1000;
+
+      accumulator += frameMs;
+
+      // Clamp to prevent spiral of death
+      const maxAccumulator = TICK_MS * MAX_FIXED_STEPS_PER_FRAME;
+      if (accumulator > maxAccumulator) {
+        accumulator = maxAccumulator;
+      }
+
+      // FixedUpdate: 0-N times per frame at constant deltaTime
+      while (accumulator >= TICK_MS) {
+        deltaTime = TICK_DT;
+        for (let i = 0; i < fixedUpdateSystems.length; i++) {
+          fixedUpdateSystems[i]!();
+        }
+        flushCommands();
+        tick++;
+        accumulator -= TICK_MS;
+      }
+
+      // Update: once per frame at variable deltaTime
+      deltaTime = frameMs / 1000;
+      for (let i = 0; i < updateSystems.length; i++) {
+        updateSystems[i]!();
+      }
+      flushCommands();
+
+      loopId = requestAnimationFrame(frame);
     }
-    flushCommands();
 
-    loopId = requestAnimationFrame(loop);
+    loopId = requestAnimationFrame(frame);
+    stopLoop = () => cancelAnimationFrame(loopId);
+  } else {
+    // Node.js: setInterval, FixedUpdate only
+    const startTime = performance.now();
+
+    const intervalId = setInterval(() => {
+      const now = performance.now();
+      time = (now - startTime) / 1000;
+      deltaTime = TICK_DT;
+
+      for (let i = 0; i < fixedUpdateSystems.length; i++) {
+        fixedUpdateSystems[i]!();
+      }
+      flushCommands();
+      tick++;
+    }, TICK_MS);
+
+    stopLoop = () => clearInterval(intervalId);
   }
-
-  loopId = requestAnimationFrame(loop);
 }
 
 /**
  * Stop the main Conduct ECS loop.
  */
 export function ConductStop(): void {
-  if (loopId !== null) {
-    cancelAnimationFrame(loopId);
-    loopId = null;
+  if (stopLoop) {
+    stopLoop();
+    stopLoop = null;
   }
 }
 
 /**
- * Start the main Conduct ECS loop, executing all registered systems.
+ * Run all FixedUpdate systems synchronously for benchmarking.
  */
 export function ConductBenchmarkStart(iterations = 1_000): void {
-  let count = 0
-  const systems = Array.from(allRegisteredSystems);
+  let count = 0;
   while (true) {
-    for (const system of systems) {
-      system();
+    for (let i = 0; i < fixedUpdateSystems.length; i++) {
+      fixedUpdateSystems[i]!();
     }
     flushCommands();
     count++;

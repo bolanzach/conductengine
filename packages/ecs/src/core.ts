@@ -5,6 +5,7 @@ export type ConductComponent = object;
 export type ConductSystem = (query: Query<QueryElement[]>) => void;
 
 export const ComponentId = Symbol("ComponentId");
+const ComponentFields = Symbol("ComponentFields");
 
 /**
  * A bit mask signature for a set of components.
@@ -16,6 +17,10 @@ type ComponentConstructor = {
    * Unique component ID assigned at runtime.
    */
   [ComponentId]?: number;
+  /**
+   * Cached field names discovered from prototype instance.
+   */
+  [ComponentFields]?: string[];
 } & (new () => ConductComponent);
 
 // Marker for operator type identification at runtime
@@ -454,7 +459,13 @@ function addComponent<T extends ComponentConstructor>(
     }
   }
 
-  for (const key of Object.keys(instance)) {
+  let fields = component[ComponentFields];
+  if (!fields) {
+    fields = Object.keys(instance);
+    component[ComponentFields] = fields;
+  }
+
+  for (const key of fields) {
     const columnKey = `${componentName}.${componentId}.${key}`;
     if (!dstArch.columns[columnKey]) {
       dstArch.columns[columnKey] = new Array(dstArch.capacity).fill(0);
@@ -547,20 +558,60 @@ function removeComponent(
   return true;
 }
 
-// export function getComponentRead<T extends ComponentConstructor>(entity: ConductEntity, Component: T): Readonly<InstanceType<T>> | undefined {
-//   const location = entityLocations.get(entity);
-//   if (!location) return;
-//
-//   const component = {};
-//   for (const key in location.archetype.columns[location.row]) {
-//     if (key.startsWith(Component.name + ".")) {
-//       // @ts-ignore
-//       component[key.substring(Component.name.length + 1)] = location.archetype.columns[location.row][key];
-//     }
-//   }
-//   // @ts-ignore
-//   return component;
-// }
+/**
+ * Read a component's data from an entity. Returns undefined if the entity
+ * does not have the component.
+ */
+export function ConductGetComponent<T extends ComponentConstructor>(
+  entity: ConductEntity,
+  component: T
+): Readonly<InstanceType<T>> | undefined {
+  const location = entityLocations[entity];
+  if (!location) return undefined;
+
+  const componentId = component[ComponentId];
+  if (componentId === undefined) return undefined;
+
+  const fields = component[ComponentFields];
+  if (!fields) return undefined;
+
+  const archetype = archetypes[location.archetypeIndex]!;
+  const row = location.row;
+  const componentName = component.name;
+  const result: Record<string, unknown> = {};
+
+  for (const key of fields) {
+    const column = archetype.columns[`${componentName}.${componentId}.${key}`]!;
+    result[key] = column[row];
+  }
+
+  return result as InstanceType<T>;
+}
+
+/**
+ * Write field values directly to an entity's component. Does not change
+ * archetype membership — the component must already exist on the entity.
+ */
+export function ConductSetComponent<T extends ComponentConstructor>(
+  entity: ConductEntity,
+  component: T,
+  data: Partial<InstanceType<T>>
+): void {
+  const location = entityLocations[entity];
+  if (!location) return;
+
+  const componentId = component[ComponentId];
+  if (componentId === undefined) return;
+
+  const archetype = archetypes[location.archetypeIndex]!;
+  const row = location.row;
+  const componentName = component.name;
+
+  for (const key in data) {
+    const column = archetype.columns[`${componentName}.${componentId}.${key}`]!;
+    column[row] = data[key];
+  }
+}
 
 function deleteEntity(entityId: number): boolean {
   const location = entityLocations[entityId];

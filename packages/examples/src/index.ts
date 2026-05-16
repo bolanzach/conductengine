@@ -1,4 +1,12 @@
-import { ConductAddComponent, ConductRegisterSystem, ConductSpawnEntity, ConductStart, FixedUpdate, Update } from "@conduct/ecs";
+import {
+  ConductAddComponent,
+  ConductGetComponent,
+  ConductRegisterSystem, ConductSetComponent,
+  ConductSpawnEntity,
+  ConductStart,
+  FixedUpdate,
+  Update,
+} from "@conduct/ecs";
 import InputSystem, { listenForInput, Transform3D } from "@conduct/simulation";
 import { Camera } from "@conduct/renderer/components/camera";
 import { Material } from "@conduct/renderer/components/material";
@@ -52,3 +60,13 @@ ConductRegisterSystem(Update, CameraSystem);
 ConductRegisterSystem(Update, RendererSystem);
 
 ConductStart(60);
+
+setTimeout(() => {
+  debugger;
+
+  const t = ConductGetComponent(cube, Transform3D)!;
+
+  ConductSetComponent(cube, Transform3D, { sx: 3 });
+
+
+}, 1000)

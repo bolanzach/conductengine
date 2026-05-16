@@ -19,6 +19,8 @@ export {
   ConductDeleteEntity,
   ConductAddComponent,
   ConductRemoveComponent,
+  ConductGetComponent,
+  ConductSetComponent,
   ConductRegisterSystem,
   ConductStart,
   ConductStop,

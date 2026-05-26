@@ -1,7 +1,7 @@
 import type { Query } from "@conduct/ecs";
 import { ConductGetComponent } from "@conduct/ecs";
-import { Networked, getReplicatedComponents } from "@conduct/networking/replication";
-import type { SerializedEntity, SerializePrimitive } from "@conduct/networking/protocol";
+import { Networked, getReplicatedComponents } from "./replication.js";
+import type { SerializedEntity, SerializePrimitive } from "./protocol.js";
 
 export let snapshotEntities: SerializedEntity[] = [];
 

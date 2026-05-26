@@ -34,8 +34,7 @@
     "@conduct/ecs": "workspace:*",
     "@conduct/simulation": "workspace:*",
     "@conduct/networking": "workspace:*",
-    "@conduct/renderer": "workspace:*",
-    "@conduct/server": "workspace:*"
+    "@conduct/renderer": "workspace:*"
   },
   "devDependencies": {
     "tsx": "^4.0.0",

@@ -2,9 +2,9 @@
 // This code only runs on the server. No DOM/rendering imports allowed.
 
 import { ConductSpawnEntity, ConductAddComponent, ConductRegisterSystem, ConductStart, FixedUpdate, tick } from "@conduct/ecs";
-import { WebSocketServerTransport, setServerTransport } from "@conduct/server/serverTransport";
-import NetworkSnapshotSystem from "@conduct/server/networkSnapshotSystem";
-import ServerNetworkSendSystem from "@conduct/server/serverNetworkSend";
+import { WebSocketServerTransport, setServerTransport } from "@conduct/networking/serverTransport";
+import NetworkSnapshotSystem from "@conduct/networking/networkSnapshotSystem";
+import ServerNetworkSendSystem from "@conduct/networking/serverNetworkSend";
 import { ConductNetworkReplicateComponent, Networked } from "@conduct/networking/replication";
 import { Transform3D } from "@conduct/simulation";
 import type { Bundle } from "@conduct/networking/replication";

@@ -1,5 +1,5 @@
 import { WebSocketServer, WebSocket } from "ws";
-import type { NetworkMessage } from "@conduct/networking/protocol";
+import type { NetworkMessage } from "./protocol.js";
 
 let transport: WebSocketServerTransport | null = null;
 

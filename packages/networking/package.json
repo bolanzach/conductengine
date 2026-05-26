@@ -13,10 +13,14 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "conduct-compile",
     "clean": "rm -rf dist *.tsbuildinfo"
   },
   "dependencies": {
-    "@conduct/ecs": "workspace:*"
+    "@conduct/ecs": "workspace:*",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.18.0"
   }
 }

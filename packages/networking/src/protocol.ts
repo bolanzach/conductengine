@@ -1,8 +1,12 @@
 export type SerializePrimitive = boolean | number;
 
+type ReplicatedComponentId = number;
+
+type ReplicatedComponentData = Record<string, SerializePrimitive>;
+
 export interface SerializedEntity {
   id: number;
-  components: Record<string, Record<string, SerializePrimitive>>;
+  components: Record<ReplicatedComponentId, ReplicatedComponentData>;
 }
 
 export interface GameCommand<T extends Record<string, unknown> = Record<string, unknown>> {

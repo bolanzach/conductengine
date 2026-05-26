@@ -1,6 +1,16 @@
 import { WebSocketServer, WebSocket } from "ws";
 import type { NetworkMessage } from "@conduct/networking/protocol";
 
+let transport: WebSocketServerTransport | null = null;
+
+export function getServerTransport(): WebSocketServerTransport | null {
+  return transport;
+}
+
+export function setServerTransport(t: WebSocketServerTransport): void {
+  transport = t;
+}
+
 interface ClientConnection {
   playerId: number;
   ws: WebSocket;

@@ -18,3 +18,11 @@ Instead, it is meant to be as fast as possible, and should use all known optimiz
 The underlying engine code should also strive to be as optimal as possible.
 
 The implementation is inspired by Bevy and Flecs.
+
+**Expect to support:**
+
+**Entity Count**: hundreds of thousands of entities
+**Component Count**: hundreds of unique components
+**System Count**: hundreds of systems
+
+All running at 60fps in the browser.

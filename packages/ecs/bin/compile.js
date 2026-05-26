@@ -12,7 +12,17 @@ const compilerPath = resolve(__dirname, "compiler.cjs");
 
 // Working directory (where the command is run from)
 const cwd = process.cwd();
-const tsconfigPath = join(cwd, "tsconfig.json");
+
+// Support -p flag to specify tsconfig path
+const args = process.argv.slice(2);
+let tsconfigFile = "tsconfig.json";
+const pIndex = args.indexOf("-p");
+if (pIndex !== -1 && args[pIndex + 1]) {
+  tsconfigFile = args[pIndex + 1];
+  args.splice(pIndex, 2);
+}
+
+const tsconfigPath = join(cwd, tsconfigFile);
 const tempTsconfigPath = join(cwd, "tsconfig.conduct.json");
 const tempTsbuildInfoPath = join(cwd, "tsconfig.conduct.tsbuildinfo");
 

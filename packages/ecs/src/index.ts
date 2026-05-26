@@ -8,6 +8,7 @@ export {
   type Optional,
   type Signature,
   type Schedule,
+  type ComponentConstructor,
   ComponentId,
   createSignature,
   createSignatureFromComponents,

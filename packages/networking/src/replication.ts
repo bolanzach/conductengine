@@ -1,29 +1,58 @@
 import type { SerializePrimitive } from "./protocol.js";
+import type { ConductEntity, ComponentConstructor } from "@conduct/ecs";
+
+export type Bundle = () => ConductEntity;
+
+type SerializableComponentConstructor = ComponentConstructor & (new () => Record<string, SerializePrimitive>);
 
 /**
- * A component class eligible for replication. All fields must be SerializePrimitive.
+ * Internal registry of replicable components where the index in the array is the component's network ID.
  */
-type ReplicableComponent = new () => Record<string, SerializePrimitive>;
+const replicatedComponents: SerializableComponentConstructor[] = [];
+let nextReplicatedComponentIdx = 0;
 
-const replicatedComponents = new Map<string, ReplicableComponent>();
+/**
+ * Map from component name to network ID index in replicatedComponents.
+ */
+const replicatedComponentIdxMap = new Map<string, number>();
 
 /**
  * Register a component type as eligible for network replication.
  * Only registered component types will be included in snapshots.
- * All fields on the component must be number or boolean.
+ * All fields on the component must be SerializePrimitive (boolean | number).
  */
-export function ConductReplicateComponent(component: ReplicableComponent): void {
-  replicatedComponents.set(component.name, component);
+export function ConductNetworkReplicateComponent<T extends ComponentConstructor>(
+  component: InstanceType<T>[keyof InstanceType<T>] extends SerializePrimitive ? T : never
+): void {
+  const componentName = component.name;
+  if (replicatedComponentIdxMap.has(componentName)) {
+    throw new Error(`Component ${componentName} is already registered for replication`);
+  }
+
+  replicatedComponents[nextReplicatedComponentIdx] = component as SerializableComponentConstructor;
+  replicatedComponentIdxMap.set(componentName, nextReplicatedComponentIdx);
+  nextReplicatedComponentIdx++;
 }
 
 /**
  * Get all registered replicable component types.
  */
-export function getReplicatedComponents(): ReadonlyMap<string, ReplicableComponent> {
+export function getReplicatedComponents(): Readonly<SerializableComponentConstructor[]> {
   return replicatedComponents;
 }
 
+// /**
+//  * Look up a registered replicable component.
+//  */
+// export function getReplicatedComponent(component: ComponentConstructor): ReplicableComponent | undefined {
+//   return replicatedComponents[replicatedComponentIdxMap.get(name) ?? -1];
+// }
+
 /**
- * Entities with Replicated are included in network snapshots.
+ * Entities with this component are included in network snapshots.
  */
-export class ReplicatedTag {}
+export class Networked {
+  [key: string]: SerializePrimitive;
+
+  bundle = 0;
+}

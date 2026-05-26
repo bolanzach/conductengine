@@ -6,13 +6,14 @@ export type ConductSystem = (query: Query<QueryElement[]>) => void;
 
 export const ComponentId = Symbol("ComponentId");
 const ComponentFields = Symbol("ComponentFields");
+const ComponentColumnKeys = Symbol("ComponentColumnKeys");
 
 /**
  * A bit mask signature for a set of components.
  */
 export type Signature = number[];
 
-type ComponentConstructor = {
+export type ComponentConstructor = {
   /**
    * Unique component ID assigned at runtime.
    */
@@ -21,6 +22,10 @@ type ComponentConstructor = {
    * Cached field names discovered from prototype instance.
    */
   [ComponentFields]?: string[];
+  /**
+   * Cached column keys (`${componentId}.${field}`) for fast archetype access.
+   */
+  [ComponentColumnKeys]?: string[];
 } & (new () => ConductComponent);
 
 // Marker for operator type identification at runtime
@@ -444,7 +449,6 @@ function addComponent<T extends ComponentConstructor>(
 
   // Add the new component's data
   const instance = new component();
-  const componentName = component.name;
 
   if (data) {
     if (typeof data === "function") {
@@ -460,18 +464,21 @@ function addComponent<T extends ComponentConstructor>(
   }
 
   let fields = component[ComponentFields];
+  let columnKeys = component[ComponentColumnKeys];
   if (!fields) {
     fields = Object.keys(instance);
     component[ComponentFields] = fields;
+    columnKeys = fields.map(key => `${componentId}.${key}`);
+    component[ComponentColumnKeys] = columnKeys;
   }
 
-  for (const key of fields) {
-    const columnKey = `${componentName}.${componentId}.${key}`;
-    if (!dstArch.columns[columnKey]) {
-      dstArch.columns[columnKey] = new Array(dstArch.capacity).fill(0);
+  for (let i = 0; i < columnKeys!.length; i++) {
+    const columnKey = columnKeys![i];
+    if (!dstArch.columns[columnKey!]) {
+      dstArch.columns[columnKey!] = new Array(dstArch.capacity).fill(0);
     }
     // @ts-ignore
-    dstArch.columns[columnKey][dstRow] = instance[key];
+    dstArch.columns[columnKey][dstRow] = instance[fields[i]];
   }
 
   // Update entity location — mutate if exists, allocate on first add
@@ -525,7 +532,7 @@ function removeComponent(
   dstArch.count++;
 
   // Copy component data (except the removed component)
-  const componentPrefix = `${component.name}.${componentId}.`;
+  const componentPrefix = `${componentId}.`;
   for (const columnKey in srcArch.columns) {
     if (columnKey.startsWith(componentPrefix)) continue;
 
@@ -572,17 +579,15 @@ export function ConductGetComponent<T extends ComponentConstructor>(
   const componentId = component[ComponentId];
   if (componentId === undefined) return undefined;
 
-  const fields = component[ComponentFields];
-  if (!fields) return undefined;
-
+  const fields = component[ComponentFields]!;
+  const columnKeys = component[ComponentColumnKeys]!;
   const archetype = archetypes[location.archetypeIndex]!;
   const row = location.row;
-  const componentName = component.name;
   const result: Record<string, unknown> = {};
 
-  for (const key of fields) {
-    const column = archetype.columns[`${componentName}.${componentId}.${key}`]!;
-    result[key] = column[row];
+  for (let i = 0; i < columnKeys.length; i++) {
+    const column = archetype.columns[columnKeys[i]!]!;
+    result[fields[i]!] = column[row];
   }
 
   return result as InstanceType<T>;
@@ -605,10 +610,9 @@ export function ConductSetComponent<T extends ComponentConstructor>(
 
   const archetype = archetypes[location.archetypeIndex]!;
   const row = location.row;
-  const componentName = component.name;
 
   for (const key in data) {
-    const column = archetype.columns[`${componentName}.${componentId}.${key}`]!;
+    const column = archetype.columns[`${componentId}.${key}`]!;
     column[row] = data[key];
   }
 }

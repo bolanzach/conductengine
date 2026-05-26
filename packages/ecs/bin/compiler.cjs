@@ -304,8 +304,8 @@ function createOptimizedSystemBody(systemInfo, callbackInfo, factory, context, c
         const [componentName, propName] = colKey.split(".");
         const componentCounter = componentCounters.get(componentName);
         const columnKeyVarName = `$__conduct_engine_${componentName}${componentCounter}_${propName}`;
-        // Build column key: "<ComponentName>." + <Component>[ComponentId] + ".<prop>"
-        const columnKeyExpr = factory.createBinaryExpression(factory.createBinaryExpression(factory.createStringLiteral(`${componentName}.`), ts.SyntaxKind.PlusToken, factory.createElementAccessExpression(factory.createIdentifier(componentName), factory.createIdentifier("ComponentId"))), ts.SyntaxKind.PlusToken, factory.createStringLiteral(`.${propName}`));
+        // Build column key: <Component>[ComponentId] + ".<prop>"
+        const columnKeyExpr = factory.createBinaryExpression(factory.createElementAccessExpression(factory.createIdentifier(componentName), factory.createIdentifier("ComponentId")), ts.SyntaxKind.PlusToken, factory.createStringLiteral(`.${propName}`));
         columnKeyConstants.push(factory.createVariableStatement(undefined, factory.createVariableDeclarationList([
             factory.createVariableDeclaration(columnKeyVarName, undefined, undefined, columnKeyExpr),
         ], ts.NodeFlags.Const)));

@@ -13,7 +13,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "conduct-compile",
     "clean": "rm -rf dist *.tsbuildinfo"
   },
   "dependencies": {

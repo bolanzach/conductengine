@@ -438,15 +438,11 @@ function createOptimizedSystemBody(
 
     const columnKeyVarName = `$__conduct_engine_${componentName}${componentCounter}_${propName}`;
 
-    // Build column key: "<ComponentName>." + <Component>[ComponentId] + ".<prop>"
+    // Build column key: <Component>[ComponentId] + ".<prop>"
     const columnKeyExpr = factory.createBinaryExpression(
-      factory.createBinaryExpression(
-        factory.createStringLiteral(`${componentName}.`),
-        ts.SyntaxKind.PlusToken,
-        factory.createElementAccessExpression(
-          factory.createIdentifier(componentName),
-          factory.createIdentifier("ComponentId")
-        )
+      factory.createElementAccessExpression(
+        factory.createIdentifier(componentName),
+        factory.createIdentifier("ComponentId")
       ),
       ts.SyntaxKind.PlusToken,
       factory.createStringLiteral(`.${propName}`)

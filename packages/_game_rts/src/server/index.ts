@@ -3,27 +3,36 @@
 
 import { ConductSpawnEntity, ConductAddComponent, ConductRegisterSystem, ConductStart, FixedUpdate, tick } from "@conduct/ecs";
 import { WebSocketServerTransport, setServerTransport } from "@conduct/networking/serverTransport";
+import { pushCommand } from "@conduct/networking/serverCommandReceive";
 import NetworkSnapshotSystem from "@conduct/networking/networkSnapshotSystem";
 import ServerNetworkSendSystem from "@conduct/networking/serverNetworkSend";
-import { ConductNetworkReplicateComponent, Networked } from "@conduct/networking/replication";
+import { Networked } from "@conduct/networking/replication";
 import { Transform3D } from "@conduct/simulation";
-import type { Bundle } from "@conduct/networking/replication";
-import { BUNDLE } from "../shared/index.js";
+import { BUNDLE, BundleRegistry, startRTS } from "../shared/index.js";
+import { replicateComponents } from "../shared/network.js";
+import CommandSystem from "./commandSystem.js";
+import MovementSystem from "./movementSystem.js";
 
 const PORT = 3001;
 
-ConductNetworkReplicateComponent(Transform3D);
+replicateComponents()
 
-const bundles: Record<number, Bundle> = {
+const bundles: BundleRegistry = {
   [BUNDLE.PLAYER]: () => {
     const entity = ConductSpawnEntity();
     ConductAddComponent(entity, Transform3D);
     ConductAddComponent(entity, Networked, { bundle: BUNDLE.PLAYER });
     return entity;
   },
+  [BUNDLE.GROUND]: () => {
+    const entity = ConductSpawnEntity();
+    ConductAddComponent(entity, Transform3D, { sx: 30, sy: 0.2, sz: 30 });
+    return entity;
+  },
 };
 
 const transport = new WebSocketServerTransport(PORT);
+setServerTransport(transport);
 
 transport.onConnection((playerId) => {
   console.log(`[server] player ${playerId} connected`);
@@ -42,10 +51,15 @@ transport.onDisconnect((playerId) => {
 });
 
 transport.onMessage((playerId, message) => {
-  console.log(`[server] player ${playerId}:`, message.type);
+  if (message.type === 'command') {
+    pushCommand({ ...message.payload, playerId });
+  }
 });
 
-setServerTransport(transport);
+startRTS(bundles);
+
+ConductRegisterSystem(FixedUpdate, CommandSystem);
+ConductRegisterSystem(FixedUpdate, MovementSystem);
 ConductRegisterSystem(FixedUpdate, NetworkSnapshotSystem);
 ConductRegisterSystem(FixedUpdate, ServerNetworkSendSystem);
 

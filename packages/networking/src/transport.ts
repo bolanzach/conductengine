@@ -1,5 +1,15 @@
 import type { NetworkMessage } from "./protocol.js";
 
+let transport: NetworkTransport | null = null;
+
+export function getClientTransport(): NetworkTransport {
+  return transport!;
+}
+
+export function setClientTransport(t: NetworkTransport): void {
+  transport = t;
+}
+
 export interface NetworkTransport {
   send(message: NetworkMessage): void;
   onMessage(handler: (message: NetworkMessage) => void): void;

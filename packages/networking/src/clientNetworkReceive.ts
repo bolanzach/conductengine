@@ -1,13 +1,13 @@
 import type { Snapshot } from "./protocol.js";
-import type { Bundle } from "./replication.js";
+import type { ConductBundle } from "./replication.js";
 
-let bundles: Record<number, Bundle> = {};
+let bundles: Record<number, ConductBundle> = {};
 
-export function setClientBundles(b: Record<number, Bundle>): void {
+export function setClientBundles(b: Record<number, ConductBundle>): void {
   bundles = b;
 }
 
-export function getClientBundle(id: number): Bundle | undefined {
+export function getClientBundle(id: number): ConductBundle | undefined {
   return bundles[id];
 }
 

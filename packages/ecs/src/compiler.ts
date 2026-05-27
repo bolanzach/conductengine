@@ -804,6 +804,26 @@ function createTransformer(
           factory.createStringLiteral("@conduct/ecs")
         );
 
+        // Strip query components from their original imports — the compiler
+        // re-adds them below so they survive TypeScript's import elision.
+        for (let i = statements.length - 1; i >= 0; i--) {
+          const stmt = statements[i];
+          if (!ts.isImportDeclaration(stmt) || !stmt.importClause) continue;
+          const nb = stmt.importClause.namedBindings;
+          if (!nb || !ts.isNamedImports(nb)) continue;
+          const kept = nb.elements.filter(el => !usedComponents.has(el.name.text));
+          if (kept.length === nb.elements.length) continue;
+          if (kept.length === 0) {
+            statements.splice(i, 1);
+            lastImportIndex--;
+          } else {
+            statements[i] = factory.updateImportDeclaration(stmt, stmt.modifiers,
+              factory.updateImportClause(stmt.importClause, stmt.importClause.isTypeOnly, stmt.importClause.name,
+                factory.updateNamedImports(nb, kept)),
+              stmt.moduleSpecifier, stmt.attributes);
+          }
+        }
+
         // Group components by their source module for efficient imports
         const componentsByModule = new Map<string, string[]>();
         for (const comp of usedComponents) {

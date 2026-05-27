@@ -1,5 +1,5 @@
 import type { GeometryData } from "./geometry/types";
-import { gpu, MeshGpuData } from "./webGpu";
+import { gpu, MeshGpuData } from "./webGpu.js";
 import { createSphereGeometry } from "./geometry/sphere";
 import { createCubeGeometry } from "./geometry/cube";
 

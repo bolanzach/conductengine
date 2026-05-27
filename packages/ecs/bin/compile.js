@@ -66,7 +66,7 @@ const ecsTsc = join(__dirname, "../node_modules/.bin/tsc");
 const tscPath = existsSync(localTsc) ? localTsc : ecsTsc;
 
 // Run tsc with the temporary config
-const child = spawn(tscPath, ["-p", tempTsconfigPath, ...process.argv.slice(2)], {
+const child = spawn(tscPath, ["-p", tempTsconfigPath, ...args], {
   cwd,
   stdio: "inherit",
   shell: process.platform === "win32",

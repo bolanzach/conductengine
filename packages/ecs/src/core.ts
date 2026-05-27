@@ -188,7 +188,12 @@ function registerComponentId(
 
   if (componentId === undefined) {
     componentId = nextComponentId++;
+    const instance = new component();
+    const fields = Object.keys(instance);
+
     component[ComponentId] = componentId;
+    component[ComponentFields] = fields;
+    component[ComponentColumnKeys] = fields.map(key => `${componentId}.${key}`);
   }
   return componentId;
 }
@@ -463,14 +468,14 @@ function addComponent<T extends ComponentConstructor>(
     }
   }
 
-  let fields = component[ComponentFields];
-  let columnKeys = component[ComponentColumnKeys];
-  if (!fields) {
-    fields = Object.keys(instance);
-    component[ComponentFields] = fields;
-    columnKeys = fields.map(key => `${componentId}.${key}`);
-    component[ComponentColumnKeys] = columnKeys;
-  }
+  const fields = component[ComponentFields]!;
+  const columnKeys = component[ComponentColumnKeys]!;
+  // if (!fields) {
+  //   fields = Object.keys(instance);
+  //   component[ComponentFields] = fields;
+  //   columnKeys = fields.map(key => `${componentId}.${key}`);
+  //   component[ComponentColumnKeys] = columnKeys;
+  // }
 
   for (let i = 0; i < columnKeys!.length; i++) {
     const columnKey = columnKeys![i];
@@ -576,18 +581,17 @@ export function ConductGetComponent<T extends ComponentConstructor>(
   const location = entityLocations[entity];
   if (!location) return undefined;
 
-  const componentId = component[ComponentId];
-  if (componentId === undefined) return undefined;
-
+  registerComponentId(component);
   const fields = component[ComponentFields]!;
   const columnKeys = component[ComponentColumnKeys]!;
   const archetype = archetypes[location.archetypeIndex]!;
+  if (!archetype.columns[columnKeys[0]!]) return undefined;
+
   const row = location.row;
   const result: Record<string, unknown> = {};
 
   for (let i = 0; i < columnKeys.length; i++) {
-    const column = archetype.columns[columnKeys[i]!]!;
-    result[fields[i]!] = column[row];
+    result[fields[i]!] = archetype.columns[columnKeys[i]!]![row];
   }
 
   return result as InstanceType<T>;

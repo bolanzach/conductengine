@@ -4,7 +4,7 @@
 import { ConductSpawnEntity, ConductAddComponent, ConductRegisterSystem, ConductStart, FixedUpdate, Update } from "@conduct/ecs";
 import { WebSocketClientTransport, setClientTransport } from "@conduct/networking/transport";
 import { Networked } from "@conduct/networking/replication";
-import { setClientBundles, pushSnapshot } from "@conduct/networking/clientNetworkReceive";
+import { setClientBundles, pushSnapshot, setLocalPlayerId } from "@conduct/networking/clientNetworkReceive";
 import ClientNetworkReceiveSystem from "@conduct/networking/clientNetworkReceiveSystem";
 import InputSystem, { Transform3D, listenForInput } from "@conduct/simulation";
 import { MeshRenderer } from "@conduct/renderer/components/meshRenderer";
@@ -17,8 +17,8 @@ import RendererSystem from "@conduct/renderer/systems/rendererSystem";
 import type { NetworkMessage } from "@conduct/networking/protocol";
 import { BUNDLE, BundleRegistry, startRTS } from "../shared";
 import { replicateComponents } from "../shared/network";
-import { SelectedTag } from "./selected";
 import RtsInputSystem from "./inputSystem";
+import OwnedAutoSelectSystem from "./ownedAutoSelectSystem";
 
 const SERVER_URL = "ws://localhost:3001";
 
@@ -34,7 +34,6 @@ const bundles: BundleRegistry = {
     ConductAddComponent(entity, Networked, { bundle: BUNDLE.PLAYER });
     ConductAddComponent(entity, MeshRenderer, { meshId: MESH.CUBE });
     ConductAddComponent(entity, Material, { r: 0.2, g: 0.6, b: 1.0 });
-    ConductAddComponent(entity, SelectedTag);
     return entity;
   },
   [BUNDLE.GROUND]: () => {
@@ -48,8 +47,6 @@ const bundles: BundleRegistry = {
 
 setClientBundles(bundles);
 
-let playerId: number | null = null;
-
 const transport = new WebSocketClientTransport(SERVER_URL);
 setClientTransport(transport);
 
@@ -60,8 +57,8 @@ transport.onConnect(() => {
 transport.onMessage((message: NetworkMessage) => {
   switch (message.type) {
     case 'connected':
-      playerId = message.payload.playerId;
-      console.log(`[client] assigned player ID: ${playerId}`);
+      setLocalPlayerId(message.payload.playerId);
+      console.log(`[client] assigned player ID: ${message.payload.playerId}`);
       startRTS(bundles);
       break;
     case 'snapshot':
@@ -84,6 +81,7 @@ ConductAddComponent(camera, Camera, { aspect: canvas.width / canvas.height, far:
 ConductRegisterSystem(Update, InputSystem);
 ConductRegisterSystem(Update, RtsInputSystem);
 ConductRegisterSystem(FixedUpdate, ClientNetworkReceiveSystem);
+ConductRegisterSystem(FixedUpdate, OwnedAutoSelectSystem);
 ConductRegisterSystem(Update, CameraSystem);
 ConductRegisterSystem(Update, RendererSystem);
 

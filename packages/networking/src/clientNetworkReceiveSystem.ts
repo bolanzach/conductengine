@@ -1,4 +1,4 @@
-import { ConductSetComponent } from "@conduct/ecs";
+import { ConductAddComponent } from "@conduct/ecs";
 import { getLocalId, setEntityMapping } from "./entityMap.js";
 import { getReplicatedComponents } from "./replication.js";
 import { consumeLatestSnapshot, getClientBundle } from "./clientNetworkReceive.js";
@@ -10,7 +10,7 @@ export default function ClientNetworkReceiveSystem() {
   const replicatedComponents = getReplicatedComponents();
 
   for (let i = 0; i < snapshot.entities.length; i++) {
-    const entity = snapshot.entities[i]!
+    const entity = snapshot.entities[i]!;
     const bundleId = entity.components[0]?.bundle as number;
 
     let localId = getLocalId(entity.id);
@@ -23,11 +23,10 @@ export default function ClientNetworkReceiveSystem() {
       setEntityMapping({ serverId: entity.id, localId });
     }
 
-    // Apply replicated component data
+    // Apply all replicated component data
     for (const id in entity.components) {
       const numId = Number(id);
-      if (numId === 0) continue; // skip bundle metadata
-      ConductSetComponent(localId, replicatedComponents[numId - 1]!, entity.components[numId]!);
+      ConductAddComponent(localId, replicatedComponents[numId]!, entity.components[numId]!);
     }
   }
 }

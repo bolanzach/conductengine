@@ -9,14 +9,13 @@ export default function NetworkSnapshotSystem(query: Query<[Networked]>) {
   const replicatedComponents = getReplicatedComponents();
   snapshotEntities.length = 0;
 
-  query.iter(([entity, networked]) => {
+  query.iter(([entity]) => {
     const components: Record<number, Record<string, SerializePrimitive>> = {};
-    components[0] = { bundle: networked.bundle };
 
     for (let i = 0; i < replicatedComponents.length; i++) {
       const data = ConductGetComponent(entity, replicatedComponents[i]!);
       if (data) {
-        components[i + 1] = data;
+        components[i] = data;
       }
     }
 

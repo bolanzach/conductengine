@@ -1,5 +1,6 @@
-import { ConductGetComponent, ConductAddComponent, ConductSetComponent } from "@conduct/ecs";
+import { ConductGetComponent, ConductAddComponent } from "@conduct/ecs";
 import { consumeCommands } from "@conduct/networking/serverCommandReceive";
+import { Networked } from "@conduct/networking/replication";
 import { MoveTarget } from "./moveTarget.js";
 
 export default function CommandSystem() {
@@ -14,13 +15,12 @@ export default function CommandSystem() {
 
         for (let j = 0; j < data.entities.length; j++) {
           const entity = data.entities[j]!;
-          const existing = ConductGetComponent(entity, MoveTarget);
 
-          if (existing) {
-            ConductSetComponent(entity, MoveTarget, { x: data.x, z: data.z });
-          } else {
-            ConductAddComponent(entity, MoveTarget, { x: data.x, z: data.z });
-          }
+          // Validate that the player owns this entity
+          const networked = ConductGetComponent(entity, Networked);
+          if (!networked || networked.owner !== command.playerId) continue;
+
+          ConductAddComponent(entity, MoveTarget, { x: data.x, z: data.z });
         }
         break;
       }

@@ -52,7 +52,8 @@ export function getReplicatedComponents(): Readonly<SerializableComponentConstru
  * Entities with this component are included in network snapshots.
  */
 export class Networked {
-  [key: string]: SerializePrimitive;
+  // [key: string]: SerializePrimitive;
 
   bundle = 0;
+  owner = 0;
 }

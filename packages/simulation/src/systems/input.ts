@@ -27,6 +27,9 @@ export function listenForInput() {
     bufferedMouseInputs.delete(event.button);
     bufferedMouseInputs.set(event.button, event);
   })
+  window.addEventListener('contextmenu', (event) => {
+    event.preventDefault();
+  })
   window.addEventListener('mousemove', (event) => {
     mouseX = event.clientX;
     mouseY = event.clientY;

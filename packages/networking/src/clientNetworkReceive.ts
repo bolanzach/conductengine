@@ -1,6 +1,16 @@
 import type { Snapshot } from "./protocol.js";
 import type { ConductBundle } from "./replication.js";
 
+let localPlayerId = 0;
+
+export function setLocalPlayerId(id: number): void {
+  localPlayerId = id;
+}
+
+export function getLocalPlayerId(): number {
+  return localPlayerId;
+}
+
 let bundles: Record<number, ConductBundle> = {};
 
 export function setClientBundles(b: Record<number, ConductBundle>): void {

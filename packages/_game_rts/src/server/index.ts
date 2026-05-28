@@ -38,7 +38,7 @@ transport.onConnection((playerId) => {
   console.log(`[server] player ${playerId} connected`);
 
   const entity = bundles[BUNDLE.PLAYER]!();
-  console.log(`[server] spawned player entity ${entity}`);
+  ConductAddComponent(entity, Networked, { owner: playerId });
 
   transport.sendTo(playerId, {
     type: 'connected',

@@ -1,5 +1,5 @@
 import type { Query } from "@conduct/ecs";
-import { ConductSetComponent, ConductRemoveComponent, deltaTime } from "@conduct/ecs";
+import { ConductRemoveComponent, deltaTime } from "@conduct/ecs";
 import { Transform3D } from "@conduct/simulation";
 import { MoveTarget } from "./moveTarget.js";
 
@@ -21,9 +21,7 @@ export default function MovementSystem(query: Query<[Transform3D, MoveTarget]>) 
     const nx = dx / dist;
     const nz = dz / dist;
 
-    ConductSetComponent(entity, Transform3D, {
-      x: transform.x + nx * step,
-      z: transform.z + nz * step,
-    });
+    transform.x = transform.x + nx * step;
+    transform.z = transform.z + nz * step;
   });
 }

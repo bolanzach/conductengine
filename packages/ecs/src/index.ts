@@ -21,7 +21,6 @@ export {
   ConductAddComponent,
   ConductRemoveComponent,
   ConductGetComponent,
-  ConductSetComponent,
   ConductRegisterSystem,
   ConductStart,
   ConductStop,

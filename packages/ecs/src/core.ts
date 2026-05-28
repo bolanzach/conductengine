@@ -394,7 +394,32 @@ function addComponent<T extends ComponentConstructor>(
     // Check if entity already has this component
     const existingSig = archetypes[existingLocation.archetypeIndex]!.signature;
     if (signatureContains(existingSig, componentSig)) {
-      // Component already exists on entity - no-op
+      // Component already exists — overwrite provided fields
+      if (data) {
+        const archetype = archetypes[existingLocation.archetypeIndex]!;
+        const row = existingLocation.row;
+        if (typeof data === "function") {
+          // const instance = new component();
+          // const fields = component[ComponentFields]!;
+          // const columnKeys = component[ComponentColumnKeys]!;
+          // for (let i = 0; i < fields.length; i++) {
+          //   // @ts-ignore
+          //   instance[fields[i]!] = archetype.columns[columnKeys[i]!]![row];
+          // }
+          // data(instance as InstanceType<T>);
+          // for (let i = 0; i < columnKeys.length; i++) {
+          //   // @ts-ignore
+          //   archetype.columns[columnKeys[i]!]![row] = instance[fields[i]!];
+          // }
+        } else {
+          for (const key in data) {
+            const column = archetype.columns[`${componentId}.${key}`];
+            if (column) {
+              column[row] = data[key];
+            }
+          }
+        }
+      }
       return;
     }
   }
@@ -597,29 +622,6 @@ export function ConductGetComponent<T extends ComponentConstructor>(
   return result as InstanceType<T>;
 }
 
-/**
- * Write field values directly to an entity's component. Does not change
- * archetype membership — the component must already exist on the entity.
- */
-export function ConductSetComponent<T extends ComponentConstructor>(
-  entity: ConductEntity,
-  component: T,
-  data: Partial<InstanceType<T>>
-): void {
-  const location = entityLocations[entity];
-  if (!location) return;
-
-  const componentId = component[ComponentId];
-  if (componentId === undefined) return;
-
-  const archetype = archetypes[location.archetypeIndex]!;
-  const row = location.row;
-
-  for (const key in data) {
-    const column = archetype.columns[`${componentId}.${key}`]!;
-    column[row] = data[key];
-  }
-}
 
 function deleteEntity(entityId: number): boolean {
   const location = entityLocations[entityId];

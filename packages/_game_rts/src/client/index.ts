@@ -2,8 +2,8 @@
 // This code only runs in the browser.
 
 import { ConductSpawnEntity, ConductAddComponent, ConductRegisterSystem, ConductStart, FixedUpdate, Update } from "@conduct/ecs";
-import { WebSocketClientTransport, setClientTransport } from "@conduct/networking/transport";
-import { Networked } from "@conduct/networking/replication";
+import { WebSocketClientTransport, setClientTransport } from "@conduct/networking/clientTransport";
+import { Networked } from "@conduct/networking/networked";
 import { setClientBundles, pushSnapshot, setLocalPlayerId } from "@conduct/networking/clientNetworkReceive";
 import ClientNetworkReceiveSystem from "@conduct/networking/clientNetworkReceiveSystem";
 import InputSystem, { Transform3D, listenForInput } from "@conduct/simulation";

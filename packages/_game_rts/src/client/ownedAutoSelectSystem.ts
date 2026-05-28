@@ -1,6 +1,6 @@
 import type { Query, Not } from "@conduct/ecs";
 import { ConductAddComponent } from "@conduct/ecs";
-import { Networked } from "@conduct/networking/replication";
+import { Networked } from "@conduct/networking/networked";
 import { getLocalPlayerId } from "@conduct/networking/clientNetworkReceive";
 import { SelectedTag } from "./selected";
 

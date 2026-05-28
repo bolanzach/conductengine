@@ -4,11 +4,11 @@
 import { ConductSpawnEntity, ConductAddComponent, ConductRegisterSystem, ConductStart, FixedUpdate, tick } from "@conduct/ecs";
 import { WebSocketServerTransport, setServerTransport } from "@conduct/networking/serverTransport";
 import { pushCommand } from "@conduct/networking/serverCommandReceive";
-import NetworkSnapshotSystem from "@conduct/networking/networkSnapshotSystem";
+import ServerNetworkSnapshotSystem from "@conduct/networking/serverNetworkSnapshotSystem";
 import ServerNetworkSendSystem from "@conduct/networking/serverNetworkSend";
-import { Networked } from "@conduct/networking/replication";
+import { Networked } from "@conduct/networking/networked";
 import { Transform3D } from "@conduct/simulation";
-import { BUNDLE, BundleRegistry, startRTS } from "../shared/index.js";
+import { BUNDLE, BundleRegistry, startRTS } from "../shared";
 import { replicateComponents } from "../shared/network.js";
 import CommandSystem from "./commandSystem.js";
 import MovementSystem from "./movementSystem.js";
@@ -60,7 +60,7 @@ startRTS(bundles);
 
 ConductRegisterSystem(FixedUpdate, CommandSystem);
 ConductRegisterSystem(FixedUpdate, MovementSystem);
-ConductRegisterSystem(FixedUpdate, NetworkSnapshotSystem);
+ConductRegisterSystem(FixedUpdate, ServerNetworkSnapshotSystem);
 ConductRegisterSystem(FixedUpdate, ServerNetworkSendSystem);
 
 console.log(`[server] listening on ws://localhost:${PORT}`);

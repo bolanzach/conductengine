@@ -1,11 +1,12 @@
 import type { Query } from "@conduct/ecs";
 import { ConductGetComponent } from "@conduct/ecs";
-import { Networked, getReplicatedComponents } from "./replication.js";
+import { getReplicatedComponents } from "./replication.js";
+import { Networked } from "./networked.js";
 import type { SerializedEntity, SerializePrimitive } from "./protocol.js";
 
 export let snapshotEntities: SerializedEntity[] = [];
 
-export default function NetworkSnapshotSystem(query: Query<[Networked]>) {
+export default function ServerNetworkSnapshotSystem(query: Query<[Networked]>) {
   const replicatedComponents = getReplicatedComponents();
   snapshotEntities.length = 0;
 

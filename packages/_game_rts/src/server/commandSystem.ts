@@ -1,6 +1,6 @@
 import { ConductGetComponent, ConductAddComponent } from "@conduct/ecs";
 import { consumeCommands } from "@conduct/networking/serverCommandReceive";
-import { Networked } from "@conduct/networking/replication";
+import { Networked } from "@conduct/networking/networked";
 import { MoveTarget } from "./moveTarget.js";
 
 export default function CommandSystem() {

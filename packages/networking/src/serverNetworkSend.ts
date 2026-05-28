@@ -1,5 +1,5 @@
 import { tick } from "@conduct/ecs";
-import { snapshotEntities } from "./networkSnapshotSystem.js";
+import { snapshotEntities } from "./serverNetworkSnapshotSystem";
 import { getServerTransport } from "./serverTransport.js";
 
 export default function ServerNetworkSendSystem() {

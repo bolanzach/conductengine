@@ -47,13 +47,3 @@ export function getReplicatedComponents(): Readonly<SerializableComponentConstru
 // export function getReplicatedComponent(component: ComponentConstructor): ReplicableComponent | undefined {
 //   return replicatedComponents[replicatedComponentIdxMap.get(name) ?? -1];
 // }
-
-/**
- * Entities with this component are included in network snapshots.
- */
-export class Networked {
-  // [key: string]: SerializePrimitive;
-
-  bundle = 0;
-  owner = 0;
-}

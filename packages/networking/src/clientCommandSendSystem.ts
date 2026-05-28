@@ -1,5 +1,5 @@
 import { consumeClientCommandQueue } from "./clientCommandSend.js";
-import { getClientTransport } from "./transport.js";
+import { getClientTransport } from "./clientTransport.js";
 
 export default function ClientCommandSendSystem() {
   const transport = getClientTransport();

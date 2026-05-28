@@ -1,4 +1,5 @@
-import { ConductNetworkReplicateComponent, Networked } from "@conduct/networking/replication";
+import { ConductNetworkReplicateComponent } from "@conduct/networking/replication";
+import { Networked } from "@conduct/networking/networked";
 import { Transform3D } from "@conduct/simulation";
 
 export function replicateComponents() {

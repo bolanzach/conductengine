@@ -598,6 +598,8 @@ function removeComponent(
 /**
  * Read a component's data from an entity. Returns undefined if the entity
  * does not have the component.
+ * This should ideally not be used inside hot code paths with systems. Instead,
+ * prefer to use Query to access components.
  */
 export function ConductGetComponent<T extends ComponentConstructor>(
   entity: ConductEntity,
@@ -657,6 +659,9 @@ function deleteEntity(entityId: number): boolean {
   return true;
 }
 
+/**
+ * Add or update a component on an entity.
+ */
 export function ConductAddComponent<T extends ComponentConstructor>(
   entity: ConductEntity,
   component: T,

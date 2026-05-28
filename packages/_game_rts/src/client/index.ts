@@ -17,7 +17,8 @@ import RendererSystem from "@conduct/renderer/systems/rendererSystem";
 import type { NetworkMessage } from "@conduct/networking/protocol";
 import { BUNDLE, BundleRegistry, startRTS } from "../shared";
 import { replicateComponents } from "../shared/network";
-import RtsInputSystem from "./inputSystem";
+import ClientCommandSendSystem from "@conduct/networking/clientCommandSendSystem";
+import RtsInputSystem from "./rtsInputSystem";
 import OwnedAutoSelectSystem from "./ownedAutoSelectSystem";
 
 const SERVER_URL = "ws://localhost:3001";
@@ -81,6 +82,7 @@ ConductAddComponent(camera, Camera, { aspect: canvas.width / canvas.height, far:
 ConductRegisterSystem(Update, InputSystem);
 ConductRegisterSystem(Update, RtsInputSystem);
 ConductRegisterSystem(FixedUpdate, ClientNetworkReceiveSystem);
+ConductRegisterSystem(FixedUpdate, ClientCommandSendSystem);
 ConductRegisterSystem(FixedUpdate, OwnedAutoSelectSystem);
 ConductRegisterSystem(Update, CameraSystem);
 ConductRegisterSystem(Update, RendererSystem);

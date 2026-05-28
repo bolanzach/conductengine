@@ -9,9 +9,7 @@ export default function OwnedAutoSelectSystem(query: Query<[Networked, Not<[Sele
   if (playerId === 0) return;
 
   query.iter(([entity, networked]) => {
-    console.log(networked.owner, playerId)
     if (networked.owner === playerId) {
-      console.log(`[client] auto-selecting owned entity ${entity}`);
       ConductAddComponent(entity, SelectedTag);
     }
   });

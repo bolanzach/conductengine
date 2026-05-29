@@ -56,14 +56,21 @@ export interface Not<T extends ConductComponent[]> extends QueryOperator {
  * @example
  * Query<[PlayerComponent, Optional<[DebugComponent]>]>
  */
-// @ts-ignore - Need Generic T
 export interface Optional<T extends ConductComponent[]> extends QueryOperator {
   readonly [OPERATOR_TYPE]: "Optional";
+  readonly __phantom?: T;
 }
 
 export type QueryElement = ConductComponent | QueryOperator;
 
 type SystemArgs<T extends object[]> = [ConductEntity, ...T];
+
+/**
+ * Maps each component in a tuple to Component | undefined.
+ */
+type OptionalTuple<T extends ConductComponent[]> = {
+  [K in keyof T]: T[K] | undefined;
+};
 
 /**
  * Extract only data components from a tuple that may contain operators.
@@ -72,15 +79,23 @@ type FilterDataComponents<T extends QueryElement[]> = T extends [
   infer Element,
   ...infer Rest,
 ]
-  ? Element extends QueryOperator
-    ? Rest extends QueryElement[]
-      ? FilterDataComponents<Rest>
-      : []
-    : Element extends object
+  ? Element extends Optional<infer O>
+    ? O extends ConductComponent[]
       ? Rest extends QueryElement[]
-        ? [Element, ...FilterDataComponents<Rest>]
-        : [Element]
-      : []
+        ? [...OptionalTuple<O>, ...FilterDataComponents<Rest>]
+        : OptionalTuple<O>
+      : Rest extends QueryElement[]
+        ? FilterDataComponents<Rest>
+        : []
+    : Element extends QueryOperator
+      ? Rest extends QueryElement[]
+        ? FilterDataComponents<Rest>
+        : []
+      : Element extends object
+        ? Rest extends QueryElement[]
+          ? [Element, ...FilterDataComponents<Rest>]
+          : [Element]
+        : []
   : [];
 
 /**

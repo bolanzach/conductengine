@@ -39,7 +39,7 @@ const p = ConductSpawnEntity();
 // Add the Person component to the entity with some data
 ConductAddComponent(p, [Person, { age: 69 }]);
 
-// Once all systems are registered, run the main loop
+// Once all systems are regxistered, run the main loop
 ConductStart();
 ```
 

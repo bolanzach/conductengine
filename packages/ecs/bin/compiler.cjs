@@ -132,6 +132,7 @@ function extractSystemInfo(func) {
                     name: func.name.text,
                     queryComponents: parsed.dataComponents,
                     notComponents: parsed.filterComponents.not,
+                    optionalComponents: parsed.filterComponents.optional,
                     queryParamName: param.name.text,
                 };
             }
@@ -223,7 +224,7 @@ function createQueryConstant(systemInfo, factory) {
         factory.createVariableDeclaration(queryName, undefined, undefined, queryObject),
     ], ts.NodeFlags.Const));
 }
-function transformCallbackBody(body, paramToComponent, columnRefs, context, entityLoopLabel) {
+function transformCallbackBody(body, paramToComponent, optionalParams, columnRefs, context, entityLoopLabel) {
     const factory = context.factory;
     // Track nesting depth to avoid transforming returns inside nested functions
     let functionNestingDepth = 0;
@@ -267,6 +268,15 @@ function transformCallbackBody(body, paramToComponent, columnRefs, context, enti
                 }
                 return factory.createElementAccessExpression(factory.createPropertyAccessExpression(factory.createIdentifier("$__conduct_engine_arch"), "entities"), factory.createIdentifier("$__conduct_engine_c"));
             }
+            if (componentType !== undefined && optionalParams.has(paramName)) {
+                const parent = node.parent;
+                if (parent &&
+                    ts.isPropertyAccessExpression(parent) &&
+                    parent.expression === node) {
+                    return node;
+                }
+                return factory.createIdentifier(`$__conduct_engine_opt_${componentType}`);
+            }
         }
         return ts.visitEachChild(node, visit, context);
     }
@@ -277,16 +287,23 @@ function createOptimizedSystemBody(systemInfo, callbackInfo, factory, context, c
     const entityLoopLabel = "$__conduct_engine_entity_label";
     // Build param -> component mapping
     const paramToComponent = new Map();
+    const optionalParams = new Set();
     paramToComponent.set(callbackInfo.paramNames[0], null); // entity
-    for (let i = 1; i < callbackInfo.paramNames.length; i++) {
-        paramToComponent.set(callbackInfo.paramNames[i], systemInfo.queryComponents[i - 1]);
+    for (let i = 0; i < systemInfo.queryComponents.length; i++) {
+        paramToComponent.set(callbackInfo.paramNames[i + 1], systemInfo.queryComponents[i]);
+    }
+    for (let i = 0; i < systemInfo.optionalComponents.length; i++) {
+        const paramIndex = 1 + systemInfo.queryComponents.length + i;
+        const paramName = callbackInfo.paramNames[paramIndex];
+        paramToComponent.set(paramName, systemInfo.optionalComponents[i]);
+        optionalParams.add(paramName);
     }
     // Validate no component passing
     validateNoComponentPassing(callbackInfo.body, paramToComponent, systemInfo.name);
     // Track column references
     const columnRefs = new Set();
     // Transform the callback body
-    const transformedBody = transformCallbackBody(callbackInfo.body, paramToComponent, columnRefs, context, entityLoopLabel);
+    const transformedBody = transformCallbackBody(callbackInfo.body, paramToComponent, optionalParams, columnRefs, context, entityLoopLabel);
     // Get statements from body
     let bodyStatements;
     if (ts.isBlock(transformedBody)) {
@@ -300,9 +317,11 @@ function createOptimizedSystemBody(systemInfo, callbackInfo, factory, context, c
     // Generate column key constants and extractions
     const columnKeyConstants = [];
     const columnExtractions = [];
+    const optionalComponentNames = new Set(systemInfo.optionalComponents);
     for (const colKey of columnRefs) {
         const [componentName, propName] = colKey.split(".");
         const componentCounter = componentCounters.get(componentName);
+        const isOptional = optionalComponentNames.has(componentName);
         const columnKeyVarName = `$__conduct_engine_${componentName}${componentCounter}_${propName}`;
         // Build column key: <Component>[ComponentId] + ".<prop>"
         const columnKeyExpr = factory.createBinaryExpression(factory.createElementAccessExpression(factory.createIdentifier(componentName), factory.createIdentifier("ComponentId")), ts.SyntaxKind.PlusToken, factory.createStringLiteral(`.${propName}`));
@@ -310,8 +329,22 @@ function createOptimizedSystemBody(systemInfo, callbackInfo, factory, context, c
             factory.createVariableDeclaration(columnKeyVarName, undefined, undefined, columnKeyExpr),
         ], ts.NodeFlags.Const)));
         const localVarName = colKey.replace(".", "_");
+        const columnAccess = factory.createElementAccessExpression(factory.createIdentifier("$__conduct_engine_columns"), factory.createIdentifier(columnKeyVarName));
         columnExtractions.push(factory.createVariableStatement(undefined, factory.createVariableDeclarationList([
-            factory.createVariableDeclaration(localVarName, undefined, undefined, factory.createElementAccessExpression(factory.createIdentifier("$__conduct_engine_columns"), factory.createIdentifier(columnKeyVarName))),
+            factory.createVariableDeclaration(localVarName, undefined, undefined, isOptional
+                ? factory.createBinaryExpression(columnAccess, ts.SyntaxKind.QuestionQuestionToken, factory.createIdentifier("$__conduct_engine_undef"))
+                : columnAccess),
+        ], ts.NodeFlags.Const)));
+    }
+    // Generate presence checks for optional components
+    const optionalPresenceChecks = [];
+    for (const optComp of systemInfo.optionalComponents) {
+        const componentCounter = componentCounters.get(optComp);
+        optionalPresenceChecks.push(factory.createVariableStatement(undefined, factory.createVariableDeclarationList([
+            factory.createVariableDeclaration(`$__conduct_engine_opt_${optComp}`, undefined, undefined, factory.createCallExpression(factory.createIdentifier("signatureContains"), undefined, [
+                factory.createPropertyAccessExpression(factory.createIdentifier("$__conduct_engine_arch"), "signature"),
+                factory.createIdentifier(`$__conduct_engine_opt_sig_${optComp}${componentCounter}`),
+            ])),
         ], ts.NodeFlags.Const)));
     }
     // const $__conduct_engine_count = $__conduct_engine_arch.count;
@@ -334,6 +367,7 @@ function createOptimizedSystemBody(systemInfo, callbackInfo, factory, context, c
             factory.createVariableDeclaration("$__conduct_engine_arch", undefined, undefined, factory.createElementAccessExpression(factory.createIdentifier("$__conduct_engine_matches"), factory.createIdentifier("$__conduct_engine_i"))),
         ], ts.NodeFlags.Const)),
         columnsDecl,
+        ...optionalPresenceChecks,
         ...columnExtractions,
         countDecl,
         innerLoop,
@@ -356,6 +390,8 @@ function createTransformer(_) {
         return (sourceFile) => {
             const queryConstants = [];
             const allColumnKeyConstants = [];
+            const optionalSignatureConstants = [];
+            let needsOptionalSupport = false;
             // Build a map of imported identifiers -> module path
             // This helps us re-add imports that TypeScript strips as "type-only"
             const importMap = new Map();
@@ -422,7 +458,7 @@ function createTransformer(_) {
                     const bodyStatements = Array.from(node.body.statements);
                     const preStatements = bodyStatements.slice(0, iterStatementIndex);
                     const postStatements = bodyStatements.slice(iterStatementIndex + 1);
-                    // Track components used in this query (both required and not)
+                    // Track components used in this query (required, not, and optional)
                     // and assign counters to new components
                     for (const comp of systemInfo.queryComponents) {
                         usedComponents.add(comp);
@@ -434,6 +470,22 @@ function createTransformer(_) {
                         usedComponents.add(comp);
                         if (!componentCounters.has(comp)) {
                             componentCounters.set(comp, nextComponentCounter++);
+                        }
+                    }
+                    for (const comp of systemInfo.optionalComponents) {
+                        usedComponents.add(comp);
+                        if (!componentCounters.has(comp)) {
+                            componentCounters.set(comp, nextComponentCounter++);
+                        }
+                    }
+                    // Generate optional signature constants for presence checks
+                    if (systemInfo.optionalComponents.length > 0) {
+                        needsOptionalSupport = true;
+                        for (const comp of systemInfo.optionalComponents) {
+                            const counter = componentCounters.get(comp);
+                            optionalSignatureConstants.push(factory.createVariableStatement(undefined, factory.createVariableDeclarationList([
+                                factory.createVariableDeclaration(`$__conduct_engine_opt_sig_${comp}${counter}`, undefined, undefined, factory.createCallExpression(factory.createIdentifier("createSignatureFromComponents"), undefined, [factory.createArrayLiteralExpression([factory.createIdentifier(comp)])])),
+                            ], ts.NodeFlags.Const)));
                         }
                     }
                     // Create query constant (will be added at top of file)
@@ -464,6 +516,9 @@ function createTransformer(_) {
                     factory.createImportSpecifier(false, undefined, factory.createIdentifier("ComponentId")),
                     factory.createImportSpecifier(false, undefined, factory.createIdentifier("createSignatureFromComponents")),
                     factory.createImportSpecifier(false, undefined, factory.createIdentifier("query")),
+                    ...(needsOptionalSupport
+                        ? [factory.createImportSpecifier(false, undefined, factory.createIdentifier("signatureContains"))]
+                        : []),
                 ])), factory.createStringLiteral("@conduct/ecs"));
                 // Strip query components from their original imports — the compiler
                 // re-adds them below so they survive TypeScript's import elision.
@@ -503,8 +558,15 @@ function createTransformer(_) {
                     const importDecl = factory.createImportDeclaration(undefined, factory.createImportClause(false, undefined, factory.createNamedImports(components.map((comp) => factory.createImportSpecifier(false, undefined, factory.createIdentifier(comp))))), factory.createStringLiteral(modulePath));
                     componentImports.push(importDecl);
                 }
+                // Generate sentinel array for optional column fallback
+                const optionalSentinel = [];
+                if (needsOptionalSupport) {
+                    optionalSentinel.push(factory.createVariableStatement(undefined, factory.createVariableDeclarationList([
+                        factory.createVariableDeclaration("$__conduct_engine_undef", undefined, undefined, factory.createArrayLiteralExpression([])),
+                    ], ts.NodeFlags.Const)));
+                }
                 // Insert runtime import, component imports, query constants, then column key constants
-                statements.splice(lastImportIndex + 1, 0, runtimeImport, ...componentImports, ...queryConstants, ...allColumnKeyConstants);
+                statements.splice(lastImportIndex + 1, 0, runtimeImport, ...componentImports, ...queryConstants, ...optionalSignatureConstants, ...allColumnKeyConstants, ...optionalSentinel);
                 return factory.updateSourceFile(transformedFile, statements);
             }
             return transformedFile;

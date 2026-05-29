@@ -20,6 +20,7 @@ import { replicateComponents } from "../shared/network";
 import ClientCommandSendSystem from "@conduct/networking/clientCommandSendSystem";
 import RtsInputSystem from "./rtsInputSystem";
 import OwnedAutoSelectSystem from "./ownedAutoSelectSystem";
+import { CameraPan } from "./cameraPan";
 
 const SERVER_URL = "ws://localhost:3001";
 
@@ -29,10 +30,10 @@ await initRenderer(canvas);
 replicateComponents();
 
 const bundles: BundleRegistry = {
-  [BUNDLE.PLAYER]: () => {
+  [BUNDLE.SPACE_MARINE]: () => {
     const entity = ConductSpawnEntity();
-    ConductAddComponent(entity, Transform3D);
-    ConductAddComponent(entity, Networked, { bundle: BUNDLE.PLAYER });
+    ConductAddComponent(entity, Transform3D, { sx: 0.5, sy: 0.8, sz: 0.5 });
+    ConductAddComponent(entity, Networked, { bundle: BUNDLE.SPACE_MARINE });
     ConductAddComponent(entity, MeshRenderer, { meshId: MESH.CUBE });
     ConductAddComponent(entity, Material, { r: 0.2, g: 0.6, b: 1.0 });
     return entity;
@@ -78,6 +79,7 @@ listenForInput();
 const camera = ConductSpawnEntity();
 ConductAddComponent(camera, Transform3D, { y: 20, z: 15, rx: -1.0 });
 ConductAddComponent(camera, Camera, { aspect: canvas.width / canvas.height, far: 200 });
+ConductAddComponent(camera, CameraPan);
 
 ConductRegisterSystem(Update, InputSystem);
 ConductRegisterSystem(Update, RtsInputSystem);

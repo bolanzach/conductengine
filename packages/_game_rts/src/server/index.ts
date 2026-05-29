@@ -8,20 +8,22 @@ import ServerNetworkSnapshotSystem from "@conduct/networking/serverNetworkSnapsh
 import ServerNetworkSendSystem from "@conduct/networking/serverNetworkSend";
 import { Networked } from "@conduct/networking/networked";
 import { Transform3D } from "@conduct/simulation";
-import { BUNDLE, BundleRegistry, startRTS } from "../shared";
+import { BUNDLE, BundleRegistry, startRTS } from "../shared/index.js";
 import { replicateComponents } from "../shared/network.js";
+import { SquadMember } from "../shared/squadMember.js";
 import CommandSystem from "./commandSystem.js";
 import MovementSystem from "./movementSystem.js";
+import { FormationOffset } from "./formationOffset.js";
 
 const PORT = 3001;
 
 replicateComponents()
 
 const bundles: BundleRegistry = {
-  [BUNDLE.PLAYER]: () => {
+  [BUNDLE.SPACE_MARINE]: () => {
     const entity = ConductSpawnEntity();
-    ConductAddComponent(entity, Transform3D);
-    ConductAddComponent(entity, Networked, { bundle: BUNDLE.PLAYER });
+    ConductAddComponent(entity, Transform3D, { sx: 0.5, sy: 0.8, sz: 0.5 });
+    ConductAddComponent(entity, Networked, { bundle: BUNDLE.SPACE_MARINE });
     return entity;
   },
   [BUNDLE.GROUND]: () => {
@@ -34,11 +36,29 @@ const bundles: BundleRegistry = {
 const transport = new WebSocketServerTransport(PORT);
 setServerTransport(transport);
 
+const SQUAD_SIZE = 5;
+const FORMATION_SPREAD = 1.5;
+let nextSquadId = 1;
+
+function spawnSquad(x: number, z: number, owner: number) {
+  const squadId = nextSquadId++;
+  for (let i = 0; i < SQUAD_SIZE; i++) {
+    const entity = bundles[BUNDLE.SPACE_MARINE]!();
+    const angle = (i / SQUAD_SIZE) * Math.PI * 2;
+    const ox = Math.cos(angle) * FORMATION_SPREAD;
+    const oz = Math.sin(angle) * FORMATION_SPREAD;
+    ConductAddComponent(entity, Transform3D, { x: x + ox, z: z + oz });
+    ConductAddComponent(entity, Networked, { owner });
+    ConductAddComponent(entity, SquadMember, { squadId, slotIndex: i });
+    ConductAddComponent(entity, FormationOffset, { x: ox, z: oz });
+  }
+}
+
 transport.onConnection((playerId) => {
   console.log(`[server] player ${playerId} connected`);
 
-  const entity = bundles[BUNDLE.PLAYER]!();
-  ConductAddComponent(entity, Networked, { owner: playerId });
+  spawnSquad(-3, 0, playerId);
+  spawnSquad(3, 0, playerId);
 
   transport.sendTo(playerId, {
     type: 'connected',

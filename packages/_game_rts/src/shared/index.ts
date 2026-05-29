@@ -4,7 +4,7 @@
 import { ConductBundle } from "@conduct/networking/replication";
 
 export const BUNDLE = {
-  PLAYER: 1,
+  SPACE_MARINE: 1,
   GROUND: 2,
 } as const;
 

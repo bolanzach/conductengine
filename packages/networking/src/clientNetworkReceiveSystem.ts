@@ -18,7 +18,7 @@ export default function ClientNetworkReceiveSystem() {
     // New entity — spawn via bundle
     if (localId === undefined) {
       const bundle = getClientBundle(bundleId);
-      if (!bundle) return;
+      if (!bundle) continue;
       localId = bundle();
       setEntityMapping({ serverId: entity.id, localId });
     }

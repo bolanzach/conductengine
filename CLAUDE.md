@@ -16,3 +16,6 @@ When updating the engine packages we must `build` them in order for the examples
 - Code is in `packages` with each package being a separate module with `pnpm`. When exploring the codebase, only look at the package(s) that are relevant to your task. Do not look at all packages at once, unless your task requires it.
 - We can change the core engine packages as needed.
 - When modifying core engine packages, you must always consider performance as it relates to a game engine.
+- Usage of `ConductGetComponent` is HIGHLY discouraged in systems. If you find yourself using it, you should probably be using a query instead.
+- Extensive use of `ConductAddComponent` is also discouraged in systems, as adding components is a relatively expensive operation. If you find yourself doing this, you should probably be rethinking your component design.
+- 

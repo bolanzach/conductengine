@@ -21,6 +21,7 @@ import ClientCommandSendSystem from "@conduct/networking/clientCommandSendSystem
 import RtsInputSystem from "./rtsInputSystem";
 import OwnedAutoSelectSystem from "./ownedAutoSelectSystem";
 import { CameraPan } from "./cameraPan";
+import CameraPanSystem from "./cameraPanSystem";
 
 const SERVER_URL = "ws://localhost:3001";
 
@@ -87,6 +88,7 @@ ConductRegisterSystem(FixedUpdate, ClientNetworkReceiveSystem);
 ConductRegisterSystem(FixedUpdate, ClientCommandSendSystem);
 ConductRegisterSystem(FixedUpdate, OwnedAutoSelectSystem);
 ConductRegisterSystem(Update, CameraSystem);
+ConductRegisterSystem(Update, CameraPanSystem);
 ConductRegisterSystem(Update, RendererSystem);
 
 ConductStart(60);

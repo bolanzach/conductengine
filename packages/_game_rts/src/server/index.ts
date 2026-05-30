@@ -37,7 +37,7 @@ const transport = new WebSocketServerTransport(PORT);
 setServerTransport(transport);
 
 const SQUAD_SIZE = 5;
-const FORMATION_SPREAD = 1.5;
+const FORMATION_SPREAD = 0.8;
 let nextSquadId = 1;
 
 function spawnSquad(x: number, z: number, owner: number) {

@@ -15,7 +15,7 @@ import CameraSystem from "@conduct/renderer/systems/cameraSystem";
 import RendererSystem from "@conduct/renderer/systems/rendererSystem";
 import type { NetworkMessage } from "@conduct/networking/protocol";
 import { BUNDLE, BundleRegistry, startRTS } from "../shared";
-import { SpaceMarineBundle, GroundBundle } from "../shared/bundles";
+import { SpaceMarineBundle, TileBundle } from "../shared/bundles";
 import { replicateComponents } from "../shared/network";
 import ClientCommandSendSystem from "@conduct/networking/clientCommandSendSystem";
 import RtsInputSystem from "./rtsInputSystem";
@@ -36,8 +36,8 @@ const bundles: BundleRegistry = {
     [MeshRenderer, { meshId: MESH.CUBE }],
     [Material, { r: 0.2, g: 0.6, b: 1.0 }],
   ],
-  [BUNDLE.GROUND]: [
-    ...GroundBundle,
+  [BUNDLE.TILE]: [
+    ...TileBundle,
     [MeshRenderer, { meshId: MESH.CUBE }],
     [Material, { r: 0.1, g: 0.5, b: 0.3 }],
   ],

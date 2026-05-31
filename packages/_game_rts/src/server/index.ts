@@ -9,7 +9,7 @@ import ServerNetworkSendSystem from "@conduct/networking/serverNetworkSend";
 import { Networked } from "@conduct/networking/networked";
 import { Transform3D } from "@conduct/simulation";
 import { BUNDLE, BundleRegistry, startRTS } from "../shared/index.js";
-import { SpaceMarineBundle, GroundBundle } from "../shared/bundles.js";
+import { SpaceMarineBundle, TileBundle } from "../shared/bundles.js";
 import { replicateComponents } from "../shared/network.js";
 import { SquadMember } from "../shared/squadMember.js";
 import CommandSystem from "./commandSystem.js";
@@ -22,7 +22,7 @@ replicateComponents()
 
 const bundles: BundleRegistry = {
   [BUNDLE.SPACE_MARINE]: SpaceMarineBundle,
-  [BUNDLE.GROUND]: GroundBundle,
+  [BUNDLE.TILE]: TileBundle,
 };
 
 const transport = new WebSocketServerTransport(PORT);

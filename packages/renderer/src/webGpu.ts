@@ -150,7 +150,7 @@ export async function initRenderer(canvas: HTMLCanvasElement) {
   gpu.uniformStride = Math.ceil(208 / align) * align;
 
   gpu.uniformBuffer = gpu.device.createBuffer({
-    size: gpu.uniformStride * 1024,
+    size: gpu.uniformStride * 8192,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
 

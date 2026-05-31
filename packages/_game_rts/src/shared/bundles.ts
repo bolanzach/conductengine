@@ -8,6 +8,6 @@ export const SpaceMarineBundle: ConductBundle = [
   [Networked, { bundle: BUNDLE.SPACE_MARINE }],
 ];
 
-export const GroundBundle: ConductBundle = [
-  [Transform3D, { sx: 30, sy: 0.2, sz: 30 }],
+export const TileBundle: ConductBundle = [
+  [Transform3D, { sx: 1, sy: 0.4, sz: 1 }],
 ];

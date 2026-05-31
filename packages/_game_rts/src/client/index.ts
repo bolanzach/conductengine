@@ -3,7 +3,6 @@
 
 import { ConductSpawnEntity, ConductAddComponent, ConductRegisterSystem, ConductStart, FixedUpdate, Update } from "@conduct/ecs";
 import { WebSocketClientTransport, setClientTransport } from "@conduct/networking/clientTransport";
-import { Networked } from "@conduct/networking/networked";
 import { setClientBundles, pushSnapshot, setLocalPlayerId } from "@conduct/networking/clientNetworkReceive";
 import ClientNetworkReceiveSystem from "@conduct/networking/clientNetworkReceiveSystem";
 import InputSystem, { Transform3D, listenForInput } from "@conduct/simulation";
@@ -16,6 +15,7 @@ import CameraSystem from "@conduct/renderer/systems/cameraSystem";
 import RendererSystem from "@conduct/renderer/systems/rendererSystem";
 import type { NetworkMessage } from "@conduct/networking/protocol";
 import { BUNDLE, BundleRegistry, startRTS } from "../shared";
+import { SpaceMarineBundle, GroundBundle } from "../shared/bundles";
 import { replicateComponents } from "../shared/network";
 import ClientCommandSendSystem from "@conduct/networking/clientCommandSendSystem";
 import RtsInputSystem from "./rtsInputSystem";
@@ -31,21 +31,16 @@ await initRenderer(canvas);
 replicateComponents();
 
 const bundles: BundleRegistry = {
-  [BUNDLE.SPACE_MARINE]: () => {
-    const entity = ConductSpawnEntity();
-    ConductAddComponent(entity, Transform3D, { sx: 0.5, sy: 0.8, sz: 0.5 });
-    ConductAddComponent(entity, Networked, { bundle: BUNDLE.SPACE_MARINE });
-    ConductAddComponent(entity, MeshRenderer, { meshId: MESH.CUBE });
-    ConductAddComponent(entity, Material, { r: 0.2, g: 0.6, b: 1.0 });
-    return entity;
-  },
-  [BUNDLE.GROUND]: () => {
-    const entity = ConductSpawnEntity();
-    ConductAddComponent(entity, Transform3D, { sx: 30, sy: 0.2, sz: 30 });
-    ConductAddComponent(entity, MeshRenderer, { meshId: MESH.CUBE });
-    ConductAddComponent(entity, Material, { r: 0.1, g: 0.5, b: 0.3 });
-    return entity;
-  },
+  [BUNDLE.SPACE_MARINE]: [
+    ...SpaceMarineBundle,
+    [MeshRenderer, { meshId: MESH.CUBE }],
+    [Material, { r: 0.2, g: 0.6, b: 1.0 }],
+  ],
+  [BUNDLE.GROUND]: [
+    ...GroundBundle,
+    [MeshRenderer, { meshId: MESH.CUBE }],
+    [Material, { r: 0.1, g: 0.5, b: 0.3 }],
+  ],
 };
 
 setClientBundles(bundles);

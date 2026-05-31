@@ -1,7 +1,7 @@
 // RTS server entrypoint (authoritative simulation, networking)
 // This code only runs on the server. No DOM/rendering imports allowed.
 
-import { ConductSpawnEntity, ConductAddComponent, ConductRegisterSystem, ConductStart, FixedUpdate, tick } from "@conduct/ecs";
+import { ConductSpawnBundle, ConductRegisterSystem, ConductStart, FixedUpdate, tick } from "@conduct/ecs";
 import { WebSocketServerTransport, setServerTransport } from "@conduct/networking/serverTransport";
 import { pushCommand } from "@conduct/networking/serverCommandReceive";
 import ServerNetworkSnapshotSystem from "@conduct/networking/serverNetworkSnapshotSystem";
@@ -9,6 +9,7 @@ import ServerNetworkSendSystem from "@conduct/networking/serverNetworkSend";
 import { Networked } from "@conduct/networking/networked";
 import { Transform3D } from "@conduct/simulation";
 import { BUNDLE, BundleRegistry, startRTS } from "../shared/index.js";
+import { SpaceMarineBundle, GroundBundle } from "../shared/bundles.js";
 import { replicateComponents } from "../shared/network.js";
 import { SquadMember } from "../shared/squadMember.js";
 import CommandSystem from "./commandSystem.js";
@@ -20,17 +21,8 @@ const PORT = 3001;
 replicateComponents()
 
 const bundles: BundleRegistry = {
-  [BUNDLE.SPACE_MARINE]: () => {
-    const entity = ConductSpawnEntity();
-    ConductAddComponent(entity, Transform3D, { sx: 0.5, sy: 0.8, sz: 0.5 });
-    ConductAddComponent(entity, Networked, { bundle: BUNDLE.SPACE_MARINE });
-    return entity;
-  },
-  [BUNDLE.GROUND]: () => {
-    const entity = ConductSpawnEntity();
-    ConductAddComponent(entity, Transform3D, { sx: 30, sy: 0.2, sz: 30 });
-    return entity;
-  },
+  [BUNDLE.SPACE_MARINE]: SpaceMarineBundle,
+  [BUNDLE.GROUND]: GroundBundle,
 };
 
 const transport = new WebSocketServerTransport(PORT);
@@ -43,22 +35,24 @@ let nextSquadId = 1;
 function spawnSquad(x: number, z: number, owner: number) {
   const squadId = nextSquadId++;
   for (let i = 0; i < SQUAD_SIZE; i++) {
-    const entity = bundles[BUNDLE.SPACE_MARINE]!();
     const angle = (i / SQUAD_SIZE) * Math.PI * 2;
     const ox = Math.cos(angle) * FORMATION_SPREAD;
     const oz = Math.sin(angle) * FORMATION_SPREAD;
-    ConductAddComponent(entity, Transform3D, { x: x + ox, z: z + oz });
-    ConductAddComponent(entity, Networked, { owner });
-    ConductAddComponent(entity, SquadMember, { squadId, slotIndex: i });
-    ConductAddComponent(entity, FormationOffset, { x: ox, z: oz });
+    ConductSpawnBundle([
+      ...SpaceMarineBundle,
+      [Transform3D, { x: x + ox, z: z + oz }],
+      [Networked, { owner }],
+      [SquadMember, { squadId, slotIndex: i }],
+      [FormationOffset, { x: ox, z: oz }],
+    ]);
   }
 }
 
 transport.onConnection((playerId) => {
   console.log(`[server] player ${playerId} connected`);
 
-  spawnSquad(-3, 0, playerId);
-  spawnSquad(3, 0, playerId);
+  spawnSquad(-2, 0, playerId);
+  spawnSquad(1, 0, playerId);
 
   transport.sendTo(playerId, {
     type: 'connected',

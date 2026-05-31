@@ -4,6 +4,8 @@ export type ConductComponent = object;
 
 export type ConductSystem = (query: Query<QueryElement[]>) => void;
 
+export type ConductBundle = [component: ComponentConstructor, data?: Record<string, any>][];
+
 export const ComponentId = Symbol("ComponentId");
 const ComponentFields = Symbol("ComponentFields");
 const ComponentColumnKeys = Symbol("ComponentColumnKeys");
@@ -343,6 +345,28 @@ export function ConductSpawnEntity(): number {
     return freeEntityIds.pop()!;
   }
   return nextEntityId++;
+}
+
+export function ConductSpawnBundle(bundle: ConductBundle): ConductEntity {
+  const entity = ConductSpawnEntity();
+
+  // Merge duplicate component entries (later data fields overwrite earlier)
+  const merged = new Map<ComponentConstructor, Record<string, any> | undefined>();
+  for (let i = 0; i < bundle.length; i++) {
+    const component = bundle[i]![0];
+    const data = bundle[i]![1];
+    const existing = merged.get(component);
+    if (existing !== undefined) {
+      if (data) Object.assign(existing, data);
+    } else {
+      merged.set(component, data ? { ...data } : undefined);
+    }
+  }
+
+  for (const [component, data] of merged) {
+    ConductAddComponent(entity, component, data);
+  }
+  return entity;
 }
 
 function createArchetype(signature: Signature): number {

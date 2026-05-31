@@ -1,7 +1,5 @@
 import type { SerializePrimitive } from "./protocol.js";
-import type { ConductEntity, ComponentConstructor } from "@conduct/ecs";
-
-export type ConductBundle = () => ConductEntity;
+import type { ComponentConstructor } from "@conduct/ecs";
 
 type SerializableComponentConstructor = ComponentConstructor & (new () => Record<string, SerializePrimitive>);
 

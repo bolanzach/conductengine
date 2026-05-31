@@ -1,5 +1,5 @@
 import type { Snapshot } from "./protocol.js";
-import type { ConductBundle } from "./replication.js";
+import type { ConductBundle } from "@conduct/ecs";
 
 let localPlayerId = 0;
 

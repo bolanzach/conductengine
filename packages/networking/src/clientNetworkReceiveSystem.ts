@@ -1,4 +1,4 @@
-import { ConductAddComponent } from "@conduct/ecs";
+import { ConductAddComponent, ConductSpawnBundle } from "@conduct/ecs";
 import { getLocalId, setEntityMapping } from "./entityMap.js";
 import { getReplicatedComponents } from "./replication.js";
 import { consumeLatestSnapshot, getClientBundle } from "./clientNetworkReceive.js";
@@ -19,7 +19,7 @@ export default function ClientNetworkReceiveSystem() {
     if (localId === undefined) {
       const bundle = getClientBundle(bundleId);
       if (!bundle) continue;
-      localId = bundle();
+      localId = ConductSpawnBundle(bundle);
       setEntityMapping({ serverId: entity.id, localId });
     }
 

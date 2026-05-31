@@ -1,7 +1,7 @@
 // RTS shared game logic (components, shared systems, types)
 // This code runs on both client and server.
 
-import { ConductBundle } from "@conduct/networking/replication";
+import { type ConductBundle, ConductSpawnBundle } from "@conduct/ecs";
 
 export const BUNDLE = {
   SPACE_MARINE: 1,
@@ -11,5 +11,5 @@ export const BUNDLE = {
 export type BundleRegistry = Record<typeof BUNDLE[keyof typeof BUNDLE], ConductBundle>;
 
 export function startRTS(bundles: BundleRegistry) {
-  bundles[BUNDLE.GROUND]();
+  ConductSpawnBundle(bundles[BUNDLE.GROUND]);
 }

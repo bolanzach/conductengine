@@ -128,22 +128,27 @@ Adding `Health` to `PlayerBundle` automatically includes it on the client. One d
 For game logic spawning, bundle functions take typed args that flow into component data:
 
 ```typescript
-function UnitBundle(x: number, z: number): Bundle {
+// shared/bundles.ts — single source of truth
+function UnitBundle(): Bundle {
+   return [
+      [Transform3D],
+      [Networked, { bundle: BUNDLE.UNIT }],
+   ];
+}
+
+// in server game logic — parameterized spawn helper, not used by network
+function SpawnUnit(x: number, z: number): Bundle {
   return [
-    [Transform3D, { x, z }],
-    [Networked, { bundle: BUNDLE.UNIT }],
-    [Health, { hp: 100 }],
+    ...UnitBundle(), // composition
+    [Transform3D, { x, z }], // parameterization. Note that this overwrites the Transform3D from the UnitBundle
   ];
 }
 
 // Server game logic
 ConductSpawnBundle(UnitBundle(10, 5));
-
-// Network registry wraps with defaults (values don't matter, get overwritten)
-registry[BUNDLE.UNIT] = () => UnitBundle(0, 0);
 ```
 
-### Client visual mapping
+### Client visual mapping (optional, don't need this now)
 
 Instead of writing a full client bundle function per entity type, the client could register a declarative mapping of extra components per bundle:
 

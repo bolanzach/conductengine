@@ -1,8 +1,11 @@
 import { ConductGetComponent, ConductAddComponent } from "@conduct/ecs";
 import { consumeCommands } from "@conduct/networking/serverCommandReceive";
 import { Networked } from "@conduct/networking/networked";
-import { MoveTarget } from "./moveTarget.js";
+import { Transform3D } from "@conduct/simulation";
+import { Path } from "./path.js";
 import { SquadMember } from "../shared/squadMember.js";
+import { findPath } from "../shared/pathfinding.js";
+import { grid } from "../shared/index.js";
 
 const SQUAD_SPACING = 2.0;
 
@@ -38,14 +41,13 @@ export default function CommandSystem() {
           group.push(entity);
         }
 
-        // Compute per-squad spread offsets and assign MoveTarget
+        // Compute per-squad spread offsets and assign paths
         const squadCount = squadGroups.size;
 
         if (squadCount <= 1) {
-          // Single squad or empty — no spreading needed
           squadGroups.forEach((entities) => {
             for (let j = 0; j < entities.length; j++) {
-              ConductAddComponent(entities[j]!, MoveTarget, { x: data.x, z: data.z });
+              assignPath(entities[j]!, data.x, data.z);
             }
           });
         } else {
@@ -62,7 +64,7 @@ export default function CommandSystem() {
             const tz = originZ + row * SQUAD_SPACING;
 
             for (let j = 0; j < entities.length; j++) {
-              ConductAddComponent(entities[j]!, MoveTarget, { x: tx, z: tz });
+              assignPath(entities[j]!, tx, tz);
             }
             idx++;
           });
@@ -72,4 +74,22 @@ export default function CommandSystem() {
       }
     }
   }
+}
+
+function assignPath(entity: number, destX: number, destZ: number) {
+  const transform = ConductGetComponent(entity, Transform3D);
+  if (!transform) return;
+
+  const startGX = Math.round(transform.x);
+  const startGY = Math.round(transform.z);
+  const endGX = Math.round(destX);
+  const endGY = Math.round(destZ);
+
+  const waypoints = findPath(grid, startGX, startGY, endGX, endGY);
+  if (!waypoints) {
+    console.log('No path found for entity', entity);
+    return;
+  }
+
+  ConductAddComponent(entity, Path, { waypoints, current: 0 });
 }

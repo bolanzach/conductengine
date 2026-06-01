@@ -13,8 +13,11 @@ import { SpaceMarineBundle, TileBundle } from "../shared/bundles.js";
 import { replicateComponents } from "../shared/network.js";
 import { SquadMember } from "../shared/squadMember.js";
 import CommandSystem from "./commandSystem.js";
-import MovementSystem from "./movementSystem.js";
-import { FormationOffset } from "./formationOffset.js";
+import PathfindingSystem from "./pathfindingSystem.js";
+import ColliderSystem from "./colliderSystem.js";
+// import { FormationOffset } from "./formationOffset.js";
+import { ConductEventConsume } from "@conduct/events";
+import { CollisionEvent } from "../shared/collisionEvent.js";
 
 const PORT = 3001;
 
@@ -23,27 +26,29 @@ replicateComponents()
 const bundles: BundleRegistry = {
   [BUNDLE.SPACE_MARINE]: SpaceMarineBundle,
   [BUNDLE.TILE]: TileBundle,
+  [BUNDLE.STRUCTURE_TILE]: TileBundle,
 };
 
 const transport = new WebSocketServerTransport(PORT);
 setServerTransport(transport);
 
-const SQUAD_SIZE = 5;
-const FORMATION_SPREAD = 0.8;
+const SQUAD_SIZE = 1;
+// const FORMATION_SPREAD = 0.8;
 let nextSquadId = 1;
 
 function spawnSquad(x: number, z: number, owner: number) {
   const squadId = nextSquadId++;
   for (let i = 0; i < SQUAD_SIZE; i++) {
-    const angle = (i / SQUAD_SIZE) * Math.PI * 2;
-    const ox = Math.cos(angle) * FORMATION_SPREAD;
-    const oz = Math.sin(angle) * FORMATION_SPREAD;
+    // const angle = (i / SQUAD_SIZE) * Math.PI * 2;
+    // const ox = Math.cos(angle) * FORMATION_SPREAD;
+    // const oz = Math.sin(angle) * FORMATION_SPREAD;
     ConductSpawnBundle([
       ...SpaceMarineBundle,
-      [Transform3D, { x: x + ox, z: z + oz }],
+      // [Transform3D, { x: x + ox, z: z + oz }],
+      [Transform3D, { x: x, z: z }],
       [Networked, { owner }],
       [SquadMember, { squadId, slotIndex: i }],
-      [FormationOffset, { x: ox, z: oz }],
+      //[FormationOffset, { x: ox, z: oz }],
     ]);
   }
 }
@@ -51,8 +56,8 @@ function spawnSquad(x: number, z: number, owner: number) {
 transport.onConnection((playerId) => {
   console.log(`[server] player ${playerId} connected`);
 
-  spawnSquad(-2, 0, playerId);
-  spawnSquad(1, 0, playerId);
+  // spawnSquad(-2, 0, playerId);
+  spawnSquad(0, 0, playerId);
 
   transport.sendTo(playerId, {
     type: 'connected',
@@ -73,9 +78,14 @@ transport.onMessage((playerId, message) => {
 startRTS(bundles);
 
 ConductRegisterSystem(FixedUpdate, CommandSystem);
-ConductRegisterSystem(FixedUpdate, MovementSystem);
+ConductRegisterSystem(FixedUpdate, PathfindingSystem);
+ConductRegisterSystem(FixedUpdate, ColliderSystem);
 ConductRegisterSystem(FixedUpdate, ServerNetworkSnapshotSystem);
 ConductRegisterSystem(FixedUpdate, ServerNetworkSendSystem);
 
 console.log(`[server] listening on ws://localhost:${PORT}`);
 ConductStart(60);
+
+ConductEventConsume(CollisionEvent, (event) => {
+  console.log(`${event.a} | ${event.b}`);
+});

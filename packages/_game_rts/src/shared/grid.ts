@@ -38,6 +38,10 @@ export class Grid {
   readonly width: number;
   readonly height: number;
   readonly layers: number;
+  readonly minX: number;
+  readonly minY: number;
+  readonly maxX: number;
+  readonly maxY: number;
 
   private tiles: Uint8Array;
   private metadata: Map<number, TileMetadata>;
@@ -46,16 +50,20 @@ export class Grid {
     this.width = options.width;
     this.height = options.height;
     this.layers = options.layers;
+    this.minX = -Math.floor(options.width / 2);
+    this.minY = -Math.floor(options.height / 2);
+    this.maxX = this.minX + options.width;
+    this.maxY = this.minY + options.height;
     this.tiles = new Uint8Array(options.width * options.height * options.layers);
     this.metadata = new Map();
   }
 
   private index(x: number, y: number, z: number): number {
-    return z * (this.width * this.height) + y * this.width + x;
+    return z * (this.width * this.height) + (y - this.minY) * this.width + (x - this.minX);
   }
 
   inBounds(x: number, y: number, z: number): boolean {
-    return x >= 0 && x < this.width && y >= 0 && y < this.height && z >= 0 && z < this.layers;
+    return x >= this.minX && x < this.maxX && y >= this.minY && y < this.maxY && z >= 0 && z < this.layers;
   }
 
   get(x: number, y: number, z: number): TileType {

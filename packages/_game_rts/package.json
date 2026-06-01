@@ -32,9 +32,10 @@
   },
   "dependencies": {
     "@conduct/ecs": "workspace:*",
-    "@conduct/simulation": "workspace:*",
+    "@conduct/events": "workspace:^",
     "@conduct/networking": "workspace:*",
-    "@conduct/renderer": "workspace:*"
+    "@conduct/renderer": "workspace:*",
+    "@conduct/simulation": "workspace:*"
   },
   "devDependencies": {
     "tsx": "^4.0.0",

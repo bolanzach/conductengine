@@ -20,6 +20,9 @@ importers:
       '@conduct/ecs':
         specifier: workspace:*
         version: link:../ecs
+      '@conduct/events':
+        specifier: workspace:^
+        version: link:../events
       '@conduct/networking':
         specifier: workspace:*
         version: link:../networking

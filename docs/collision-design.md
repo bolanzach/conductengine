@@ -2,9 +2,14 @@
 
 ## Overview
 
-Collision detection and response for the Conduct Engine. Uses AABB (axis-aligned bounding box) collisions. Complex shapes can compose multiple bounding boxes across child entities to cover their shape.
+Entity-vs-entity collision detection and response for the Conduct Engine. Uses AABB (axis-aligned bounding box) collisions. Complex shapes can compose multiple bounding boxes across child entities to cover their shape.
 
-Key design decision: collision detection lives **outside** the ECS as a standalone service. The ECS provides efficient entity iteration; the collision service provides efficient spatial queries. A system bridges the two. Events are also a standalone API (`ConductEmitEvent` / `ConductGetEvents`), not injected into Query parameters.
+Key design decisions:
+- Collision detection lives **outside** the ECS as a standalone service. The ECS provides efficient entity iteration; the collision service provides efficient spatial queries. A system bridges the two.
+- The broad phase uses a **uniform grid spatial hash** for spatial partitioning. The collision service accepts a pluggable `SpatialIndex` interface — the game supplies the implementation (e.g., `GridSpatialIndex` for the RTS, backed by the tile grid's coordinate system).
+- Events use the standalone `@conduct/events` API (`ConductEventEmit` / `ConductEventConsume`), not injected into Query parameters.
+
+Scope: entity-vs-entity AABB only. Tile/terrain collision (walkability, structure blocking) is a pathfinding concern handled separately.
 
 ## Components
 
@@ -24,48 +29,116 @@ export class CollisionLayer {
 }
 ```
 
+## Collision Event
+
+```typescript
+@ConductEventRegister
+class CollisionEvent extends ConductEvent {
+  a = 0; // entity ID
+  b = 0; // entity ID
+}
+```
+
+Consumers subscribe once at setup time:
+
+```typescript
+ConductEventConsume(CollisionEvent, (event) => {
+  // handle collision between event.a and event.b
+});
+```
+
+## SpatialIndex Interface
+
+Abstracts the spatial querying strategy so the collision service is decoupled from any particular spatial data structure. The game supplies the implementation.
+
+```typescript
+interface SpatialIndex {
+  /** Insert or update an entity's position and half-extents (2D, top-down). */
+  update(entity: number, x: number, z: number, hx: number, hz: number): void;
+
+  /** Remove an entity from the index. */
+  unregister(entity: number): void;
+
+  /** Return candidate collision pairs from the broad phase. */
+  broadPhase(): [number, number][];
+}
+```
+
+2D (x, z) because this is a top-down RTS — Y is ignored for spatial bucketing. The collision service handles the full 3D AABB narrow phase separately.
+
+### Why an interface?
+
+The spatial partitioning strategy is game-specific. An RTS with uniformly-sized units on a tile grid benefits from a uniform grid hash. A game with wildly varying entity sizes might prefer a quadtree. The `SpatialIndex` interface lets the collision service work with either without code changes. This also means the collision service, components, and interface could eventually move to `@conduct/simulation`, with the game-specific spatial index staying in the game package.
+
+## GridSpatialIndex
+
+The RTS implementation of `SpatialIndex`. Uses a uniform grid hash aligned with the tile grid's coordinate system.
+
+- **Cell size** = TILE_SIZE (1 unit). This is a separate data structure from the tile `Grid` class — the collision index doesn't modify or depend on tile data.
+- **Position-to-cell**: `cellX = Math.floor(x)`, `cellZ = Math.floor(z)`.
+- **Cell key**: pack `(cellX, cellZ)` into a single integer via bit shift.
+- **Storage**: `Map<number, number[]>` mapping packed cell key to arrays of entity IDs.
+- **`update()`**: compute cell key from position. If the entity moved to a different cell, remove from old bucket, insert into new. If same cell, no-op (position data for narrow phase lives in the CollisionService, not here).
+- **`broadPhase()`**: iterate occupied cells. For each cell, emit all intra-cell pairs. Then check 4 neighbor cells with higher keys (right, below, below-right, below-left) to catch cross-boundary overlaps without duplicate pair emission.
+- **Large entities** (buildings spanning multiple tiles): insert into all cells they overlap.
+
+### Why uniform grid hash over quadtree?
+
+- Entities in this RTS are similarly sized (SpaceMarine ~0.5 units). Uniform grids are optimal when entity sizes are homogeneous.
+- TILE_SIZE = 1 is a natural cell size — no coordinate conversion needed.
+- Simpler to implement and faster in practice: no tree rebalancing, no node splitting.
+- O(n) for uniformly distributed entities. Worst case (all entities in one cell) degrades to O(n²), but that's unlikely in an RTS.
+
 ## Collision Service
 
-A standalone class/module (not ECS-managed) that handles spatial queries. Fully decoupled from ECS internals — receives data through explicit `update` calls, does not reach into archetype columns directly.
+A standalone class (not ECS-managed) that handles spatial queries. Fully decoupled from ECS internals — receives data through explicit `update` calls, does not reach into archetype columns directly.
 
 ### API
 
 ```typescript
-// Update entity position + bounds (called per entity each frame)
-CollisionService.update(entityId, x, y, z, hx, hy, hz);
+const service = new CollisionService(spatialIndex);
 
-// Remove entity from spatial state (called on component removal / entity deletion)
-CollisionService.unregister(entityId);
+// Update entity position + bounds (called per entity each frame)
+service.update(entity, x, y, z, hx, hy, hz);
+
+// Remove entity from spatial state
+service.unregister(entity);
 
 // Detect all colliding pairs from current state
-CollisionService.detectAll(); // -> [entityA, entityB][]
+service.detectAll(); // -> [number, number][]
 
-// On-demand per-entity query (for raycasts, proximity checks, etc.)
-CollisionService.detect(entityId); // -> entityId[]
+// On-demand per-entity query (for proximity checks, etc.)
+service.detect(entity); // -> number[]
 ```
 
 ### Internal implementation
 
-- Starts as O(n^2) brute-force AABB overlap checks.
-- Can be optimized later with spatial partitioning (quadtree for 2D, octree for 3D) without changing the external API.
-- Layer mask filtering, static-vs-dynamic checks, and other optimizations are owned by the service internally.
+- Stores per-entity AABB data (x, y, z, hx, hy, hz) in parallel arrays keyed by entity ID.
+- `update()` writes AABB data and calls `spatialIndex.update(entity, x, z, hx, hz)`.
+- `detectAll()` calls `spatialIndex.broadPhase()` for candidate pairs, then filters with the full 3D AABB overlap test: `|ax - bx| < ahx + bhx && |ay - by| < ahy + bhy && |az - bz| < ahz + bhz`.
+- Layer mask filtering (if `CollisionLayer` data is provided): skip pair if `(a.group & b.mask) === 0 && (b.group & a.mask) === 0`.
 
 ## ColliderSystem
 
 Single iteration updates the service, then `detectAll()` runs the broad phase and emits events.
 
 ```typescript
-export function CollisionSystem(query: Query<[Transform3D, Collider]>): void {
-  // Single pass: feed current positions into the collision service
-  query.iter(([entity, transform, collider]) => {
-    collisionService.update(entity, transform, collider);
+export default function ColliderSystem(
+  query: Query<[Transform3D, BoundingBox]>
+): void {
+  // Feed current positions into the collision service
+  query.iter(([entity, t, b]) => {
+    collisionService.update(entity, t.x, t.y, t.z, b.hx, b.hy, b.hz);
   });
 
-  // Detect all pairs (N^2 or spatial index, handled internally)
+  // Broad phase + narrow phase
   const pairs = collisionService.detectAll();
 
-  for (const [a, b] of pairs) {
-    ConductEmitEvent(ConductCollisionEvent, { a, b });
+  for (let i = 0; i < pairs.length; i++) {
+    const event = new CollisionEvent();
+    event.a = pairs[i]![0]!;
+    event.b = pairs[i]![1]!;
+    ConductEventEmit(event);
   }
 }
 ```
@@ -78,30 +151,38 @@ The update pass is a linear iteration over SoA columns (exactly what the compile
 
 ### Stale entity cleanup
 
-Entities that had `Collider` removed or were deleted need to be unregistered from the service. Hook into `ConductRemoveComponent` / `ConductDeleteEntity` to call `collisionService.unregister(entity)`.
+Entities that had `BoundingBox` removed or were deleted need to be unregistered from the service. Hook into `ConductRemoveComponent` / `ConductDeleteEntity` to call `collisionService.unregister(entity)`.
 
-## Events System
+## Events
 
-General-purpose event infrastructure, not collision-specific.
-
-### API
+Collision events use the general-purpose `@conduct/events` infrastructure. The API is callback-based with immediate dispatch.
 
 ```typescript
-// Emit — callable from anywhere (systems, services, etc.)
-ConductEmitEvent(EventType, { ...data });
+// Define and register an event type
+@ConductEventRegister
+class CollisionEvent extends ConductEvent {
+  a = 0;
+  b = 0;
+}
 
-// Read — returns all events of that type this frame
-ConductGetEvents(EventType); // -> EventData[]
+// Emit from ColliderSystem (fires callbacks synchronously)
+const event = new CollisionEvent();
+event.a = entityA;
+event.b = entityB;
+ConductEventEmit(event);
 
-// Events are cleared automatically at end of frame (after all systems run)
+// Subscribe once at setup time
+ConductEventConsume(CollisionEvent, (event) => {
+  // handle collision between event.a and event.b
+});
 ```
 
 ### Implementation notes
 
-- Backed by a `Map<EventType, EventData[]>` cleared at end of frame.
-- Events emitted by system A are readable by system B in the **same frame** (since systems run sequentially in registration order, no double-buffering needed).
-- System ordering matters: producers must be registered before consumers. This is consistent with how the engine already works (e.g., InputSystem runs before movement systems). If a consumer runs before its producer, it sees nothing — that's a registration order bug.
-- No compiler changes required. No Query integration. Just function calls, similar to `Inputs` and `deltaTime`.
+- `ConductEventConsume` subscribes a callback and returns an unsubscribe function for cleanup.
+- `ConductEventEmit` dispatches synchronously — callbacks fire immediately during the emitting system's execution.
+- System ordering still matters: the ColliderSystem must run before any system that needs collision results to be available. Since callbacks fire synchronously during emit, consuming systems don't need to "read events" in their main body — the callback handles it.
+- No compiler changes required. No Query integration. Just function calls.
 
 ### Why not Bevy-style injection?
 
@@ -110,20 +191,24 @@ The only argument for injecting events into Query parameters is scheduler depend
 ## Frame Flow
 
 ```
-1. InputSystem          — flushes input buffer
-2. PlayerMovementSystem — moves player based on input
-3. BulletMovementSystem — moves bullets
-4. ColliderSystem       — updates collision service, detectAll(), emits CollisionEvents
-5. DamageSystem         — reads CollisionEvents, applies damage / destroys entities
-6. RendererSystem       — renders
-7. (frame end)          — flush commands, clear events
+1. CommandSystem          — processes player commands
+2. MovementSystem         — moves entities based on MoveTarget
+3. ColliderSystem         — feeds service, detectAll(), emits CollisionEvents
+4. (collision callbacks)  — fire synchronously during step 3 (damage, knockback, etc.)
+5. NetworkSnapshotSystem  — captures state for replication
+6. NetworkSendSystem      — sends snapshots to clients
+7. (tick end)             — flush deferred commands
 ```
 
-Systems 4 and 5 show why same-frame event reading and system ordering matter — the damage response happens in the same frame as detection.
+ColliderSystem must run after all movement systems (positions are final) and before network snapshot (collision responses are captured). Collision event callbacks fire synchronously during step 3, so consumers don't need their own system — they can register a callback at setup time.
 
 ## Implementation Order
 
-1. Events system (general-purpose infrastructure)
+1. ~~Events system~~ (done — `@conduct/events`)
 2. Collision components (`BoundingBox`, optionally `CollisionLayer`)
-3. Collision service (standalone, brute-force to start)
-4. ColliderSystem (bridges ECS iteration with collision service, emits events)
+3. Collision event (`CollisionEvent` class with `@ConductEventRegister`)
+4. `SpatialIndex` interface + `GridSpatialIndex` implementation
+5. `CollisionService` (accepts `SpatialIndex`, does AABB narrow phase)
+6. `ColliderSystem` (bridges ECS iteration with collision service, emits events)
+7. Add `BoundingBox` to entity bundles (e.g., `SpaceMarineBundle`)
+8. Consumer callback for collision response (damage, etc.)

@@ -8,6 +8,7 @@ import { Grid } from "./grid.js";
 export const BUNDLE = {
   SPACE_MARINE: 1,
   TILE: 2,
+  STRUCTURE_TILE: 3,
 } as const;
 
 export type BundleRegistry = Record<typeof BUNDLE[keyof typeof BUNDLE], ConductBundle>;
@@ -15,5 +16,5 @@ export type BundleRegistry = Record<typeof BUNDLE[keyof typeof BUNDLE], ConductB
 export let grid: Grid;
 
 export function startRTS(bundles: BundleRegistry) {
-  grid = spawnGrid(bundles[BUNDLE.TILE]);
+  grid = spawnGrid(bundles[BUNDLE.TILE], bundles[BUNDLE.STRUCTURE_TILE]);
 }

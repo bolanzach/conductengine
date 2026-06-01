@@ -46,10 +46,13 @@ npx playwright-cli close
 
 ## Packages
 
-Treat `examples` as a separate driver application that consumes the Conduct Engine packages.
+Treat `_game_rts` as a separate driver application that consumes the Conduct Engine packages.
 
-| Package | Description |
-|---|---|
-| `@conduct/ecs` | Core ECS runtime, compiler, and Vite plugin |
+| Package               | Description                                                  |
+|-----------------------|--------------------------------------------------------------|
+| `@conduct/ecs`        | Core ECS runtime, compiler, and Vite plugin                  |
+| `@conduct/events`     | Foundational events mechanisms                               |
 | `@conduct/simulation` | Reusable game components (Transform2D/3D, Input) and systems |
-| `@conduct/examples` | Example web app demonstrating the ECS in action |
+| `@conduct/networking` | The engine's net code for multiplayer                        |
+| `@conduct/renderer`   | Handles the engine rendering (WebGPU)                        |
+| `@conduct/_game_rts`  | The actual Real-Time-Strategy game that _uses_ the engine    |

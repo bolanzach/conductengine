@@ -9,6 +9,7 @@ export type ConductBundle = [component: ComponentConstructor, data?: Record<stri
 export const ComponentId = Symbol("ComponentId");
 const ComponentFields = Symbol("ComponentFields");
 const ComponentColumnKeys = Symbol("ComponentColumnKeys");
+const ComponentFieldToIndex = Symbol("ComponentFieldToIndex");
 
 /**
  * A bit mask signature for a set of components.
@@ -28,6 +29,10 @@ export type ComponentConstructor = {
    * Cached column keys (`${componentId}.${field}`) for fast archetype access.
    */
   [ComponentColumnKeys]?: string[];
+  /**
+   * Cached map from field name to index for fast partial updates.
+   */
+  [ComponentFieldToIndex]?: Record<string, number>;
 } & (new () => ConductComponent);
 
 // Marker for operator type identification at runtime
@@ -211,6 +216,11 @@ function registerComponentId(
     component[ComponentId] = componentId;
     component[ComponentFields] = fields;
     component[ComponentColumnKeys] = fields.map(key => `${componentId}.${key}`);
+    const fieldToIndex: Record<string, number> = {};
+    for (let i = 0; i < fields.length; i++) {
+      fieldToIndex[fields[i]!] = i;
+    }
+    component[ComponentFieldToIndex] = fieldToIndex;
   }
   return componentId;
 }
@@ -414,18 +424,9 @@ function growArchetype(archetype: Archetype): void {
 function addComponent<T extends ComponentConstructor>(
   entityId: number,
   component: T,
-  data?: Partial<InstanceType<T>> | ((instance: InstanceType<T>) => void),
+  data?: Partial<InstanceType<T>>
 ) {
   const componentId = registerComponentId(component);
-
-  // const componentId = component[ComponentId];
-  // if (componentId === undefined) {
-  //   // Component was never registered which means it's never used in a query/system.
-  //   // While maybe this is unexpected behavior, we don't need to add a component
-  //   // that is never queried for.
-  //   return;
-  // }
-
   const existingLocation = entityLocations[entityId];
   const componentSig = createSignature([componentId]);
 
@@ -437,26 +438,10 @@ function addComponent<T extends ComponentConstructor>(
       if (data) {
         const archetype = archetypes[existingLocation.archetypeIndex]!;
         const row = existingLocation.row;
-        if (typeof data === "function") {
-          // const instance = new component();
-          // const fields = component[ComponentFields]!;
-          // const columnKeys = component[ComponentColumnKeys]!;
-          // for (let i = 0; i < fields.length; i++) {
-          //   // @ts-ignore
-          //   instance[fields[i]!] = archetype.columns[columnKeys[i]!]![row];
-          // }
-          // data(instance as InstanceType<T>);
-          // for (let i = 0; i < columnKeys.length; i++) {
-          //   // @ts-ignore
-          //   archetype.columns[columnKeys[i]!]![row] = instance[fields[i]!];
-          // }
-        } else {
-          for (const key in data) {
-            const column = archetype.columns[`${componentId}.${key}`];
-            if (column) {
-              column[row] = data[key];
-            }
-          }
+        const columnKeys = component[ComponentColumnKeys]!;
+        const fieldToIndex = component[ComponentFieldToIndex]!;
+        for (const key in data) {
+          archetype.columns[columnKeys[fieldToIndex[key]!]!]![row] = data[key];
         }
       }
       return;
@@ -520,15 +505,9 @@ function addComponent<T extends ComponentConstructor>(
   const instance = new component();
 
   if (data) {
-    if (typeof data === "function") {
-      data(instance as InstanceType<T>);
-    } else {
-      for (const key in data) {
-        if (Object.hasOwn(instance, key)) {
-          // @ts-ignore
-          instance[key] = data[key];
-        }
-      }
+    for (const key in data) {
+      // @ts-ignore
+      instance[key] = data[key];
     }
   }
 
@@ -704,7 +683,7 @@ function deleteEntity(entityId: number): boolean {
 export function ConductAddComponent<T extends ComponentConstructor>(
   entity: ConductEntity,
   component: T,
-  data?: Partial<InstanceType<T>> | ((instance: InstanceType<T>) => void),
+  data?: Partial<InstanceType<T>>,
 ): void {
   commandQueue.push({ type: 'addComponent', entity, component, data });
 }

@@ -15,7 +15,7 @@ import { SquadMember } from "../shared/squadMember.js";
 import CommandSystem from "./commandSystem.js";
 import PathfindingSystem from "./pathfindingSystem.js";
 import ColliderSystem from "./colliderSystem.js";
-// import { FormationOffset } from "./formationOffset.js";
+import { FormationOffset } from "./formationOffset.js";
 import { ConductEventConsume } from "@conduct/events";
 import { CollisionEvent } from "../shared/collisionEvent.js";
 
@@ -32,23 +32,23 @@ const bundles: BundleRegistry = {
 const transport = new WebSocketServerTransport(PORT);
 setServerTransport(transport);
 
-const SQUAD_SIZE = 1;
-// const FORMATION_SPREAD = 0.8;
+const SQUAD_SIZE = 6;
+const FORMATION_SPREAD = 0.3;
 let nextSquadId = 1;
 
 function spawnSquad(x: number, z: number, owner: number) {
   const squadId = nextSquadId++;
   for (let i = 0; i < SQUAD_SIZE; i++) {
-    // const angle = (i / SQUAD_SIZE) * Math.PI * 2;
-    // const ox = Math.cos(angle) * FORMATION_SPREAD;
-    // const oz = Math.sin(angle) * FORMATION_SPREAD;
+    const angle = (i / SQUAD_SIZE) * Math.PI * 2;
+    const ox = Math.cos(angle) * FORMATION_SPREAD;
+    const oz = Math.sin(angle) * FORMATION_SPREAD;
     ConductSpawnBundle([
       ...SpaceMarineBundle,
-      // [Transform3D, { x: x + ox, z: z + oz }],
+      [Transform3D, { x: x + ox, z: z + oz }],
       [Transform3D, { x: x, z: z }],
       [Networked, { owner }],
       [SquadMember, { squadId, slotIndex: i }],
-      //[FormationOffset, { x: ox, z: oz }],
+      [FormationOffset, { x: ox, z: oz }],
     ]);
   }
 }

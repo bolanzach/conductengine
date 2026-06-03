@@ -1,8 +1,9 @@
-import { ConductGetComponent, ConductAddComponent } from "@conduct/ecs";
+import { ConductGetComponent, ConductAddComponent, ConductRemoveComponent } from "@conduct/ecs";
 import { consumeCommands } from "@conduct/networking/serverCommandReceive";
 import { Networked } from "@conduct/networking/networked";
 import { Transform3D } from "@conduct/simulation";
 import { Path } from "./path.js";
+import { AttackTarget } from "./attackTarget.js";
 import { SquadMember } from "../shared/squadMember.js";
 import { findPath } from "../shared/pathfinding.js";
 import { grid } from "../shared/index.js";
@@ -29,6 +30,9 @@ export default function CommandSystem() {
 
           const networked = ConductGetComponent(entity, Networked);
           if (!networked || networked.owner !== command.playerId) continue;
+
+          // Cancel any active attack when player issues a move command
+          ConductRemoveComponent(entity, AttackTarget);
 
           const member = ConductGetComponent(entity, SquadMember);
           const groupId = member ? member.squadId : nextSoloGroup--;

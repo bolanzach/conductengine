@@ -78,7 +78,7 @@ listenForInput();
 
 // Camera
 const camera = ConductSpawnEntity();
-ConductAddComponent(camera, Transform3D, { y: 20, z: 15, rx: -1.0 });
+ConductAddComponent(camera, Transform3D, { y: 10, z: 15, rx: -1.0 });
 ConductAddComponent(camera, Camera, { aspect: canvas.width / canvas.height, far: 200 });
 ConductAddComponent(camera, CameraPan);
 

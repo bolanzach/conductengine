@@ -15,6 +15,7 @@ import { SquadMember } from "../shared/squadMember.js";
 import CommandSystem from "./commandSystem.js";
 import PathfindingSystem from "./pathfindingSystem.js";
 import ColliderSystem from "./colliderSystem.js";
+import TargetAcquisitionSystem from "./targetAcquisitionSystem.js";
 import { FormationOffset } from "./formationOffset.js";
 import { ConductEventConsume } from "@conduct/events";
 import { CollisionEvent } from "../shared/collisionEvent.js";
@@ -77,8 +78,13 @@ transport.onMessage((playerId, message) => {
 
 startRTS(bundles);
 
+// Spawn enemy squads for testing target acquisition
+spawnSquad(8, 0, 0);
+// spawnSquad(8, 3, 0);
+
 ConductRegisterSystem(FixedUpdate, CommandSystem);
 ConductRegisterSystem(FixedUpdate, PathfindingSystem);
+ConductRegisterSystem(FixedUpdate, TargetAcquisitionSystem);
 ConductRegisterSystem(FixedUpdate, ColliderSystem);
 ConductRegisterSystem(FixedUpdate, ServerNetworkSnapshotSystem);
 ConductRegisterSystem(FixedUpdate, ServerNetworkSendSystem);
@@ -86,6 +92,6 @@ ConductRegisterSystem(FixedUpdate, ServerNetworkSendSystem);
 console.log(`[server] listening on ws://localhost:${PORT}`);
 ConductStart(60);
 
-ConductEventConsume(CollisionEvent, (event) => {
-  console.log(`${event.a} | ${event.b}`);
+ConductEventConsume(CollisionEvent, (_event) => {
+  //console.log(`${event.a} | ${event.b}`);
 });

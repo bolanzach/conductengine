@@ -3,8 +3,8 @@ import { Transform3D } from "@conduct/simulation";
 import { Grid, TileType } from "./grid.js";
 import { Tile } from "./tile.js";
 
-const GRID_WIDTH = 10;
-const GRID_HEIGHT = 10;
+const GRID_WIDTH = 42;
+const GRID_HEIGHT = 42;
 const GRID_LAYERS = 3;
 
 // Simple seeded PRNG so client and server generate identical grids
@@ -21,8 +21,11 @@ export function spawnGrid(tileBundle: ConductBundle, structureBundle: ConductBun
   // Fill layer 0 with grass, scatter some structures for testing
   for (let y = grid.minY; y < grid.maxY; y++) {
     for (let x = grid.minX; x < grid.maxX; x++) {
-      const type = seededRandom() < 0.15 ? TileType.STRUCTURE : TileType.GRASS;
-      // const type = TileType.GRASS;
+      let type = seededRandom() < 0.15 ? TileType.STRUCTURE : TileType.GRASS;
+      if (x === 0 && y === 0) {
+        // Ensure (0, 0) is always walkable for testing
+        type = TileType.GRASS;
+      }
 
       grid.set(x, y, 0, type);
 

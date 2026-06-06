@@ -8,21 +8,7 @@ import * as ts from "typescript";
  * A TypeScript transformer that optimizes ECS system functions by transforming
  * ergonomic query.iter() calls into cache-friendly, unrolled loops.
  *
- * # 1. Build the compiler (one-time, or when compiler changes)
- *   npx tsc -p tsconfig.compiler.json && mv src/compiler.js dist/compiler.cjs
- *
- * # 2. Build the project (transformer runs automatically)
- *   npx tsc
- *
- * Usage with ts-patch:
- *   1. npm i -D ts-patch
- *   2. npx ts-patch install
- *   3. Add to tsconfig.json:
- *      {
- *        "compilerOptions": {
- *          "plugins": [{ "transform": "./src/ecsTransformer.ts" }]
- *        }
- *      }
+ * Supports multiple query parameters per system, including nested queries.
  */
 
 const OPERATORS = ["Not", "Optional"];
@@ -101,12 +87,16 @@ function parseTypeNode(
 // System Detection
 // =============================================================================
 
-interface SystemInfo {
-  name: string;
+interface QueryInfo {
+  paramName: string;
   queryComponents: string[];
   notComponents: string[];
   optionalComponents: string[];
-  queryParamName: string;
+}
+
+interface SystemInfo {
+  name: string;
+  queries: QueryInfo[];
 }
 
 function isSystemFunction(node: ts.Node): node is ts.FunctionDeclaration {
@@ -125,6 +115,8 @@ function isSystemFunction(node: ts.Node): node is ts.FunctionDeclaration {
 }
 
 function extractSystemInfo(func: ts.FunctionDeclaration): SystemInfo | null {
+  const queries: QueryInfo[] = [];
+
   for (const param of func.parameters) {
     if (param.type && ts.isTypeReferenceNode(param.type)) {
       const typeName = param.type.typeName.getText();
@@ -134,21 +126,22 @@ function extractSystemInfo(func: ts.FunctionDeclaration): SystemInfo | null {
         const typeArg = typeArgs[0];
         const parsed = parseTypeNode(typeArg);
 
-        return {
-          name: func.name!.text,
+        queries.push({
+          paramName: (param.name as ts.Identifier).text,
           queryComponents: parsed.dataComponents,
           notComponents: parsed.filterComponents.not,
           optionalComponents: parsed.filterComponents.optional,
-          queryParamName: (param.name as ts.Identifier).text,
-        };
+        });
       }
     }
   }
-  return null;
+
+  if (queries.length === 0) return null;
+  return { name: func.name!.text, queries };
 }
 
 // =============================================================================
-// Callback Transformation
+// Callback Extraction
 // =============================================================================
 
 interface CallbackInfo {
@@ -181,9 +174,22 @@ function extractCallbackInfo(iterCall: ts.CallExpression): CallbackInfo | null {
   };
 }
 
+// =============================================================================
+// Parameter Mapping
+// =============================================================================
+
+interface ParamMapping {
+  componentType: string | null; // null = entity
+  queryIndex: number;
+}
+
+// =============================================================================
+// Validation
+// =============================================================================
+
 function validateNoComponentPassing(
   body: ts.Node,
-  paramToComponent: Map<string, string | null>,
+  paramToComponent: Map<string, ParamMapping>,
   systemName: string
 ): void {
   function visit(node: ts.Node) {
@@ -191,13 +197,13 @@ function validateNoComponentPassing(
       node.arguments.forEach((arg) => {
         if (ts.isIdentifier(arg)) {
           const paramName = arg.text;
-          const componentType = paramToComponent.get(paramName);
+          const mapping = paramToComponent.get(paramName);
 
-          if (componentType !== undefined && componentType !== null) {
+          if (mapping !== undefined && mapping.componentType !== null) {
             throw new CompilerError(
               "Cannot pass entire component to function",
               systemName,
-              `'${paramName}' (${componentType}) passed to function call. ` +
+              `'${paramName}' (${mapping.componentType}) passed to function call. ` +
                 `Pass individual properties instead, e.g., '${paramName}.x, ${paramName}.y'`
             );
           }
@@ -213,12 +219,12 @@ function validateNoComponentPassing(
           if (ts.isAsExpression(init)) init = init.expression;
           if (ts.isIdentifier(init)) {
             const paramName = init.text;
-            const componentType = paramToComponent.get(paramName);
-            if (componentType !== undefined && componentType !== null) {
+            const mapping = paramToComponent.get(paramName);
+            if (mapping !== undefined && mapping.componentType !== null) {
               throw new CompilerError(
                 "Cannot destructure component parameter",
                 systemName,
-                `'${paramName}' (${componentType}) used in destructuring assignment. ` +
+                `'${paramName}' (${mapping.componentType}) used in destructuring assignment. ` +
                   `Use direct property access instead, e.g., 'const x = ${paramName}.x'`
               );
             }
@@ -237,14 +243,14 @@ function validateNoComponentPassing(
 // =============================================================================
 
 function createQueryConstant(
-  systemInfo: SystemInfo,
+  systemName: string,
+  queryIndex: number,
+  queryInfo: QueryInfo,
   factory: ts.NodeFactory
 ): ts.VariableStatement {
-  const queryName = `__query_${systemInfo.name}`;
+  const queryName = `__query_${systemName}_${queryIndex}`;
 
-  // createSignatureFromComponents([ComponentA, ComponentB, ...])
-  // This handles lazy ComponentId assignment internally
-  const componentRefs = systemInfo.queryComponents.map((c) =>
+  const componentRefs = queryInfo.queryComponents.map((c) =>
     factory.createIdentifier(c)
   );
 
@@ -254,10 +260,9 @@ function createQueryConstant(
     [factory.createArrayLiteralExpression(componentRefs)]
   );
 
-  // Not signature - also use createSignatureFromComponents for consistency
   let notSignature: ts.Expression;
-  if (systemInfo.notComponents.length > 0) {
-    const notRefs = systemInfo.notComponents.map((c) =>
+  if (queryInfo.notComponents.length > 0) {
+    const notRefs = queryInfo.notComponents.map((c) =>
       factory.createIdentifier(c)
     );
     notSignature = factory.createCallExpression(
@@ -269,7 +274,6 @@ function createQueryConstant(
     notSignature = factory.createArrayLiteralExpression([]);
   }
 
-  // { required: ..., not: ..., cache: null, cacheGeneration: 0 }
   const queryObject = factory.createObjectLiteralExpression([
     factory.createPropertyAssignment("required", requiredSignature),
     factory.createPropertyAssignment("not", notSignature),
@@ -296,13 +300,23 @@ function createQueryConstant(
   );
 }
 
+/**
+ * Transform the callback body: replace component property accesses with
+ * array indexing, entity identifiers with archetype entity access, and
+ * return statements with labeled continue.
+ *
+ * Skips nested iter calls on query params — those are handled recursively
+ * by processStatements.
+ */
 function transformCallbackBody(
   body: ts.Node,
-  paramToComponent: Map<string, string | null>,
+  paramToComponent: Map<string, ParamMapping>,
   optionalParams: Set<string>,
   columnRefs: Set<string>,
   context: ts.TransformationContext,
-  entityLoopLabel: string
+  entityLoopLabel: string,
+  queryParamNames: Set<string>,
+  queryIndex: number
 ): ts.Node {
   const factory = context.factory;
 
@@ -310,6 +324,18 @@ function transformCallbackBody(
   let functionNestingDepth = 0;
 
   function visit(node: ts.Node): ts.Node {
+    // Skip iter calls on query params — they'll be handled by processStatements
+    if (
+      ts.isCallExpression(node) &&
+      ts.isPropertyAccessExpression(node.expression) &&
+      node.expression.name.text === "iter"
+    ) {
+      const obj = node.expression.expression;
+      if (ts.isIdentifier(obj) && queryParamNames.has(obj.text)) {
+        return node;
+      }
+    }
+
     // Track entering/exiting nested functions
     if (ts.isArrowFunction(node) || ts.isFunctionExpression(node) || ts.isFunctionDeclaration(node)) {
       functionNestingDepth++;
@@ -323,61 +349,59 @@ function transformCallbackBody(
       return factory.createContinueStatement(factory.createIdentifier(entityLoopLabel));
     }
 
-    // Transform property access: transform.rx -> Transform_rx[$__conduct_engine_c]
+    // Transform property access: pos.x -> Position_x_N[$__conduct_engine_c_N]
     if (ts.isPropertyAccessExpression(node)) {
       const obj = node.expression;
       const prop = node.name.text;
 
       if (ts.isIdentifier(obj)) {
         const paramName = obj.text;
-        const componentType = paramToComponent.get(paramName);
+        const mapping = paramToComponent.get(paramName);
 
-        if (componentType !== undefined && componentType !== null) {
-          const columnKey = `${componentType}.${prop}`;
+        if (mapping !== undefined && mapping.componentType !== null) {
+          const columnKey = `${mapping.componentType}.${prop}`;
           columnRefs.add(columnKey);
 
-          const localVarName = `${componentType}_${prop}`;
+          const qi = mapping.queryIndex;
+          const localVarName = `${mapping.componentType}_${prop}_${qi}`;
           return factory.createElementAccessExpression(
             factory.createIdentifier(localVarName),
-            factory.createIdentifier("$__conduct_engine_c")
+            factory.createIdentifier(`$__conduct_engine_c_${qi}`)
           );
         }
       }
     }
 
-    // Transform standalone entity identifier: entity -> $__conduct_engine_arch.entities[$__conduct_engine_c]
+    // Transform standalone identifiers
     if (ts.isIdentifier(node)) {
       const paramName = node.text;
-      const componentType = paramToComponent.get(paramName);
+      const mapping = paramToComponent.get(paramName);
 
-      if (componentType === null) {
+      if (mapping !== undefined) {
         const parent = node.parent;
-        if (
+        const isPropertyAccessObject =
           parent &&
           ts.isPropertyAccessExpression(parent) &&
-          parent.expression === node
-        ) {
-          return node;
-        }
-        return factory.createElementAccessExpression(
-          factory.createPropertyAccessExpression(
-            factory.createIdentifier("$__conduct_engine_arch"),
-            "entities"
-          ),
-          factory.createIdentifier("$__conduct_engine_c")
-        );
-      }
+          parent.expression === node;
 
-      if (componentType !== undefined && optionalParams.has(paramName)) {
-        const parent = node.parent;
-        if (
-          parent &&
-          ts.isPropertyAccessExpression(parent) &&
-          parent.expression === node
-        ) {
-          return node;
+        // Entity identifier: entity -> $__conduct_engine_arch_N.entities[$__conduct_engine_c_N]
+        if (mapping.componentType === null) {
+          if (isPropertyAccessObject) return node;
+          const qi = mapping.queryIndex;
+          return factory.createElementAccessExpression(
+            factory.createPropertyAccessExpression(
+              factory.createIdentifier(`$__conduct_engine_arch_${qi}`),
+              "entities"
+            ),
+            factory.createIdentifier(`$__conduct_engine_c_${qi}`)
+          );
         }
-        return factory.createIdentifier(`$__conduct_engine_opt_${componentType}`);
+
+        // Optional component presence check
+        if (optionalParams.has(paramName)) {
+          if (isPropertyAccessObject) return node;
+          return factory.createIdentifier(`$__conduct_engine_opt_${mapping.componentType}_${mapping.queryIndex}`);
+        }
       }
     }
 
@@ -387,74 +411,58 @@ function transformCallbackBody(
   return ts.visitNode(body, visit) as ts.Node;
 }
 
-interface OptimizedSystemResult {
-  body: ts.Block;
-  columnKeyConstants: ts.VariableStatement[];
+/**
+ * Search a statement for a `paramName.iter()` call where paramName
+ * is one of the known query parameters.
+ */
+function findIterCallInStatement(
+  stmt: ts.Statement,
+  queryParamNames: Set<string>
+): { paramName: string; iterCall: ts.CallExpression } | null {
+  let result: { paramName: string; iterCall: ts.CallExpression } | null = null;
+
+  function search(node: ts.Node) {
+    if (result) return;
+    if (
+      ts.isCallExpression(node) &&
+      ts.isPropertyAccessExpression(node.expression) &&
+      node.expression.name.text === "iter"
+    ) {
+      const obj = node.expression.expression;
+      if (ts.isIdentifier(obj) && queryParamNames.has(obj.text)) {
+        result = { paramName: obj.text, iterCall: node };
+        return;
+      }
+    }
+    ts.forEachChild(node, search);
+  }
+
+  search(stmt);
+  return result;
 }
 
-function createOptimizedSystemBody(
-  systemInfo: SystemInfo,
-  callbackInfo: CallbackInfo,
-  factory: ts.NodeFactory,
-  context: ts.TransformationContext,
+/**
+ * Build the nested loop structure for a single query iteration.
+ */
+function buildLoopStructure(
+  queryIndex: number,
+  systemName: string,
+  queryInfo: QueryInfo,
+  bodyStatements: ts.Statement[],
   componentCounters: Map<string, number>,
-  preStatements: ts.Statement[],
-  postStatements: ts.Statement[]
-): OptimizedSystemResult {
-  const queryName = `__query_${systemInfo.name}`;
-  const entityLoopLabel = "$__conduct_engine_entity_label";
+  columnRefs: Set<string>,
+  factory: ts.NodeFactory,
+  // Side-effect collectors
+  generatedColumnKeys: Set<string>,
+  allColumnKeyConstants: ts.VariableStatement[],
+): ts.Statement[] {
+  const qi = queryIndex;
+  const queryName = `__query_${systemName}_${qi}`;
+  const entityLoopLabel = `$__conduct_engine_entity_label_${qi}`;
+  const optionalComponentNames = new Set(queryInfo.optionalComponents);
 
-  // Build param -> component mapping
-  const paramToComponent = new Map<string, string | null>();
-  const optionalParams = new Set<string>();
-  paramToComponent.set(callbackInfo.paramNames[0], null); // entity
-  for (let i = 0; i < systemInfo.queryComponents.length; i++) {
-    paramToComponent.set(
-      callbackInfo.paramNames[i + 1],
-      systemInfo.queryComponents[i]
-    );
-  }
-  for (let i = 0; i < systemInfo.optionalComponents.length; i++) {
-    const paramIndex = 1 + systemInfo.queryComponents.length + i;
-    const paramName = callbackInfo.paramNames[paramIndex];
-    paramToComponent.set(paramName, systemInfo.optionalComponents[i]);
-    optionalParams.add(paramName);
-  }
-
-  // Validate no component passing
-  validateNoComponentPassing(
-    callbackInfo.body,
-    paramToComponent,
-    systemInfo.name
-  );
-
-  // Track column references
-  const columnRefs = new Set<string>();
-
-  // Transform the callback body
-  const transformedBody = transformCallbackBody(
-    callbackInfo.body,
-    paramToComponent,
-    optionalParams,
-    columnRefs,
-    context,
-    entityLoopLabel
-  );
-
-  // Get statements from body
-  let bodyStatements: ts.Statement[];
-  if (ts.isBlock(transformedBody)) {
-    bodyStatements = Array.from(transformedBody.statements);
-  } else {
-    bodyStatements = [
-      factory.createExpressionStatement(transformedBody as ts.Expression),
-    ];
-  }
-
-  // Generate column key constants and extractions
-  const columnKeyConstants: ts.VariableStatement[] = [];
+  // Generate column key constants (shared/deduplicated) and per-query extractions
   const columnExtractions: ts.VariableStatement[] = [];
-  const optionalComponentNames = new Set(systemInfo.optionalComponents);
 
   for (const colKey of columnRefs) {
     const [componentName, propName] = colKey.split(".");
@@ -463,36 +471,32 @@ function createOptimizedSystemBody(
 
     const columnKeyVarName = `$__conduct_engine_${componentName}${componentCounter}_${propName}`;
 
-    // Build column key: <Component>[ComponentId] + ".<prop>"
-    const columnKeyExpr = factory.createBinaryExpression(
-      factory.createElementAccessExpression(
-        factory.createIdentifier(componentName),
-        factory.createIdentifier("ComponentId")
-      ),
-      ts.SyntaxKind.PlusToken,
-      factory.createStringLiteral(`.${propName}`)
-    );
-
-    columnKeyConstants.push(
-      factory.createVariableStatement(
-        undefined,
-        factory.createVariableDeclarationList(
-          [
-            factory.createVariableDeclaration(
-              columnKeyVarName,
-              undefined,
-              undefined,
-              columnKeyExpr
-            ),
-          ],
-          ts.NodeFlags.Const
+    // Only generate the column key constant once (shared across queries)
+    if (!generatedColumnKeys.has(columnKeyVarName)) {
+      generatedColumnKeys.add(columnKeyVarName);
+      const columnKeyExpr = factory.createBinaryExpression(
+        factory.createElementAccessExpression(
+          factory.createIdentifier(componentName),
+          factory.createIdentifier("ComponentId")
+        ),
+        ts.SyntaxKind.PlusToken,
+        factory.createStringLiteral(`.${propName}`)
+      );
+      allColumnKeyConstants.push(
+        factory.createVariableStatement(
+          undefined,
+          factory.createVariableDeclarationList(
+            [factory.createVariableDeclaration(columnKeyVarName, undefined, undefined, columnKeyExpr)],
+            ts.NodeFlags.Const
+          )
         )
-      )
-    );
+      );
+    }
 
-    const localVarName = colKey.replace(".", "_");
+    // Per-query column extraction: const Component_prop_N = columns_N[keyVar]
+    const localVarName = `${colKey.replace(".", "_")}_${qi}`;
     const columnAccess = factory.createElementAccessExpression(
-      factory.createIdentifier("$__conduct_engine_columns"),
+      factory.createIdentifier(`$__conduct_engine_columns_${qi}`),
       factory.createIdentifier(columnKeyVarName)
     );
 
@@ -520,9 +524,9 @@ function createOptimizedSystemBody(
     );
   }
 
-  // Generate presence checks for optional components
+  // Optional presence checks
   const optionalPresenceChecks: ts.VariableStatement[] = [];
-  for (const optComp of systemInfo.optionalComponents) {
+  for (const optComp of queryInfo.optionalComponents) {
     const componentCounter = componentCounters.get(optComp)!;
     optionalPresenceChecks.push(
       factory.createVariableStatement(
@@ -530,7 +534,7 @@ function createOptimizedSystemBody(
         factory.createVariableDeclarationList(
           [
             factory.createVariableDeclaration(
-              `$__conduct_engine_opt_${optComp}`,
+              `$__conduct_engine_opt_${optComp}_${qi}`,
               undefined,
               undefined,
               factory.createCallExpression(
@@ -538,7 +542,7 @@ function createOptimizedSystemBody(
                 undefined,
                 [
                   factory.createPropertyAccessExpression(
-                    factory.createIdentifier("$__conduct_engine_arch"),
+                    factory.createIdentifier(`$__conduct_engine_arch_${qi}`),
                     "signature"
                   ),
                   factory.createIdentifier(
@@ -554,17 +558,17 @@ function createOptimizedSystemBody(
     );
   }
 
-  // const $__conduct_engine_count = $__conduct_engine_arch.count;
+  // const $__conduct_engine_count_N = $__conduct_engine_arch_N.count;
   const countDecl = factory.createVariableStatement(
     undefined,
     factory.createVariableDeclarationList(
       [
         factory.createVariableDeclaration(
-          "$__conduct_engine_count",
+          `$__conduct_engine_count_${qi}`,
           undefined,
           undefined,
           factory.createPropertyAccessExpression(
-            factory.createIdentifier("$__conduct_engine_arch"),
+            factory.createIdentifier(`$__conduct_engine_arch_${qi}`),
             "count"
           )
         ),
@@ -573,14 +577,14 @@ function createOptimizedSystemBody(
     )
   );
 
-  // Inner loop: $__conduct_engine_entity_label: for (let $__conduct_engine_c = 0; $__conduct_engine_c < $__conduct_engine_count; $__conduct_engine_c++) { ... }
+  // Inner loop: entity iteration
   const innerLoop = factory.createLabeledStatement(
     factory.createIdentifier(entityLoopLabel),
     factory.createForStatement(
       factory.createVariableDeclarationList(
         [
           factory.createVariableDeclaration(
-            "$__conduct_engine_c",
+            `$__conduct_engine_c_${qi}`,
             undefined,
             undefined,
             factory.createNumericLiteral(0)
@@ -589,26 +593,26 @@ function createOptimizedSystemBody(
         ts.NodeFlags.Let
       ),
       factory.createBinaryExpression(
-        factory.createIdentifier("$__conduct_engine_c"),
+        factory.createIdentifier(`$__conduct_engine_c_${qi}`),
         ts.SyntaxKind.LessThanToken,
-        factory.createIdentifier("$__conduct_engine_count")
+        factory.createIdentifier(`$__conduct_engine_count_${qi}`)
       ),
-      factory.createPostfixIncrement(factory.createIdentifier("$__conduct_engine_c")),
+      factory.createPostfixIncrement(factory.createIdentifier(`$__conduct_engine_c_${qi}`)),
       factory.createBlock(bodyStatements, true)
     )
   );
 
-  // const $__conduct_engine_columns = $__conduct_engine_arch.columns;
+  // const $__conduct_engine_columns_N = $__conduct_engine_arch_N.columns;
   const columnsDecl = factory.createVariableStatement(
     undefined,
     factory.createVariableDeclarationList(
       [
         factory.createVariableDeclaration(
-          "$__conduct_engine_columns",
+          `$__conduct_engine_columns_${qi}`,
           undefined,
           undefined,
           factory.createPropertyAccessExpression(
-            factory.createIdentifier("$__conduct_engine_arch"),
+            factory.createIdentifier(`$__conduct_engine_arch_${qi}`),
             "columns"
           )
         ),
@@ -617,12 +621,12 @@ function createOptimizedSystemBody(
     )
   );
 
-  // Outer loop: for (let $__conduct_engine_i = 0; $__conduct_engine_i < $__conduct_engine_matches.length; $__conduct_engine_i++) { const $__conduct_engine_arch = $__conduct_engine_matches[$__conduct_engine_i]; ... }
+  // Outer loop: archetype iteration
   const outerLoop = factory.createForStatement(
     factory.createVariableDeclarationList(
       [
         factory.createVariableDeclaration(
-          "$__conduct_engine_i",
+          `$__conduct_engine_i_${qi}`,
           undefined,
           undefined,
           factory.createNumericLiteral(0)
@@ -631,14 +635,14 @@ function createOptimizedSystemBody(
       ts.NodeFlags.Let
     ),
     factory.createBinaryExpression(
-      factory.createIdentifier("$__conduct_engine_i"),
+      factory.createIdentifier(`$__conduct_engine_i_${qi}`),
       ts.SyntaxKind.LessThanToken,
       factory.createPropertyAccessExpression(
-        factory.createIdentifier("$__conduct_engine_matches"),
+        factory.createIdentifier(`$__conduct_engine_matches_${qi}`),
         "length"
       )
     ),
-    factory.createPostfixIncrement(factory.createIdentifier("$__conduct_engine_i")),
+    factory.createPostfixIncrement(factory.createIdentifier(`$__conduct_engine_i_${qi}`)),
     factory.createBlock(
       [
         factory.createVariableStatement(
@@ -646,12 +650,12 @@ function createOptimizedSystemBody(
           factory.createVariableDeclarationList(
             [
               factory.createVariableDeclaration(
-                "$__conduct_engine_arch",
+                `$__conduct_engine_arch_${qi}`,
                 undefined,
                 undefined,
                 factory.createElementAccessExpression(
-                  factory.createIdentifier("$__conduct_engine_matches"),
-                  factory.createIdentifier("$__conduct_engine_i")
+                  factory.createIdentifier(`$__conduct_engine_matches_${qi}`),
+                  factory.createIdentifier(`$__conduct_engine_i_${qi}`)
                 )
               ),
             ],
@@ -668,13 +672,13 @@ function createOptimizedSystemBody(
     )
   );
 
-  // const $__conduct_engine_matches = query(__query_systemName);
-  const $__conduct_engine_matchesDecl = factory.createVariableStatement(
+  // const $__conduct_engine_matches_N = query(__query_SystemName_N);
+  const matchesDecl = factory.createVariableStatement(
     undefined,
     factory.createVariableDeclarationList(
       [
         factory.createVariableDeclaration(
-          "$__conduct_engine_matches",
+          `$__conduct_engine_matches_${qi}`,
           undefined,
           undefined,
           factory.createCallExpression(
@@ -688,10 +692,189 @@ function createOptimizedSystemBody(
     )
   );
 
-  return {
-    body: factory.createBlock([...preStatements, $__conduct_engine_matchesDecl, outerLoop, ...postStatements], true),
-    columnKeyConstants,
-  };
+  return [matchesDecl, outerLoop];
+}
+
+/**
+ * Recursively process a list of statements, replacing iter calls with
+ * optimized loop structures. Handles nested queries naturally.
+ */
+function processStatements(
+  statements: ts.Statement[],
+  queryParamNames: Set<string>,
+  queryInfoMap: Map<string, QueryInfo>,
+  activeMappings: Map<string, ParamMapping>,
+  activeOptionalParams: Set<string>,
+  systemName: string,
+  factory: ts.NodeFactory,
+  context: ts.TransformationContext,
+  componentCounters: Map<string, number>,
+  nextComponentCounter: { value: number },
+  queryCounter: { value: number },
+  // Side-effect collectors
+  queryConstants: ts.VariableStatement[],
+  allColumnKeyConstants: ts.VariableStatement[],
+  optSignatureConstants: ts.VariableStatement[],
+  usedComponents: Set<string>,
+  generatedColumnKeys: Set<string>,
+  generatedOptSigs: Set<string>,
+  needsOptionalSupport: { value: boolean },
+): ts.Statement[] {
+  const result: ts.Statement[] = [];
+
+  for (let si = 0; si < statements.length; si++) {
+    const stmt = statements[si];
+    const iterInfo = findIterCallInStatement(stmt, queryParamNames);
+
+    if (!iterInfo) {
+      result.push(stmt);
+      continue;
+    }
+
+    const queryInfo = queryInfoMap.get(iterInfo.paramName)!;
+    const callbackInfo = extractCallbackInfo(iterInfo.iterCall);
+    if (!callbackInfo) {
+      result.push(stmt);
+      continue;
+    }
+
+    const qi = queryCounter.value++;
+
+    // Register components and assign counters
+    const allComps = [...queryInfo.queryComponents, ...queryInfo.notComponents, ...queryInfo.optionalComponents];
+    for (const comp of allComps) {
+      usedComponents.add(comp);
+      if (!componentCounters.has(comp)) {
+        componentCounters.set(comp, nextComponentCounter.value++);
+      }
+    }
+
+    // Generate optional signature constants (deduplicated)
+    if (queryInfo.optionalComponents.length > 0) {
+      needsOptionalSupport.value = true;
+      for (const comp of queryInfo.optionalComponents) {
+        const counter = componentCounters.get(comp)!;
+        const sigName = `$__conduct_engine_opt_sig_${comp}${counter}`;
+        if (!generatedOptSigs.has(sigName)) {
+          generatedOptSigs.add(sigName);
+          optSignatureConstants.push(
+            factory.createVariableStatement(
+              undefined,
+              factory.createVariableDeclarationList(
+                [
+                  factory.createVariableDeclaration(
+                    sigName,
+                    undefined,
+                    undefined,
+                    factory.createCallExpression(
+                      factory.createIdentifier("createSignatureFromComponents"),
+                      undefined,
+                      [factory.createArrayLiteralExpression([factory.createIdentifier(comp)])]
+                    )
+                  ),
+                ],
+                ts.NodeFlags.Const
+              )
+            )
+          );
+        }
+      }
+    }
+
+    // Create query constant
+    queryConstants.push(createQueryConstant(systemName, qi, queryInfo, factory));
+
+    // Build merged param-to-component mapping
+    const mergedMappings = new Map(activeMappings);
+    const mergedOptionalParams = new Set(activeOptionalParams);
+
+    // Entity param
+    mergedMappings.set(callbackInfo.paramNames[0], { componentType: null, queryIndex: qi });
+
+    // Required component params
+    for (let i = 0; i < queryInfo.queryComponents.length; i++) {
+      mergedMappings.set(
+        callbackInfo.paramNames[i + 1],
+        { componentType: queryInfo.queryComponents[i], queryIndex: qi }
+      );
+    }
+
+    // Optional component params
+    for (let i = 0; i < queryInfo.optionalComponents.length; i++) {
+      const paramIndex = 1 + queryInfo.queryComponents.length + i;
+      const paramName = callbackInfo.paramNames[paramIndex];
+      mergedMappings.set(paramName, { componentType: queryInfo.optionalComponents[i], queryIndex: qi });
+      mergedOptionalParams.add(paramName);
+    }
+
+    // Validate no component passing
+    validateNoComponentPassing(callbackInfo.body, mergedMappings, systemName);
+
+    // Transform callback body (component accesses → array indexing, returns → continue)
+    // This skips nested iter calls — they're handled by the recursive processStatements below
+    const columnRefs = new Set<string>();
+    const entityLoopLabel = `$__conduct_engine_entity_label_${qi}`;
+
+    const transformedBody = transformCallbackBody(
+      callbackInfo.body,
+      mergedMappings,
+      mergedOptionalParams,
+      columnRefs,
+      context,
+      entityLoopLabel,
+      queryParamNames,
+      qi
+    );
+
+    // Get statements from transformed body
+    let bodyStatements: ts.Statement[];
+    if (ts.isBlock(transformedBody)) {
+      bodyStatements = Array.from(transformedBody.statements);
+    } else {
+      bodyStatements = [
+        factory.createExpressionStatement(transformedBody as ts.Expression),
+      ];
+    }
+
+    // Recursively process body statements for nested iter calls
+    bodyStatements = processStatements(
+      bodyStatements,
+      queryParamNames,
+      queryInfoMap,
+      mergedMappings,
+      mergedOptionalParams,
+      systemName,
+      factory,
+      context,
+      componentCounters,
+      nextComponentCounter,
+      queryCounter,
+      queryConstants,
+      allColumnKeyConstants,
+      optSignatureConstants,
+      usedComponents,
+      generatedColumnKeys,
+      generatedOptSigs,
+      needsOptionalSupport,
+    );
+
+    // Build the loop structure for this query
+    const loopStatements = buildLoopStructure(
+      qi,
+      systemName,
+      queryInfo,
+      bodyStatements,
+      componentCounters,
+      columnRefs,
+      factory,
+      generatedColumnKeys,
+      allColumnKeyConstants,
+    );
+
+    result.push(...loopStatements);
+  }
+
+  return result;
 }
 
 // =============================================================================
@@ -708,10 +891,9 @@ function createTransformer(
       const queryConstants: ts.VariableStatement[] = [];
       const allColumnKeyConstants: ts.VariableStatement[] = [];
       const optionalSignatureConstants: ts.VariableStatement[] = [];
-      let needsOptionalSupport = false;
+      const needsOptionalSupport = { value: false };
 
       // Build a map of imported identifiers -> module path
-      // This helps us re-add imports that TypeScript strips as "type-only"
       const importMap = new Map<string, string>();
       for (const stmt of sourceFile.statements) {
         if (ts.isImportDeclaration(stmt) && stmt.importClause) {
@@ -722,145 +904,73 @@ function createTransformer(
               importMap.set(element.name.text, moduleSpecifier);
             }
           }
-          // Handle default imports
           if (stmt.importClause.name) {
             importMap.set(stmt.importClause.name.text, moduleSpecifier);
           }
         }
       }
 
-      // Track all components used in queries (need to re-import these)
+      // Track all components used in queries
       const usedComponents = new Set<string>();
 
-      // Track component counters for unique naming (ComponentName -> counter)
-      // This allows same-named components from different modules to have different column keys
+      // Track component counters for unique naming
       const componentCounters = new Map<string, number>();
-      let nextComponentCounter = 1;
+      const nextComponentCounter = { value: 1 };
+      const queryCounter = { value: 0 };
+      const generatedColumnKeys = new Set<string>();
+      const generatedOptSigs = new Set<string>();
 
       function visit(node: ts.Node): ts.Node {
-        // Find system functions
         if (isSystemFunction(node)) {
           const systemInfo = extractSystemInfo(node);
-          if (!systemInfo) {
+          if (!systemInfo || !node.body) {
             return node;
           }
 
-          // Find the query.iter() call in the function body
-          let iterCall: ts.CallExpression | null = null;
-          let callbackInfo: CallbackInfo | null = null;
-          let iterStatementIndex = -1;
-
-          if (node.body) {
-            const statements = node.body.statements;
-            for (let si = 0; si < statements.length; si++) {
-              const stmt = statements[si];
-              let found = false;
-              function findIterCall(n: ts.Node) {
-                if (found) return;
-                if (
-                  ts.isCallExpression(n) &&
-                  ts.isPropertyAccessExpression(n.expression) &&
-                  n.expression.name.text === "iter"
-                ) {
-                  iterCall = n;
-                  callbackInfo = extractCallbackInfo(n);
-                  found = true;
-                  return;
-                }
-                ts.forEachChild(n, findIterCall);
-              }
-              findIterCall(stmt);
-              if (found) {
-                iterStatementIndex = si;
-                break;
-              }
-            }
+          // Build query param lookup
+          const queryParamNames = new Set<string>();
+          const queryInfoMap = new Map<string, QueryInfo>();
+          for (const qi of systemInfo.queries) {
+            queryParamNames.add(qi.paramName);
+            queryInfoMap.set(qi.paramName, qi);
           }
 
-          if (!iterCall || !callbackInfo || iterStatementIndex === -1) {
-            return node;
-          }
+          // Reset query counter for each system
+          queryCounter.value = 0;
 
-          const bodyStatements = Array.from(node.body!.statements);
-          const preStatements = bodyStatements.slice(0, iterStatementIndex);
-          const postStatements = bodyStatements.slice(iterStatementIndex + 1);
-
-          // Track components used in this query (required, not, and optional)
-          // and assign counters to new components
-          for (const comp of systemInfo.queryComponents) {
-            usedComponents.add(comp);
-            if (!componentCounters.has(comp)) {
-              componentCounters.set(comp, nextComponentCounter++);
-            }
-          }
-          for (const comp of systemInfo.notComponents) {
-            usedComponents.add(comp);
-            if (!componentCounters.has(comp)) {
-              componentCounters.set(comp, nextComponentCounter++);
-            }
-          }
-          for (const comp of systemInfo.optionalComponents) {
-            usedComponents.add(comp);
-            if (!componentCounters.has(comp)) {
-              componentCounters.set(comp, nextComponentCounter++);
-            }
-          }
-
-          // Generate optional signature constants for presence checks
-          if (systemInfo.optionalComponents.length > 0) {
-            needsOptionalSupport = true;
-            for (const comp of systemInfo.optionalComponents) {
-              const counter = componentCounters.get(comp)!;
-              optionalSignatureConstants.push(
-                factory.createVariableStatement(
-                  undefined,
-                  factory.createVariableDeclarationList(
-                    [
-                      factory.createVariableDeclaration(
-                        `$__conduct_engine_opt_sig_${comp}${counter}`,
-                        undefined,
-                        undefined,
-                        factory.createCallExpression(
-                          factory.createIdentifier("createSignatureFromComponents"),
-                          undefined,
-                          [factory.createArrayLiteralExpression([factory.createIdentifier(comp)])]
-                        )
-                      ),
-                    ],
-                    ts.NodeFlags.Const
-                  )
-                )
-              );
-            }
-          }
-
-          // Create query constant (will be added at top of file)
-          queryConstants.push(createQueryConstant(systemInfo, factory));
-
-          // Create optimized function body
-          const optimizedResult = createOptimizedSystemBody(
-            systemInfo,
-            callbackInfo,
+          // Process all statements in the function body
+          const bodyStatements = Array.from(node.body.statements);
+          const processedStatements = processStatements(
+            bodyStatements,
+            queryParamNames,
+            queryInfoMap,
+            new Map(), // no active mappings at top level
+            new Set(), // no active optional params
+            systemInfo.name,
             factory,
             context,
             componentCounters,
-            preStatements,
-            postStatements
+            nextComponentCounter,
+            queryCounter,
+            queryConstants,
+            allColumnKeyConstants,
+            optionalSignatureConstants,
+            usedComponents,
+            generatedColumnKeys,
+            generatedOptSigs,
+            needsOptionalSupport,
           );
 
-          // Collect column key constants
-          allColumnKeyConstants.push(...optimizedResult.columnKeyConstants);
-
-          // Return new function with optimized body (remove query parameter)
+          // Return new function with optimized body (remove all query parameters)
           return factory.updateFunctionDeclaration(
             node,
             node.modifiers,
             node.asteriskToken,
             node.name,
             node.typeParameters,
-            [], // Remove query parameter
+            [], // Remove all query parameters
             node.type,
-            optimizedResult.body
+            factory.createBlock(processedStatements, true)
           );
         }
 
@@ -869,7 +979,7 @@ function createTransformer(
 
       const transformedFile = ts.visitNode(sourceFile, visit) as ts.SourceFile;
 
-      // Add runtime import and query constants if we have any systems
+      // Add runtime imports and constants if we transformed any systems
       if (queryConstants.length > 0) {
         const statements = Array.from(transformedFile.statements);
 
@@ -903,7 +1013,7 @@ function createTransformer(
                 undefined,
                 factory.createIdentifier("query")
               ),
-              ...(needsOptionalSupport
+              ...(needsOptionalSupport.value
                 ? [factory.createImportSpecifier(
                     false,
                     undefined,
@@ -915,8 +1025,7 @@ function createTransformer(
           factory.createStringLiteral("@conduct/ecs")
         );
 
-        // Strip query components from their original imports — the compiler
-        // re-adds them below so they survive TypeScript's import elision.
+        // Strip query components from their original imports
         for (let i = statements.length - 1; i >= 0; i--) {
           const stmt = statements[i];
           if (!ts.isImportDeclaration(stmt) || !stmt.importClause) continue;
@@ -935,17 +1044,15 @@ function createTransformer(
           }
         }
 
-        // Group components by their source module for efficient imports
+        // Group components by their source module for imports
         const componentsByModule = new Map<string, string[]>();
         for (const comp of usedComponents) {
           const modulePath = importMap.get(comp);
           if (modulePath) {
-            // Component is imported from another module - need to re-add import
             const existing = componentsByModule.get(modulePath) ?? [];
             existing.push(comp);
             componentsByModule.set(modulePath, existing);
           }
-          // If component is not in importMap, it's defined locally - no import needed
         }
 
         // Create component imports
@@ -973,7 +1080,7 @@ function createTransformer(
 
         // Generate sentinel array for optional column fallback
         const optionalSentinel: ts.VariableStatement[] = [];
-        if (needsOptionalSupport) {
+        if (needsOptionalSupport.value) {
           optionalSentinel.push(
             factory.createVariableStatement(
               undefined,

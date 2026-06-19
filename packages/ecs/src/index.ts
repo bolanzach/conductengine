@@ -10,6 +10,8 @@ export {
   type Schedule,
   type ComponentConstructor,
   type ConductBundle,
+  archetypes,
+  entityLocations,
   ComponentId,
   createSignature,
   createSignatureFromComponents,

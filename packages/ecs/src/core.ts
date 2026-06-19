@@ -125,6 +125,22 @@ export interface Query<T extends QueryElement[]> {
    * }
    */
   iter: (iteree: (arg: SystemArgs<FilterDataComponents<T>>) => void) => void;
+
+  /**
+   * Random access lookup. Execute the callback with the given entity's
+   * components if the entity matches this query.
+   *
+   * @example
+   * const hit = query.get(target, ([health, armor]) => {
+   *   health.hp -= damage - armor.defense;
+   * });
+   */
+  get: (entity: ConductEntity, cb: (arg: FilterDataComponents<T>) => void) => boolean;
+
+  /**
+   * Check whether an entity matches this query without accessing component data.
+   */
+  has: (entity: ConductEntity) => boolean;
 }
 
 interface Archetype {
@@ -162,7 +178,7 @@ const BIT_CHUNK_SIZE = 32;
 let nextComponentId = 0;
 let nextEntityId = 0;
 
-const archetypes: Archetype[] = [];
+export const archetypes: Archetype[] = [];
 const archetypesBySignature = new Map<string, number>();
 
 /**
@@ -173,7 +189,7 @@ let archetypeGeneration = 0;
 /**
  * Array mapping entity IDs to their location in an archetype
  */
-const entityLocations: (EntityLocation | undefined)[] = [];
+export const entityLocations: (EntityLocation | undefined)[] = [];
 
 /**
  * Recycled entity IDs

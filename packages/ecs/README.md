@@ -17,9 +17,9 @@ class Player {
 ```ts
 export default function TestSystem(query: Query<[Player]>) {
   // Iterates over all entities that have the Player component
-  query.iter(([_, player]) => {
+  query.iter(([entity, player]) => {
     if (player.id === 42) {
-      console.log(player.name, "has the answer!");
+      console.log(player.name, "has the answer and is associated with entity ID", entity);
     }
   });
 }
@@ -42,6 +42,16 @@ ConductAddComponent(p, [Player, { id: 42, name: "Gadnuck" }]);
 // Once all systems are registered, run the main loop
 ConductStart();
 ```
+
+#### Known Limitations
+
+What makes the ECS so performant is the underlying compiler. This has tradeoffs that currently limit what can be done within Systems:
+
+| Limitation | Do                                                                                    | Don't |
+| --- |---------------------------------------------------------------------------------------| --- |
+| Cannot destructure components in the system query, you must access them by index. | `query.iter(([entity, player]) => { player.name; })`<br/><br/>`const id = player.id;` | `query.iter(([entity, { name }]) => { name; })`<br/><br/>`const { id } = player;` |
+| Cannot pass entire components as arguments to functions, you must pass the individual properties. | `doSomething(player.id, player.name)`                                                 | `doSomething(player)` |
+| Cannot have a variable named `entity` in the system query, as it is reserved for the entity ID. | `const e = ConductSpawnEntity()`                                                      | `const entity = ConductSpawnEntity()` |
 
 ### Bundles
 

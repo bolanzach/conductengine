@@ -149,8 +149,8 @@ interface CallbackInfo {
   body: ts.Block | ts.Expression;
 }
 
-function extractCallbackInfo(iterCall: ts.CallExpression): CallbackInfo | null {
-  const callback = iterCall.arguments[0];
+function extractCallbackInfo(call: ts.CallExpression, callbackArgIndex: number = 0): CallbackInfo | null {
+  const callback = call.arguments[callbackArgIndex];
 
   if (
     !callback ||
@@ -312,27 +312,50 @@ function transformCallbackBody(
   body: ts.Node,
   paramToComponent: Map<string, ParamMapping>,
   optionalParams: Set<string>,
-  columnRefs: Set<string>,
+  sharedColumnRefs: Map<number, Set<string>>,
   context: ts.TransformationContext,
   entityLoopLabel: string,
   queryParamNames: Set<string>,
-  queryIndex: number
+  queryIndex: number,
+  useBreak: boolean = false,
 ): ts.Node {
   const factory = context.factory;
+
+  function addColumnRef(qi: number, key: string) {
+    let refs = sharedColumnRefs.get(qi);
+    if (!refs) {
+      refs = new Set();
+      sharedColumnRefs.set(qi, refs);
+    }
+    refs.add(key);
+  }
 
   // Track nesting depth to avoid transforming returns inside nested functions
   let functionNestingDepth = 0;
 
   function visit(node: ts.Node): ts.Node {
-    // Skip iter calls on query params — they'll be handled by processStatements
+    // Handle query method calls on query params
     if (
       ts.isCallExpression(node) &&
-      ts.isPropertyAccessExpression(node.expression) &&
-      node.expression.name.text === "iter"
+      ts.isPropertyAccessExpression(node.expression)
     ) {
+      const methodName = node.expression.name.text;
       const obj = node.expression.expression;
-      if (ts.isIdentifier(obj) && queryParamNames.has(obj.text)) {
-        return node;
+      if (
+        (methodName === "iter" || methodName === "get" || methodName === "has") &&
+        ts.isIdentifier(obj) &&
+        queryParamNames.has(obj.text)
+      ) {
+        // iter: skip entirely — processStatements handles it
+        if (methodName === "iter") {
+          return node;
+        }
+        // get/has: transform the entity argument (arg 0) but skip the callback (arg 1 for get)
+        const transformedArgs = node.arguments.map((arg, idx) => {
+          if (methodName === "get" && idx === 1) return arg;
+          return ts.visitNode(arg, visit) as ts.Expression;
+        });
+        return factory.updateCallExpression(node, node.expression, node.typeArguments, transformedArgs);
       }
     }
 
@@ -344,8 +367,11 @@ function transformCallbackBody(
       return result;
     }
 
-    // Transform return statements to labeled continue (only at callback level)
+    // Transform return statements to labeled break/continue (only at callback level)
     if (ts.isReturnStatement(node) && functionNestingDepth === 0) {
+      if (useBreak) {
+        return factory.createBreakStatement(factory.createIdentifier(entityLoopLabel));
+      }
       return factory.createContinueStatement(factory.createIdentifier(entityLoopLabel));
     }
 
@@ -360,7 +386,7 @@ function transformCallbackBody(
 
         if (mapping !== undefined && mapping.componentType !== null) {
           const columnKey = `${mapping.componentType}.${prop}`;
-          columnRefs.add(columnKey);
+          addColumnRef(mapping.queryIndex, columnKey);
 
           const qi = mapping.queryIndex;
           const localVarName = `${mapping.componentType}_${prop}_${qi}`;
@@ -442,26 +468,101 @@ function findIterCallInStatement(
 }
 
 /**
- * Build the nested loop structure for a single query iteration.
+ * Search a statement for a `paramName.get()` call where paramName
+ * is one of the known query parameters.
  */
-function buildLoopStructure(
-  queryIndex: number,
-  systemName: string,
+function findGetCallInStatement(
+  stmt: ts.Statement,
+  queryParamNames: Set<string>
+): { paramName: string; getCall: ts.CallExpression } | null {
+  let result: { paramName: string; getCall: ts.CallExpression } | null = null;
+
+  function search(node: ts.Node) {
+    if (result) return;
+    if (
+      ts.isCallExpression(node) &&
+      ts.isPropertyAccessExpression(node.expression) &&
+      node.expression.name.text === "get"
+    ) {
+      const obj = node.expression.expression;
+      if (ts.isIdentifier(obj) && queryParamNames.has(obj.text)) {
+        result = { paramName: obj.text, getCall: node };
+        return;
+      }
+    }
+    ts.forEachChild(node, search);
+  }
+
+  search(stmt);
+  return result;
+}
+
+/**
+ * Search a statement for a `paramName.has()` call where paramName
+ * is one of the known query parameters.
+ */
+function findHasCallInStatement(
+  stmt: ts.Statement,
+  queryParamNames: Set<string>
+): { paramName: string; hasCall: ts.CallExpression } | null {
+  let result: { paramName: string; hasCall: ts.CallExpression } | null = null;
+
+  function search(node: ts.Node) {
+    if (result) return;
+    if (
+      ts.isCallExpression(node) &&
+      ts.isPropertyAccessExpression(node.expression) &&
+      node.expression.name.text === "has"
+    ) {
+      const obj = node.expression.expression;
+      if (ts.isIdentifier(obj) && queryParamNames.has(obj.text)) {
+        result = { paramName: obj.text, hasCall: node };
+        return;
+      }
+    }
+    ts.forEachChild(node, search);
+  }
+
+  search(stmt);
+  return result;
+}
+
+/**
+ * Replace a specific call expression within a statement with a replacement expression.
+ * Used to swap query.get()/query.has() calls with their result variables.
+ */
+function replaceCallExprInStatement(
+  stmt: ts.Statement,
+  targetCall: ts.CallExpression,
+  replacementExpr: ts.Expression,
+  context: ts.TransformationContext,
+): ts.Statement {
+  function visit(node: ts.Node): ts.Node {
+    if (node === targetCall) {
+      return replacementExpr;
+    }
+    return ts.visitEachChild(node, visit, context);
+  }
+  return ts.visitNode(stmt, visit) as ts.Statement;
+}
+
+/**
+ * Build column key constants and per-query column extraction statements.
+ * Shared by buildLoopStructure and buildGetStructure.
+ */
+function buildColumnExtractions(
+  qi: number,
   queryInfo: QueryInfo,
-  bodyStatements: ts.Statement[],
-  componentCounters: Map<string, number>,
   columnRefs: Set<string>,
+  componentCounters: Map<string, number>,
   factory: ts.NodeFactory,
-  // Side-effect collectors
   generatedColumnKeys: Set<string>,
   allColumnKeyConstants: ts.VariableStatement[],
-): ts.Statement[] {
-  const qi = queryIndex;
-  const queryName = `__query_${systemName}_${qi}`;
-  const entityLoopLabel = `$__conduct_engine_entity_label_${qi}`;
+): {
+  columnExtractions: ts.VariableStatement[];
+  optionalPresenceChecks: ts.VariableStatement[];
+} {
   const optionalComponentNames = new Set(queryInfo.optionalComponents);
-
-  // Generate column key constants (shared/deduplicated) and per-query extractions
   const columnExtractions: ts.VariableStatement[] = [];
 
   for (const colKey of columnRefs) {
@@ -558,6 +659,110 @@ function buildLoopStructure(
     );
   }
 
+  return { columnExtractions, optionalPresenceChecks };
+}
+
+/**
+ * Build a columns declaration: const $__conduct_engine_columns_N = $__conduct_engine_arch_N.columns;
+ */
+function buildColumnsDecl(qi: number, factory: ts.NodeFactory): ts.VariableStatement {
+  return factory.createVariableStatement(
+    undefined,
+    factory.createVariableDeclarationList(
+      [
+        factory.createVariableDeclaration(
+          `$__conduct_engine_columns_${qi}`,
+          undefined,
+          undefined,
+          factory.createPropertyAccessExpression(
+            factory.createIdentifier(`$__conduct_engine_arch_${qi}`),
+            "columns"
+          )
+        ),
+      ],
+      ts.NodeFlags.Const
+    )
+  );
+}
+
+/**
+ * Build the signature match condition for get/has:
+ * signatureContains(arch.signature, query.required) && (not check if needed)
+ */
+function buildSignatureMatchCondition(
+  qi: number,
+  systemName: string,
+  hasNotComponents: boolean,
+  factory: ts.NodeFactory,
+): ts.Expression {
+  const queryName = `__query_${systemName}_${qi}`;
+  const archVarName = `$__conduct_engine_arch_${qi}`;
+
+  let condition: ts.Expression = factory.createCallExpression(
+    factory.createIdentifier("signatureContains"),
+    undefined,
+    [
+      factory.createPropertyAccessExpression(
+        factory.createIdentifier(archVarName),
+        "signature"
+      ),
+      factory.createPropertyAccessExpression(
+        factory.createIdentifier(queryName),
+        "required"
+      ),
+    ]
+  );
+
+  if (hasNotComponents) {
+    condition = factory.createBinaryExpression(
+      condition,
+      ts.SyntaxKind.AmpersandAmpersandToken,
+      factory.createPrefixUnaryExpression(
+        ts.SyntaxKind.ExclamationToken,
+        factory.createCallExpression(
+          factory.createIdentifier("signatureOverlaps"),
+          undefined,
+          [
+            factory.createPropertyAccessExpression(
+              factory.createIdentifier(archVarName),
+              "signature"
+            ),
+            factory.createPropertyAccessExpression(
+              factory.createIdentifier(queryName),
+              "not"
+            ),
+          ]
+        )
+      )
+    );
+  }
+
+  return condition;
+}
+
+/**
+ * Build the nested loop structure for a single query iteration.
+ */
+function buildLoopStructure(
+  queryIndex: number,
+  systemName: string,
+  queryInfo: QueryInfo,
+  bodyStatements: ts.Statement[],
+  componentCounters: Map<string, number>,
+  columnRefs: Set<string>,
+  factory: ts.NodeFactory,
+  // Side-effect collectors
+  generatedColumnKeys: Set<string>,
+  allColumnKeyConstants: ts.VariableStatement[],
+): ts.Statement[] {
+  const qi = queryIndex;
+  const queryName = `__query_${systemName}_${qi}`;
+  const entityLoopLabel = `$__conduct_engine_entity_label_${qi}`;
+
+  const { columnExtractions, optionalPresenceChecks } = buildColumnExtractions(
+    qi, queryInfo, columnRefs, componentCounters, factory, generatedColumnKeys, allColumnKeyConstants,
+  );
+
   // const $__conduct_engine_count_N = $__conduct_engine_arch_N.count;
   const countDecl = factory.createVariableStatement(
     undefined,
@@ -602,24 +807,7 @@ function buildLoopStructure(
     )
   );
 
-  // const $__conduct_engine_columns_N = $__conduct_engine_arch_N.columns;
-  const columnsDecl = factory.createVariableStatement(
-    undefined,
-    factory.createVariableDeclarationList(
-      [
-        factory.createVariableDeclaration(
-          `$__conduct_engine_columns_${qi}`,
-          undefined,
-          undefined,
-          factory.createPropertyAccessExpression(
-            factory.createIdentifier(`$__conduct_engine_arch_${qi}`),
-            "columns"
-          )
-        ),
-      ],
-      ts.NodeFlags.Const
-    )
-  );
+  const columnsDecl = buildColumnsDecl(qi, factory);
 
   // Outer loop: archetype iteration
   const outerLoop = factory.createForStatement(
@@ -696,8 +884,382 @@ function buildLoopStructure(
 }
 
 /**
- * Recursively process a list of statements, replacing iter calls with
- * optimized loop structures. Handles nested queries naturally.
+ * Build the point-lookup structure for a single query.get() call.
+ */
+function buildGetStructure(
+  queryIndex: number,
+  systemName: string,
+  queryInfo: QueryInfo,
+  entityExpr: ts.Expression,
+  bodyStatements: ts.Statement[],
+  componentCounters: Map<string, number>,
+  columnRefs: Set<string>,
+  factory: ts.NodeFactory,
+  generatedColumnKeys: Set<string>,
+  allColumnKeyConstants: ts.VariableStatement[],
+): { preStatements: ts.Statement[]; resultVarName: string } {
+  const qi = queryIndex;
+  const entityLoopLabel = `$__conduct_engine_entity_label_${qi}`;
+  const resultVarName = `$__conduct_engine_get_result_${qi}`;
+  const locVarName = `$__conduct_engine_loc_${qi}`;
+  const archVarName = `$__conduct_engine_arch_${qi}`;
+
+  const { columnExtractions, optionalPresenceChecks } = buildColumnExtractions(
+    qi, queryInfo, columnRefs, componentCounters, factory, generatedColumnKeys, allColumnKeyConstants,
+  );
+
+  const matchCondition = buildSignatureMatchCondition(
+    qi, systemName, queryInfo.notComponents.length > 0, factory,
+  );
+
+  const columnsDecl = buildColumnsDecl(qi, factory);
+
+  // const $__conduct_engine_c_N = $loc.row;
+  const rowDecl = factory.createVariableStatement(
+    undefined,
+    factory.createVariableDeclarationList(
+      [
+        factory.createVariableDeclaration(
+          `$__conduct_engine_c_${qi}`,
+          undefined,
+          undefined,
+          factory.createPropertyAccessExpression(
+            factory.createIdentifier(locVarName),
+            "row"
+          )
+        ),
+      ],
+      ts.NodeFlags.Const
+    )
+  );
+
+  // Labeled block for break support (early return in get callback)
+  const labeledBlock = factory.createLabeledStatement(
+    factory.createIdentifier(entityLoopLabel),
+    factory.createBlock(bodyStatements, true)
+  );
+
+  // Inner if: signature matches -> set result, extract columns, run body
+  const innerIf = factory.createIfStatement(
+    matchCondition,
+    factory.createBlock([
+      factory.createExpressionStatement(
+        factory.createBinaryExpression(
+          factory.createIdentifier(resultVarName),
+          ts.SyntaxKind.EqualsToken,
+          factory.createTrue()
+        )
+      ),
+      rowDecl,
+      columnsDecl,
+      ...optionalPresenceChecks,
+      ...columnExtractions,
+      labeledBlock,
+    ], true)
+  );
+
+  // Outer if: entity location exists
+  const outerIf = factory.createIfStatement(
+    factory.createBinaryExpression(
+      factory.createIdentifier(locVarName),
+      ts.SyntaxKind.ExclamationEqualsEqualsToken,
+      factory.createIdentifier("undefined")
+    ),
+    factory.createBlock([
+      // const $arch = archetypes[$loc.archetypeIndex];
+      factory.createVariableStatement(
+        undefined,
+        factory.createVariableDeclarationList(
+          [
+            factory.createVariableDeclaration(
+              archVarName,
+              undefined,
+              undefined,
+              factory.createElementAccessExpression(
+                factory.createIdentifier("archetypes"),
+                factory.createPropertyAccessExpression(
+                  factory.createIdentifier(locVarName),
+                  "archetypeIndex"
+                )
+              )
+            ),
+          ],
+          ts.NodeFlags.Const
+        )
+      ),
+      innerIf,
+    ], true)
+  );
+
+  const preStatements: ts.Statement[] = [
+    // let $result = false;
+    factory.createVariableStatement(
+      undefined,
+      factory.createVariableDeclarationList(
+        [factory.createVariableDeclaration(resultVarName, undefined, undefined, factory.createFalse())],
+        ts.NodeFlags.Let
+      )
+    ),
+    // const $loc = entityLocations[entityExpr];
+    factory.createVariableStatement(
+      undefined,
+      factory.createVariableDeclarationList(
+        [
+          factory.createVariableDeclaration(
+            locVarName,
+            undefined,
+            undefined,
+            factory.createElementAccessExpression(
+              factory.createIdentifier("entityLocations"),
+              entityExpr
+            )
+          ),
+        ],
+        ts.NodeFlags.Const
+      )
+    ),
+    outerIf,
+  ];
+
+  return { preStatements, resultVarName };
+}
+
+/**
+ * Build the boolean check structure for a single query.has() call.
+ */
+function buildHasStructure(
+  queryIndex: number,
+  systemName: string,
+  queryInfo: QueryInfo,
+  entityExpr: ts.Expression,
+  factory: ts.NodeFactory,
+): { preStatements: ts.Statement[]; resultVarName: string } {
+  const qi = queryIndex;
+  const resultVarName = `$__conduct_engine_has_result_${qi}`;
+  const locVarName = `$__conduct_engine_loc_${qi}`;
+  const archVarName = `$__conduct_engine_arch_${qi}`;
+
+  const matchCondition = buildSignatureMatchCondition(
+    qi, systemName, queryInfo.notComponents.length > 0, factory,
+  );
+
+  // Outer if: entity location exists
+  const outerIf = factory.createIfStatement(
+    factory.createBinaryExpression(
+      factory.createIdentifier(locVarName),
+      ts.SyntaxKind.ExclamationEqualsEqualsToken,
+      factory.createIdentifier("undefined")
+    ),
+    factory.createBlock([
+      // const $arch = archetypes[$loc.archetypeIndex];
+      factory.createVariableStatement(
+        undefined,
+        factory.createVariableDeclarationList(
+          [
+            factory.createVariableDeclaration(
+              archVarName,
+              undefined,
+              undefined,
+              factory.createElementAccessExpression(
+                factory.createIdentifier("archetypes"),
+                factory.createPropertyAccessExpression(
+                  factory.createIdentifier(locVarName),
+                  "archetypeIndex"
+                )
+              )
+            ),
+          ],
+          ts.NodeFlags.Const
+        )
+      ),
+      // $result = signatureContains(...) && ...;
+      factory.createExpressionStatement(
+        factory.createBinaryExpression(
+          factory.createIdentifier(resultVarName),
+          ts.SyntaxKind.EqualsToken,
+          matchCondition
+        )
+      ),
+    ], true)
+  );
+
+  const preStatements: ts.Statement[] = [
+    // let $result = false;
+    factory.createVariableStatement(
+      undefined,
+      factory.createVariableDeclarationList(
+        [factory.createVariableDeclaration(resultVarName, undefined, undefined, factory.createFalse())],
+        ts.NodeFlags.Let
+      )
+    ),
+    // const $loc = entityLocations[entityExpr];
+    factory.createVariableStatement(
+      undefined,
+      factory.createVariableDeclarationList(
+        [
+          factory.createVariableDeclaration(
+            locVarName,
+            undefined,
+            undefined,
+            factory.createElementAccessExpression(
+              factory.createIdentifier("entityLocations"),
+              entityExpr
+            )
+          ),
+        ],
+        ts.NodeFlags.Const
+      )
+    ),
+    outerIf,
+  ];
+
+  return { preStatements, resultVarName };
+}
+
+/**
+ * Register components for a query and assign counters. Generates optional
+ * signature constants when needed. Shared by iter/get/has processing.
+ */
+function registerQueryComponents(
+  queryInfo: QueryInfo,
+  componentCounters: Map<string, number>,
+  nextComponentCounter: { value: number },
+  usedComponents: Set<string>,
+  factory: ts.NodeFactory,
+  optSignatureConstants: ts.VariableStatement[],
+  generatedOptSigs: Set<string>,
+  needsOptionalSupport: { value: boolean },
+): void {
+  const allComps = [...queryInfo.queryComponents, ...queryInfo.notComponents, ...queryInfo.optionalComponents];
+  for (const comp of allComps) {
+    usedComponents.add(comp);
+    if (!componentCounters.has(comp)) {
+      componentCounters.set(comp, nextComponentCounter.value++);
+    }
+  }
+
+  if (queryInfo.optionalComponents.length > 0) {
+    needsOptionalSupport.value = true;
+    for (const comp of queryInfo.optionalComponents) {
+      const counter = componentCounters.get(comp)!;
+      const sigName = `$__conduct_engine_opt_sig_${comp}${counter}`;
+      if (!generatedOptSigs.has(sigName)) {
+        generatedOptSigs.add(sigName);
+        optSignatureConstants.push(
+          factory.createVariableStatement(
+            undefined,
+            factory.createVariableDeclarationList(
+              [
+                factory.createVariableDeclaration(
+                  sigName,
+                  undefined,
+                  undefined,
+                  factory.createCallExpression(
+                    factory.createIdentifier("createSignatureFromComponents"),
+                    undefined,
+                    [factory.createArrayLiteralExpression([factory.createIdentifier(comp)])]
+                  )
+                ),
+              ],
+              ts.NodeFlags.Const
+            )
+          )
+        );
+      }
+    }
+  }
+}
+
+/**
+ * Transform a callback body, extract statements, and recursively process for nested queries.
+ * Shared by iter and get processing.
+ */
+function transformAndProcessCallbackBody(
+  callbackInfo: CallbackInfo,
+  mergedMappings: Map<string, ParamMapping>,
+  mergedOptionalParams: Set<string>,
+  queryParamNames: Set<string>,
+  qi: number,
+  useBreak: boolean,
+  sharedColumnRefs: Map<number, Set<string>>,
+  // Pass-through args for recursive processStatements
+  processStatementsArgs: {
+    queryInfoMap: Map<string, QueryInfo>;
+    systemName: string;
+    factory: ts.NodeFactory;
+    context: ts.TransformationContext;
+    componentCounters: Map<string, number>;
+    nextComponentCounter: { value: number };
+    queryCounter: { value: number };
+    queryConstants: ts.VariableStatement[];
+    allColumnKeyConstants: ts.VariableStatement[];
+    optSignatureConstants: ts.VariableStatement[];
+    usedComponents: Set<string>;
+    generatedColumnKeys: Set<string>;
+    generatedOptSigs: Set<string>;
+    needsOptionalSupport: { value: boolean };
+    needsEntityLookup: { value: boolean };
+    needsSignatureOverlaps: { value: boolean };
+  },
+): ts.Statement[] {
+  const { systemName, context, factory } = processStatementsArgs;
+
+  validateNoComponentPassing(callbackInfo.body, mergedMappings, systemName);
+
+  const entityLoopLabel = `$__conduct_engine_entity_label_${qi}`;
+
+  const transformedBody = transformCallbackBody(
+    callbackInfo.body,
+    mergedMappings,
+    mergedOptionalParams,
+    sharedColumnRefs,
+    context,
+    entityLoopLabel,
+    queryParamNames,
+    qi,
+    useBreak,
+  );
+
+  let bodyStatements: ts.Statement[];
+  if (ts.isBlock(transformedBody)) {
+    bodyStatements = Array.from(transformedBody.statements);
+  } else {
+    bodyStatements = [
+      factory.createExpressionStatement(transformedBody as ts.Expression),
+    ];
+  }
+
+  // Recursively process body statements for nested query calls
+  bodyStatements = processStatements(
+    bodyStatements,
+    queryParamNames,
+    processStatementsArgs.queryInfoMap,
+    mergedMappings,
+    mergedOptionalParams,
+    systemName,
+    factory,
+    context,
+    processStatementsArgs.componentCounters,
+    processStatementsArgs.nextComponentCounter,
+    processStatementsArgs.queryCounter,
+    processStatementsArgs.queryConstants,
+    processStatementsArgs.allColumnKeyConstants,
+    processStatementsArgs.optSignatureConstants,
+    processStatementsArgs.usedComponents,
+    processStatementsArgs.generatedColumnKeys,
+    processStatementsArgs.generatedOptSigs,
+    processStatementsArgs.needsOptionalSupport,
+    processStatementsArgs.needsEntityLookup,
+    processStatementsArgs.needsSignatureOverlaps,
+    sharedColumnRefs,
+  );
+
+  return bodyStatements;
+}
+
+/**
+ * Recursively process a list of statements, replacing iter/get/has calls with
+ * optimized structures. Handles nested queries naturally.
  */
 function processStatements(
   statements: ts.Statement[],
@@ -719,159 +1281,175 @@ function processStatements(
   generatedColumnKeys: Set<string>,
   generatedOptSigs: Set<string>,
   needsOptionalSupport: { value: boolean },
+  needsEntityLookup: { value: boolean },
+  needsSignatureOverlaps: { value: boolean },
+  sharedColumnRefs: Map<number, Set<string>>,
 ): ts.Statement[] {
   const result: ts.Statement[] = [];
 
+  const processArgs = {
+    queryInfoMap, systemName, factory, context,
+    componentCounters, nextComponentCounter, queryCounter,
+    queryConstants, allColumnKeyConstants, optSignatureConstants,
+    usedComponents, generatedColumnKeys, generatedOptSigs,
+    needsOptionalSupport, needsEntityLookup, needsSignatureOverlaps,
+  };
+
   for (let si = 0; si < statements.length; si++) {
     const stmt = statements[si];
+
+    // --- iter ---
     const iterInfo = findIterCallInStatement(stmt, queryParamNames);
-
-    if (!iterInfo) {
-      result.push(stmt);
-      continue;
-    }
-
-    const queryInfo = queryInfoMap.get(iterInfo.paramName)!;
-    const callbackInfo = extractCallbackInfo(iterInfo.iterCall);
-    if (!callbackInfo) {
-      result.push(stmt);
-      continue;
-    }
-
-    const qi = queryCounter.value++;
-
-    // Register components and assign counters
-    const allComps = [...queryInfo.queryComponents, ...queryInfo.notComponents, ...queryInfo.optionalComponents];
-    for (const comp of allComps) {
-      usedComponents.add(comp);
-      if (!componentCounters.has(comp)) {
-        componentCounters.set(comp, nextComponentCounter.value++);
+    if (iterInfo) {
+      const queryInfo = queryInfoMap.get(iterInfo.paramName)!;
+      const callbackInfo = extractCallbackInfo(iterInfo.iterCall);
+      if (!callbackInfo) {
+        result.push(stmt);
+        continue;
       }
-    }
 
-    // Generate optional signature constants (deduplicated)
-    if (queryInfo.optionalComponents.length > 0) {
-      needsOptionalSupport.value = true;
-      for (const comp of queryInfo.optionalComponents) {
-        const counter = componentCounters.get(comp)!;
-        const sigName = `$__conduct_engine_opt_sig_${comp}${counter}`;
-        if (!generatedOptSigs.has(sigName)) {
-          generatedOptSigs.add(sigName);
-          optSignatureConstants.push(
-            factory.createVariableStatement(
-              undefined,
-              factory.createVariableDeclarationList(
-                [
-                  factory.createVariableDeclaration(
-                    sigName,
-                    undefined,
-                    undefined,
-                    factory.createCallExpression(
-                      factory.createIdentifier("createSignatureFromComponents"),
-                      undefined,
-                      [factory.createArrayLiteralExpression([factory.createIdentifier(comp)])]
-                    )
-                  ),
-                ],
-                ts.NodeFlags.Const
-              )
-            )
-          );
-        }
-      }
-    }
+      const qi = queryCounter.value++;
 
-    // Create query constant
-    queryConstants.push(createQueryConstant(systemName, qi, queryInfo, factory));
-
-    // Build merged param-to-component mapping
-    const mergedMappings = new Map(activeMappings);
-    const mergedOptionalParams = new Set(activeOptionalParams);
-
-    // Entity param
-    mergedMappings.set(callbackInfo.paramNames[0], { componentType: null, queryIndex: qi });
-
-    // Required component params
-    for (let i = 0; i < queryInfo.queryComponents.length; i++) {
-      mergedMappings.set(
-        callbackInfo.paramNames[i + 1],
-        { componentType: queryInfo.queryComponents[i], queryIndex: qi }
+      registerQueryComponents(
+        queryInfo, componentCounters, nextComponentCounter, usedComponents,
+        factory, optSignatureConstants, generatedOptSigs, needsOptionalSupport,
       );
+
+      queryConstants.push(createQueryConstant(systemName, qi, queryInfo, factory));
+
+      // Build merged param-to-component mapping (entity at index 0)
+      const mergedMappings = new Map(activeMappings);
+      const mergedOptionalParams = new Set(activeOptionalParams);
+
+      mergedMappings.set(callbackInfo.paramNames[0], { componentType: null, queryIndex: qi });
+      for (let i = 0; i < queryInfo.queryComponents.length; i++) {
+        mergedMappings.set(
+          callbackInfo.paramNames[i + 1],
+          { componentType: queryInfo.queryComponents[i], queryIndex: qi }
+        );
+      }
+      for (let i = 0; i < queryInfo.optionalComponents.length; i++) {
+        const paramIndex = 1 + queryInfo.queryComponents.length + i;
+        const paramName = callbackInfo.paramNames[paramIndex];
+        mergedMappings.set(paramName, { componentType: queryInfo.optionalComponents[i], queryIndex: qi });
+        mergedOptionalParams.add(paramName);
+      }
+
+      const bodyStatements = transformAndProcessCallbackBody(
+        callbackInfo, mergedMappings, mergedOptionalParams,
+        queryParamNames, qi, false, sharedColumnRefs, processArgs,
+      );
+
+      const loopStatements = buildLoopStructure(
+        qi, systemName, queryInfo, bodyStatements,
+        componentCounters, sharedColumnRefs.get(qi) ?? new Set(), factory,
+        generatedColumnKeys, allColumnKeyConstants,
+      );
+
+      result.push(...loopStatements);
+      continue;
     }
 
-    // Optional component params
-    for (let i = 0; i < queryInfo.optionalComponents.length; i++) {
-      const paramIndex = 1 + queryInfo.queryComponents.length + i;
-      const paramName = callbackInfo.paramNames[paramIndex];
-      mergedMappings.set(paramName, { componentType: queryInfo.optionalComponents[i], queryIndex: qi });
-      mergedOptionalParams.add(paramName);
+    // --- get ---
+    const getInfo = findGetCallInStatement(stmt, queryParamNames);
+    if (getInfo) {
+      const queryInfo = queryInfoMap.get(getInfo.paramName)!;
+      const entityExpr = getInfo.getCall.arguments[0];
+      const callbackInfo = extractCallbackInfo(getInfo.getCall, 1);
+
+      if (!callbackInfo || !entityExpr) {
+        result.push(stmt);
+        continue;
+      }
+
+      const qi = queryCounter.value++;
+
+      needsEntityLookup.value = true;
+      if (queryInfo.notComponents.length > 0) {
+        needsSignatureOverlaps.value = true;
+      }
+
+      registerQueryComponents(
+        queryInfo, componentCounters, nextComponentCounter, usedComponents,
+        factory, optSignatureConstants, generatedOptSigs, needsOptionalSupport,
+      );
+
+      queryConstants.push(createQueryConstant(systemName, qi, queryInfo, factory));
+
+      // Build merged param-to-component mapping (NO entity — components start at index 0)
+      const mergedMappings = new Map(activeMappings);
+      const mergedOptionalParams = new Set(activeOptionalParams);
+
+      for (let i = 0; i < queryInfo.queryComponents.length; i++) {
+        mergedMappings.set(
+          callbackInfo.paramNames[i],
+          { componentType: queryInfo.queryComponents[i], queryIndex: qi }
+        );
+      }
+      for (let i = 0; i < queryInfo.optionalComponents.length; i++) {
+        const paramIndex = queryInfo.queryComponents.length + i;
+        const paramName = callbackInfo.paramNames[paramIndex];
+        mergedMappings.set(paramName, { componentType: queryInfo.optionalComponents[i], queryIndex: qi });
+        mergedOptionalParams.add(paramName);
+      }
+
+      const bodyStatements = transformAndProcessCallbackBody(
+        callbackInfo, mergedMappings, mergedOptionalParams,
+        queryParamNames, qi, true, sharedColumnRefs, processArgs,
+      );
+
+      const { preStatements, resultVarName } = buildGetStructure(
+        qi, systemName, queryInfo, entityExpr,
+        bodyStatements, componentCounters, sharedColumnRefs.get(qi) ?? new Set(), factory,
+        generatedColumnKeys, allColumnKeyConstants,
+      );
+
+      const modifiedStmt = replaceCallExprInStatement(
+        stmt, getInfo.getCall, factory.createIdentifier(resultVarName), context,
+      );
+
+      result.push(...preStatements, modifiedStmt);
+      continue;
     }
 
-    // Validate no component passing
-    validateNoComponentPassing(callbackInfo.body, mergedMappings, systemName);
+    // --- has ---
+    const hasInfo = findHasCallInStatement(stmt, queryParamNames);
+    if (hasInfo) {
+      const queryInfo = queryInfoMap.get(hasInfo.paramName)!;
+      const entityExpr = hasInfo.hasCall.arguments[0];
 
-    // Transform callback body (component accesses → array indexing, returns → continue)
-    // This skips nested iter calls — they're handled by the recursive processStatements below
-    const columnRefs = new Set<string>();
-    const entityLoopLabel = `$__conduct_engine_entity_label_${qi}`;
+      if (!entityExpr) {
+        result.push(stmt);
+        continue;
+      }
 
-    const transformedBody = transformCallbackBody(
-      callbackInfo.body,
-      mergedMappings,
-      mergedOptionalParams,
-      columnRefs,
-      context,
-      entityLoopLabel,
-      queryParamNames,
-      qi
-    );
+      const qi = queryCounter.value++;
 
-    // Get statements from transformed body
-    let bodyStatements: ts.Statement[];
-    if (ts.isBlock(transformedBody)) {
-      bodyStatements = Array.from(transformedBody.statements);
-    } else {
-      bodyStatements = [
-        factory.createExpressionStatement(transformedBody as ts.Expression),
-      ];
+      needsEntityLookup.value = true;
+      if (queryInfo.notComponents.length > 0) {
+        needsSignatureOverlaps.value = true;
+      }
+
+      registerQueryComponents(
+        queryInfo, componentCounters, nextComponentCounter, usedComponents,
+        factory, optSignatureConstants, generatedOptSigs, needsOptionalSupport,
+      );
+
+      queryConstants.push(createQueryConstant(systemName, qi, queryInfo, factory));
+
+      const { preStatements, resultVarName } = buildHasStructure(
+        qi, systemName, queryInfo, entityExpr, factory,
+      );
+
+      const modifiedStmt = replaceCallExprInStatement(
+        stmt, hasInfo.hasCall, factory.createIdentifier(resultVarName), context,
+      );
+
+      result.push(...preStatements, modifiedStmt);
+      continue;
     }
 
-    // Recursively process body statements for nested iter calls
-    bodyStatements = processStatements(
-      bodyStatements,
-      queryParamNames,
-      queryInfoMap,
-      mergedMappings,
-      mergedOptionalParams,
-      systemName,
-      factory,
-      context,
-      componentCounters,
-      nextComponentCounter,
-      queryCounter,
-      queryConstants,
-      allColumnKeyConstants,
-      optSignatureConstants,
-      usedComponents,
-      generatedColumnKeys,
-      generatedOptSigs,
-      needsOptionalSupport,
-    );
-
-    // Build the loop structure for this query
-    const loopStatements = buildLoopStructure(
-      qi,
-      systemName,
-      queryInfo,
-      bodyStatements,
-      componentCounters,
-      columnRefs,
-      factory,
-      generatedColumnKeys,
-      allColumnKeyConstants,
-    );
-
-    result.push(...loopStatements);
+    result.push(stmt);
   }
 
   return result;
@@ -892,6 +1470,8 @@ function createTransformer(
       const allColumnKeyConstants: ts.VariableStatement[] = [];
       const optionalSignatureConstants: ts.VariableStatement[] = [];
       const needsOptionalSupport = { value: false };
+      const needsEntityLookup = { value: false };
+      const needsSignatureOverlaps = { value: false };
 
       // Build a map of imported identifiers -> module path
       const importMap = new Map<string, string>();
@@ -940,6 +1520,7 @@ function createTransformer(
 
           // Process all statements in the function body
           const bodyStatements = Array.from(node.body.statements);
+          const sharedColumnRefs = new Map<number, Set<string>>();
           const processedStatements = processStatements(
             bodyStatements,
             queryParamNames,
@@ -959,6 +1540,9 @@ function createTransformer(
             generatedColumnKeys,
             generatedOptSigs,
             needsOptionalSupport,
+            needsEntityLookup,
+            needsSignatureOverlaps,
+            sharedColumnRefs,
           );
 
           // Return new function with optimized body (remove all query parameters)
@@ -992,35 +1576,35 @@ function createTransformer(
         }
 
         // Create runtime import from @conduct/ecs
+        const runtimeSpecifiers: ts.ImportSpecifier[] = [
+          factory.createImportSpecifier(false, undefined, factory.createIdentifier("ComponentId")),
+          factory.createImportSpecifier(false, undefined, factory.createIdentifier("createSignatureFromComponents")),
+          factory.createImportSpecifier(false, undefined, factory.createIdentifier("query")),
+        ];
+
+        if (needsOptionalSupport.value || needsEntityLookup.value) {
+          runtimeSpecifiers.push(
+            factory.createImportSpecifier(false, undefined, factory.createIdentifier("signatureContains"))
+          );
+        }
+        if (needsEntityLookup.value) {
+          runtimeSpecifiers.push(
+            factory.createImportSpecifier(false, undefined, factory.createIdentifier("entityLocations")),
+            factory.createImportSpecifier(false, undefined, factory.createIdentifier("archetypes")),
+          );
+        }
+        if (needsSignatureOverlaps.value) {
+          runtimeSpecifiers.push(
+            factory.createImportSpecifier(false, undefined, factory.createIdentifier("signatureOverlaps"))
+          );
+        }
+
         const runtimeImport = factory.createImportDeclaration(
           undefined,
           factory.createImportClause(
             false,
             undefined,
-            factory.createNamedImports([
-              factory.createImportSpecifier(
-                false,
-                undefined,
-                factory.createIdentifier("ComponentId")
-              ),
-              factory.createImportSpecifier(
-                false,
-                undefined,
-                factory.createIdentifier("createSignatureFromComponents")
-              ),
-              factory.createImportSpecifier(
-                false,
-                undefined,
-                factory.createIdentifier("query")
-              ),
-              ...(needsOptionalSupport.value
-                ? [factory.createImportSpecifier(
-                    false,
-                    undefined,
-                    factory.createIdentifier("signatureContains")
-                  )]
-                : []),
-            ])
+            factory.createNamedImports(runtimeSpecifiers)
           ),
           factory.createStringLiteral("@conduct/ecs")
         );

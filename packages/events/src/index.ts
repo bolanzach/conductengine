@@ -7,7 +7,10 @@ export abstract class ConductEvent {
   }
 }
 
-type Handler = { fn: (event: any) => void; idx: number };
+type HandlerFn = (event: any, ...args: any[]) => void;
+type Handler = { fn: HandlerFn; idx: number; typeId: number };
+type UnregisterHandler = Pick<Handler, 'idx' | 'typeId'>;
+
 const handlers: Array<Array<Handler>> = [];
 let nextId = 0;
 
@@ -17,19 +20,30 @@ export function ConductEventRegister<T extends new (...any: any) => ConductEvent
   return cls;
 }
 
-export function ConductEventConsume<E extends ConductEvent>(
+export function ConductEventRegisterHandler<E extends ConductEvent>(
   type: (new (...any: any) => E) & { typeId: number },
-  callback: (event: E) => void
-): () => void {
+  handler: HandlerFn
+): UnregisterHandler {
   const list = handlers[type.typeId]!;
-  const entry: Handler = { fn: callback, idx: list.length };
+  const entry: Handler = { fn: handler, idx: list.length, typeId: type.typeId };
   list.push(entry);
-  return () => {
+  return entry;
+  // return () => {;
+  //   const last = list[list.length - 1]!;
+  //   last.idx = entry.idx;
+  //   list[entry.idx] = last;
+  //   list.pop();
+  // };
+}
+
+export function ConductEventUnregisterHandler({ typeId, idx }: UnregisterHandler) {
+  const list = handlers[typeId];
+  if (list) {
     const last = list[list.length - 1]!;
-    last.idx = entry.idx;
-    list[entry.idx] = last;
-    list.pop();
-  };
+      last.idx = idx;
+      list[idx] = last;
+      list.pop();
+  }
 }
 
 export function ConductEventEmit<E extends ConductEvent>(event: E): void {

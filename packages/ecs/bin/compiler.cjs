@@ -733,7 +733,8 @@ queryConstants, allColumnKeyConstants, optSignatureConstants, usedComponents, ge
 // =============================================================================
 // Main Transformer
 // =============================================================================
-function createTransformer(_) {
+function createTransformer(program) {
+    const checker = program.getTypeChecker();
     return (context) => {
         const factory = context.factory;
         return (sourceFile) => {
@@ -780,6 +781,26 @@ function createTransformer(_) {
                         queryParamNames.add(qi.paramName);
                         queryInfoMap.set(qi.paramName, qi);
                     }
+                    // Validate that non-Query parameters extend ConductEvent
+                    for (const param of node.parameters) {
+                        const paramName = param.name.text;
+                        if (queryParamNames.has(paramName))
+                            continue;
+                        if (!param.type) {
+                            throw new Error(`[ConductEngine] System "${systemInfo.name}" has untyped parameter "${paramName}". ` +
+                                `All non-Query parameters must extend ConductEvent.`);
+                        }
+                        const paramType = checker.getTypeAtLocation(param);
+                        const baseTypes = paramType.getBaseTypes?.() ?? [];
+                        const extendsConductEvent = baseTypes.some((base) => {
+                            return base.symbol?.name === "ConductEvent";
+                        });
+                        if (!extendsConductEvent) {
+                            throw new Error(`[ConductEngine] System "${systemInfo.name}" has parameter "${paramName}" ` +
+                                `of type "${checker.typeToString(paramType)}" which does not extend ConductEvent. ` +
+                                `Non-Query parameters must extend ConductEvent.`);
+                        }
+                    }
                     // Reset query counter for each system
                     queryCounter.value = 0;
                     // Process all statements in the function body
@@ -788,9 +809,9 @@ function createTransformer(_) {
                     const processedStatements = processStatements(bodyStatements, queryParamNames, queryInfoMap, new Map(), // no active mappings at top level
                     new Set(), // no active optional params
                     systemInfo.name, factory, context, componentCounters, nextComponentCounter, queryCounter, queryConstants, allColumnKeyConstants, optionalSignatureConstants, usedComponents, generatedColumnKeys, generatedOptSigs, needsOptionalSupport, needsEntityLookup, needsSignatureOverlaps, sharedColumnRefs);
-                    // Return new function with optimized body (remove all query parameters)
-                    return factory.updateFunctionDeclaration(node, node.modifiers, node.asteriskToken, node.name, node.typeParameters, [], // Remove all query parameters
-                    node.type, factory.createBlock(processedStatements, true));
+                    // Keep non-Query parameters, remove Query parameters
+                    const keptParameters = node.parameters.filter((param) => !queryParamNames.has(param.name.text));
+                    return factory.updateFunctionDeclaration(node, node.modifiers, node.asteriskToken, node.name, node.typeParameters, keptParameters, node.type, factory.createBlock(processedStatements, true));
                 }
                 return ts.visitEachChild(node, visit, context);
             }

@@ -1460,8 +1460,9 @@ function processStatements(
 // =============================================================================
 
 function createTransformer(
-  _: ts.Program
+  program: ts.Program
 ): ts.TransformerFactory<ts.SourceFile> {
+  const checker = program.getTypeChecker();
   return (context: ts.TransformationContext) => {
     const factory = context.factory;
 
@@ -1515,6 +1516,30 @@ function createTransformer(
             queryInfoMap.set(qi.paramName, qi);
           }
 
+          // Validate that non-Query parameters extend ConductEvent
+          for (const param of node.parameters) {
+            const paramName = (param.name as ts.Identifier).text;
+            if (queryParamNames.has(paramName)) continue;
+            if (!param.type) {
+              throw new Error(
+                `[ConductEngine] System "${systemInfo.name}" has untyped parameter "${paramName}". ` +
+                `All non-Query parameters must extend ConductEvent.`
+              );
+            }
+            const paramType = checker.getTypeAtLocation(param);
+            const baseTypes = paramType.getBaseTypes?.() ?? [];
+            const extendsConductEvent = baseTypes.some((base) => {
+              return base.symbol?.name === "ConductEvent";
+            });
+            if (!extendsConductEvent) {
+              throw new Error(
+                `[ConductEngine] System "${systemInfo.name}" has parameter "${paramName}" ` +
+                `of type "${checker.typeToString(paramType)}" which does not extend ConductEvent. ` +
+                `Non-Query parameters must extend ConductEvent.`
+              );
+            }
+          }
+
           // Reset query counter for each system
           queryCounter.value = 0;
 
@@ -1545,14 +1570,18 @@ function createTransformer(
             sharedColumnRefs,
           );
 
-          // Return new function with optimized body (remove all query parameters)
+          // Keep non-Query parameters, remove Query parameters
+          const keptParameters = node.parameters.filter(
+            (param) => !queryParamNames.has((param.name as ts.Identifier).text)
+          );
+
           return factory.updateFunctionDeclaration(
             node,
             node.modifiers,
             node.asteriskToken,
             node.name,
             node.typeParameters,
-            [], // Remove all query parameters
+            keptParameters,
             node.type,
             factory.createBlock(processedStatements, true)
           );

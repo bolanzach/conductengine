@@ -17,8 +17,6 @@ import PathfindingSystem from "./pathfindingSystem.js";
 import ColliderSystem from "./colliderSystem.js";
 import TargetAcquisitionSystem from "./targetAcquisitionSystem.js";
 import { FormationOffset } from "./formationOffset.js";
-import { ConductEventConsume } from "@conduct/events";
-import { CollisionEvent } from "../shared/collisionEvent.js";
 
 const PORT = 3001;
 
@@ -92,6 +90,6 @@ ConductRegisterSystem(FixedUpdate, ServerNetworkSendSystem);
 console.log(`[server] listening on ws://localhost:${PORT}`);
 ConductStart(60);
 
-ConductEventConsume(CollisionEvent, (_event) => {
-  //console.log(`${event.a} | ${event.b}`);
-});
+// const un = ConductEventRegisterHandler(CollisionEvent, CollisionHandlerSystem);
+//
+// ConductEventUnregisterHandler(un)

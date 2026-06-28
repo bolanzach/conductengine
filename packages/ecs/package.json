@@ -25,7 +25,7 @@
   "scripts": {
     "build:compiler": "rm -f tsconfig.tsbuildinfo && npx tsc -p tsconfig.compiler.json && mv dist/compiler.js bin/compiler.cjs",
     "build": "tsc",
-    "benchmark:node": "node dist/benchmark.js",
+    "benchmark:node": "tsx benchmarks/benchmark.ts",
     "clean": "rm -rf dist *.tsbuildinfo",
     "typecheck": "tsc --noEmit"
   },

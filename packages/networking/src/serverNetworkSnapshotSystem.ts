@@ -1,8 +1,8 @@
-import type { Query } from "@conduct/ecs";
-import { ConductGetComponent } from "@conduct/ecs";
+import { Query, ConductGetComponent, tick } from "@conduct/ecs";
 import { getReplicatedComponents } from "./replication.js";
 import { Networked } from "./networked.js";
 import type { SerializedEntity, SerializePrimitive } from "./protocol.js";
+import { getServerTransport } from "./serverTransport.js";
 
 export let snapshotEntities: SerializedEntity[] = [];
 
@@ -21,5 +21,17 @@ export default function ServerNetworkSnapshotSystem(query: Query<[Networked]>) {
     }
 
     snapshotEntities.push({ id: entity, components });
+  });
+
+  const transport = getServerTransport();
+  if (!transport || snapshotEntities.length === 0) return;
+
+  transport.broadcast({
+    type: 'snapshot',
+    payload: {
+      tick,
+      entities: snapshotEntities,
+      destroyed: [],
+    },
   });
 }

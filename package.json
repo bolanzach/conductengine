@@ -13,6 +13,7 @@
     "example": "pnpm dev --filter @conduct/example",
     "clean": "pnpm -r clean && rm -rf node_modules",
     "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
     "playwright:install": "npx playwright-cli install-browser && npx playwright-cli install --skills"
   },
   "devDependencies": {

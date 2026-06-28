@@ -783,6 +783,15 @@ export function ConductRegisterSystem(schedule: Schedule, system: ConductSystem)
   return registeredSystem;
 }
 
+export function ConductUnregisterSystem(schedule: Schedule, system: ConductSystem): void {
+  const registeredSystem = (system as unknown as () => void);
+  const systems = schedule === FixedUpdate ? fixedUpdateSystems : updateSystems;
+  const index = systems.indexOf(registeredSystem);
+  if (index !== -1) {
+    systems.splice(index, 1);
+  }
+}
+
 /** Current delta time in seconds. Fixed during FixedUpdate, variable during Update. */
 export let deltaTime = 0;
 

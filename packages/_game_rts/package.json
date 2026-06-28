@@ -21,13 +21,13 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.shared.json && conduct-compile -p tsconfig.client.json && conduct-compile -p tsconfig.server.json",
+    "build": "pnpm run build:shared && pnpm run build:server && pnpm run build:client",
     "build:shared": "tsc -p tsconfig.shared.json",
     "build:client": "conduct-compile -p tsconfig.client.json",
     "build:server": "conduct-compile -p tsconfig.server.json",
     "clean": "rm -rf dist *.tsbuildinfo",
     "typecheck": "tsc -p tsconfig.shared.json --noEmit && tsc -p tsconfig.client.json --noEmit && tsc -p tsconfig.server.json --noEmit",
-    "dev:server": "conduct-compile -p tsconfig.server.json && node dist/server/index.js",
+    "dev:server": "pnpm run build:server && node dist/server/index.js",
     "dev:client": "vite"
   },
   "dependencies": {

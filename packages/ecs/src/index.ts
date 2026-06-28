@@ -26,6 +26,7 @@ export {
   ConductRemoveComponent,
   ConductGetComponent,
   ConductRegisterSystem,
+  ConductUnregisterSystem,
   ConductStart,
   ConductStop,
   ConductBenchmarkStart,

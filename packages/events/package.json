@@ -15,8 +15,9 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc",
-    "clean": "rm -rf dist *.tsbuildinfo"
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "test": "node --test src/**/*.test.ts"
   },
   "devDependencies": {
     "typescript": "^5.7.2"

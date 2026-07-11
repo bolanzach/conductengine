@@ -638,8 +638,40 @@ queryConstants, allColumnKeyConstants, optSignatureConstants, usedComponents, ge
         usedComponents, generatedColumnKeys, generatedOptSigs,
         needsOptionalSupport, needsEntityLookup, needsSignatureOverlaps,
     };
+    // Helper: recurse into a compound statement body
+    function recurseBody(body) {
+        const stmts = ts.isBlock(body) ? Array.from(body.statements) : [body];
+        const processed = processStatements(stmts, queryParamNames, queryInfoMap, activeMappings, activeOptionalParams, systemName, factory, context, componentCounters, nextComponentCounter, queryCounter, queryConstants, allColumnKeyConstants, optSignatureConstants, usedComponents, generatedColumnKeys, generatedOptSigs, needsOptionalSupport, needsEntityLookup, needsSignatureOverlaps, sharedColumnRefs);
+        return factory.createBlock(processed, true);
+    }
     for (let si = 0; si < statements.length; si++) {
         const stmt = statements[si];
+        // --- compound statements: recurse into loop/if bodies ---
+        if (ts.isForOfStatement(stmt)) {
+            result.push(factory.updateForOfStatement(stmt, stmt.awaitModifier, stmt.initializer, stmt.expression, recurseBody(stmt.statement)));
+            continue;
+        }
+        if (ts.isForInStatement(stmt)) {
+            result.push(factory.updateForInStatement(stmt, stmt.initializer, stmt.expression, recurseBody(stmt.statement)));
+            continue;
+        }
+        if (ts.isForStatement(stmt)) {
+            result.push(factory.updateForStatement(stmt, stmt.initializer, stmt.condition, stmt.incrementor, recurseBody(stmt.statement)));
+            continue;
+        }
+        if (ts.isWhileStatement(stmt)) {
+            result.push(factory.updateWhileStatement(stmt, stmt.expression, recurseBody(stmt.statement)));
+            continue;
+        }
+        if (ts.isDoStatement(stmt)) {
+            result.push(factory.updateDoStatement(stmt, recurseBody(stmt.statement), stmt.expression));
+            continue;
+        }
+        if (ts.isIfStatement(stmt)) {
+            const newElse = stmt.elseStatement ? recurseBody(stmt.elseStatement) : undefined;
+            result.push(factory.updateIfStatement(stmt, stmt.expression, recurseBody(stmt.thenStatement), newElse));
+            continue;
+        }
         // --- iter ---
         const iterInfo = findIterCallInStatement(stmt, queryParamNames);
         if (iterInfo) {

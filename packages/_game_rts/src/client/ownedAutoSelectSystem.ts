@@ -3,10 +3,10 @@ import { ConductAddComponent } from "@conduct/ecs";
 import { Networked } from "@conduct/networking/networked";
 import { getLocalPlayerId } from "@conduct/networking/clientNetworkReceive";
 import { SelectedTag } from "./selected";
+import { SquadMember } from "../shared/squadMember";
 
-export default function OwnedAutoSelectSystem(query: Query<[Networked, Not<[SelectedTag]>]>) {
+export default function OwnedAutoSelectSystem(query: Query<[Networked, Not<[SelectedTag, SquadMember]>]>) {
   const playerId = getLocalPlayerId();
-  if (playerId === 0) return;
 
   query.iter(([entity, networked]) => {
     if (networked.owner === playerId) {

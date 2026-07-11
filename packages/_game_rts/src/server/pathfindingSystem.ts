@@ -1,25 +1,23 @@
-import type { Query, Optional } from "@conduct/ecs";
+import type { Query } from "@conduct/ecs";
 import { ConductRemoveComponent, deltaTime } from "@conduct/ecs";
 import { Transform3D } from "@conduct/simulation";
-import { FormationOffset } from "./formationOffset.js";
+import { Squad } from "../shared/squad.js";
 import { Path } from "./path.js";
 
 const MOVE_SPEED = 2.0;
 const ARRIVE_THRESHOLD = 0.1;
 
-export default function PathfindingSystem(query: Query<[Transform3D, Path, Optional<[FormationOffset]>]>) {
-  query.iter(([entity, transform, path, offset]) => {
+export default function PathfindingSystem(query: Query<[Squad, Transform3D, Path]>) {
+  query.iter(([entity, _squad, transform, path]) => {
+    console.log(entity)
     if (path.current >= path.waypoints.length) {
       ConductRemoveComponent(entity, Path);
       return;
     }
 
     const wp = path.waypoints[path.current]!;
-    const tx = wp.x + (offset ? offset.x : 0);
-    const tz = wp.y + (offset ? offset.z : 0);
-
-    const dx = tx - transform.x;
-    const dz = tz - transform.z;
+    const dx = wp.x - transform.x;
+    const dz = wp.y - transform.z;
     const dist = Math.sqrt(dx * dx + dz * dz);
 
     if (dist < ARRIVE_THRESHOLD) {
@@ -33,5 +31,7 @@ export default function PathfindingSystem(query: Query<[Transform3D, Path, Optio
 
     transform.x = transform.x + nx * step;
     transform.z = transform.z + nz * step;
+
+    console.log(transform.x, transform.z);
   });
 }

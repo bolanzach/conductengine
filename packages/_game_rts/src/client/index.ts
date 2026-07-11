@@ -15,13 +15,14 @@ import CameraSystem from "@conduct/renderer/systems/cameraSystem";
 import RendererSystem from "@conduct/renderer/systems/rendererSystem";
 import type { NetworkMessage } from "@conduct/networking/protocol";
 import { BUNDLE, BundleRegistry, startRTS } from "../shared";
-import { SpaceMarineBundle, TileBundle } from "../shared/bundles";
+import { SpaceMarineBundle, SquadBundle, TileBundle } from "../shared/bundles";
 import { replicateComponents } from "../shared/network";
 import ClientCommandSendSystem from "@conduct/networking/clientCommandSendSystem";
 import RtsInputSystem from "./rtsInputSystem";
 import OwnedAutoSelectSystem from "./ownedAutoSelectSystem";
 import { CameraPan } from "./cameraPan";
 import CameraPanSystem from "./cameraPanSystem";
+import FpsSystem from "./fpsSystem";
 
 const SERVER_URL = "ws://localhost:3001";
 
@@ -46,6 +47,7 @@ const bundles: BundleRegistry = {
     [MeshRenderer, { meshId: MESH.CUBE }],
     [Material, { r: 0.4, g: 0.2, b: 0.1 }],
   ],
+  [BUNDLE.SQUAD]: SquadBundle,
 };
 
 setClientBundles(bundles);
@@ -90,5 +92,6 @@ ConductRegisterSystem(FixedUpdate, OwnedAutoSelectSystem);
 ConductRegisterSystem(Update, CameraSystem);
 ConductRegisterSystem(Update, CameraPanSystem);
 ConductRegisterSystem(Update, RendererSystem);
+ConductRegisterSystem(Update, FpsSystem);
 
 ConductStart(60);

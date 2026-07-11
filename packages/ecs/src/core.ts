@@ -2,7 +2,7 @@ export type ConductEntity = number;
 
 export type ConductComponent = object;
 
-export type ConductSystem = (query: Query<QueryElement[]>) => void;
+export type ConductSystem = (...queries: Query<QueryElement[]>[]) => void;
 
 export type ConductBundle = [component: ComponentConstructor, data?: Record<string, any>][];
 

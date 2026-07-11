@@ -1,15 +1,8 @@
-# Squad Architecture Design
+# Squad Architecture
 
 ## Problem
 
-Squads are currently an implicit concept — units share a `squadId` integer on `SquadMember`, but no squad entity exists. Every system that needs squad-level behavior reconstructs the grouping from scratch:
-
-1. Iterate all units → group by `squadId` into a Map
-2. Aggregate member state (center position, idle status, etc.)
-3. Make a squad-level decision (pick target, choose destination)
-4. Fan the decision back out to individual members
-
-Both `TargetAcquisitionSystem` and `CommandSystem` do this independently. Any future squad-level system (morale, abilities, squad AI) would repeat the same pattern. Nested queries don't help because the bottleneck is a GROUP BY operation, not iteration order.
+Squads were an implicit concept — units shared a `squadId` integer on `SquadMember`, but no squad entity existed. Every system that needed squad-level behavior reconstructed the grouping from scratch via GROUP BY. Both `TargetAcquisitionSystem` and `CommandSystem` did this independently, and any future squad-level system would repeat the same pattern.
 
 ## Design: Squad Brain, Unit Body
 
@@ -29,105 +22,80 @@ Both squads and units are entities. The squad decides, units execute.
 
 ### Squad Entity Components
 
-- `Squad` — metadata (formation type, mode: march/ranged/melee)
-- `Transform3D` — squad center position
+- `Squad` — mode (march/ranged/melee), formation type
+- `Transform3D` — squad center position (averaged from members by `SquadCenterSystem`)
 - `Networked` — owner/team
-- `SquadMembers` — array of member entity IDs (non-SoA, acceptable for few squad entities)
-- `Path` — the squad's path (single path for whole squad)
-- `SquadTarget` — which enemy squad to engage
-- `MoveTarget` — movement destination
+- `Path` — the squad's path (single path for whole squad, added by commands)
+- `SquadTarget` — which enemy squad to engage (added by target acquisition)
 
-### Unit Entity Components (unchanged)
+### Unit Entity Components
 
-- `SquadMember { squadId }` — now references squad entity ID
+- `SquadMember { squadId }` — references the squad **entity ID**
 - `Transform3D` — individual position
 - `FormationOffset` — offset from squad center
 - `BoundingBox` — collision
-- `UnitDirective` — current orders from squad (written by scatter system, read by unit systems)
-- `AttackTarget` — which specific enemy unit to attack (relevant in melee)
+
+### Cross-Entity Communication: `query.get()`
+
+The key pattern for unit→squad communication is `query.get()`. It compiles to O(1) direct array lookups — the same SoA-friendly access as `query.iter()`. Unit systems call `squadQuery.get(member.squadId, ...)` inline to read squad-level data. No bridge components, no data duplication.
+
+```typescript
+// Unit steering reads squad position directly
+export default function MovementSystem(
+  unitQuery: Query<[Transform3D, SquadMember, FormationOffset]>,
+  squadQuery: Query<[Squad, Transform3D]>,
+) {
+  unitQuery.iter(([_entity, transform, member, offset]) => {
+    squadQuery.get(member.squadId, ([_squadEntity, _squad, squadTransform]) => {
+      // steer toward squadTransform + offset
+    });
+  });
+}
+```
+
+Adding squad-level state = add a component to the squad entity. Unit systems that need it call `query.get()`. No scatter system, no bridge component to keep in sync.
+
+### Squad Member Iteration
+
+Systems that need to iterate all members of a squad (e.g. `SquadCenterSystem` for averaging positions) rebuild a `Map<squadId, data>` per frame. With ~50 squads this is cheap. Only one system currently needs this pattern.
+
+Long-term, secondary indexes in the ECS core (`Map<fieldValue, entityId[]>` maintained on component add/remove) would eliminate even this rebuild. Deferred until more systems need grouped iteration.
 
 ## System Architecture
 
-### Three tiers
-
 ```
 Input/Commands
-  → write to squad entities (MoveTarget, SquadTarget, SquadMode)
+  → write to squad entities (Path, SquadTarget)
 
 Squad-level systems (few entities, cheap)
-  → SquadPathfindingSystem: A* on squad entities
-  → SquadTargetAcquisitionSystem: nested query, squad vs squad
-  → SquadModeSystem: decide march/ranged/melee based on range to target
-
-Scatter (once per frame, tiny map)
-  → read squad query (~50 entries), build lookup
-  → iterate all units, write squad state into UnitDirective component
+  → SquadCenterSystem: average member positions → squad Transform3D
+  → PathfindingSystem: advance squad along waypoints
+  → TargetAcquisitionSystem: squad vs squad, writes SquadTarget
 
 Unit-level systems (many entities, SoA-friendly)
-  → UnitSteeringSystem: steer toward formation point or individual target
-  → UnitCollisionSystem: per-unit AABB
-  → UnitAnimationSystem: per-unit visual state
+  → MovementSystem: steer toward squad position + formation offset via query.get()
+  → ColliderSystem: per-unit AABB
 ```
 
-### The scatter bridge
+## Pathfinding
 
-The scatter system bridges squad decisions to unit execution. It runs once per frame:
+Pathfinding runs once at the squad level. The squad entity gets one `Path`. Units don't pathfind — they steer toward their formation position relative to the squad's current position.
 
-1. Iterate squad entities, build a small Map (~50 entries) of squad state
-2. Iterate all units (SoA-friendly), look up squad state via `member.squadId`, write to `UnitDirective`
+- `PathfindingSystem`: runs on squad entities. ~50 pathfinds instead of ~300.
+- `MovementSystem`: each unit reads squad position via `query.get()`, adds its formation offset, steers toward that point.
 
-Unit-level systems only read `UnitDirective` — no `ConductGetComponent`, no per-unit entity lookups. Unit iteration stays fully SoA-friendly.
-
-## Pathfinding Fix
-
-**Current problem:** Each unit runs A* independently with slightly different destinations (formation offsets). Units take different routes and separate.
-
-**Solution:** Pathfind once at the squad level. The squad entity gets one `Path`. Units don't pathfind — they steer toward their formation position along the squad's path.
-
-- `SquadPathfindingSystem`: runs on squad entities. ~50 pathfinds instead of ~300.
-- `UnitSteeringSystem`: each unit computes target point (squad path position + formation offset), steers toward it with local obstacle avoidance and separation forces.
-
-Units can't separate because they follow the same path. Obstacles are handled with local steering, not full A* re-routing. A cohesion force pulls strays back toward their formation slot.
+Units can't separate because they all follow the same squad position. Local obstacle avoidance and separation forces handle collisions.
 
 ## Mode Switching
 
 The squad's mode determines how much autonomy units get:
 
-**Marching:** Units follow squad path + formation offsets. Tight formation, minimal individual behavior.
+**Marching:** Units follow squad position + formation offsets. Tight formation, minimal individual behavior.
 
-**Ranged combat:** Units hold formation. Squad picks target. All units shoot toward target squad's center. Individual aiming variation is cosmetic.
+**Ranged combat:** Units hold formation. Squad picks target. All units shoot toward target squad's center.
 
-**Melee:** Units break formation. Each unit picks the nearest enemy from the target squad and moves to it individually. Per-unit steering and collision matter most here.
-
-**Transitions:** Squad approaches enemy → enters engagement range → ranged mode. Enemy closes distance → melee mode, units swarm. Enemy squad dies → back to marching, units reform formation.
+**Melee:** Units break formation. Each unit picks the nearest enemy and moves to it individually. Per-unit steering and collision matter most here.
 
 ## Collision Detection
 
-### Current approach (validated)
-
-The external service pattern (CollisionService + GridSpatialIndex) is architecturally sound. Spatial indexes are acceleration structures, not gameplay concepts — every production ECS engine uses external services for spatial queries.
-
-### With squad entities
-
-Squad-level broad phase checks ~50 squad bounding volumes instead of ~300 unit AABBs. At that scale, brute force N² (1,225 checks) may be sufficient without a spatial index. Per-unit collision is still needed for melee interactions and could use squad bounding volumes as a hierarchical broad phase.
-
-### Current implementation notes
-
-- `detect()` method in `collisionService.ts` does brute-force O(n) ignoring the spatial index — should use the index if used in hot paths
-- `unregister()` is never called — stale entities remain in the index after despawn (latent bug)
-- `detectAll()` and `broadPhase()` allocate new arrays every frame — pre-allocated reusable buffers would reduce GC pressure
-- `Float64Array` could be `Float32Array` (game positions don't need double precision)
-
-## ECS Core Consideration: Secondary Indexes
-
-For the longer term, the grouping problem (iterate entities by a field value) recurs across many features: squads, teams, tile types, buff groups.
-
-**Shared components (Unity DOTS style) were considered but rejected** — they cause archetype explosion. 50 squads = 50 archetypes with 6 entities each. Every broad query (movement, rendering) iterates 50 tiny chunks instead of one chunk of 300. SoA iteration loses its advantage with chunks that small.
-
-**Secondary indexes** are a better fit:
-- Optional `Map<value, entityId[]>` maintained by the ECS on component add/remove
-- No archetype fragmentation, broad query performance unchanged
-- Exposes a grouped iteration API: `query.iterGrouped(field, callback)`
-- Minimal core change, opt-in per field
-
-This would make the scatter pattern even cheaper (no Map rebuild — the index IS the Map) and could eliminate the need for `SquadMembers` arrays on squad entities.
+Squad-level broad phase checks ~50 squad bounding volumes instead of ~300 unit AABBs. Per-unit collision is still needed for melee interactions and could use squad bounding volumes as a hierarchical broad phase.

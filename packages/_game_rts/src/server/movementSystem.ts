@@ -1,46 +1,34 @@
-import type { Query, Optional } from "@conduct/ecs";
-import { ConductRemoveComponent, deltaTime } from "@conduct/ecs";
+import type { Query } from "@conduct/ecs";
+import { deltaTime } from "@conduct/ecs";
 import { Transform3D } from "@conduct/simulation";
-import { MoveTarget } from "./moveTarget.js";
+import { SquadMember } from "../shared/squadMember.js";
+import { Squad } from "../shared/squad.js";
 import { FormationOffset } from "./formationOffset.js";
-import { Path } from "./path.js";
 
 const MOVE_SPEED = 5;
-const ARRIVE_THRESHOLD = 0.1;
+const ARRIVE_THRESHOLD = 0.05;
 
-export default function MovementSystem(query: Query<[Transform3D, MoveTarget, Optional<[FormationOffset, Path]>]>) {
-  query.iter(([entity, transform, target, offset, path]) => {
-    let tx: number;
-    let tz: number;
+export default function MovementSystem(
+  unitQuery: Query<[Transform3D, SquadMember, FormationOffset]>,
+  squadQuery: Query<[Squad, Transform3D]>,
+) {
+  unitQuery.iter(([_entity, transform, member, offset]) => {
+    squadQuery.get(member.squadId, ([_squad, squadTransform]) => {
+      const tx = squadTransform.x + offset.x;
+      const tz = squadTransform.z + offset.z;
 
-    if (path && path.current < path.waypoints.length) {
-      const wp = path.waypoints[path.current]!;
-      tx = wp.x + (offset ? offset.x : 0);
-      tz = wp.y + (offset ? offset.z : 0);
-    } else {
-      tx = target.x + (offset ? offset.x : 0);
-      tz = target.z + (offset ? offset.z : 0);
-    }
+      const dx = tx - transform.x;
+      const dz = tz - transform.z;
+      const dist = Math.sqrt(dx * dx + dz * dz);
 
-    const dx = tx - transform.x;
-    const dz = tz - transform.z;
-    const dist = Math.sqrt(dx * dx + dz * dz);
+      if (dist < ARRIVE_THRESHOLD) return;
 
-    if (dist < ARRIVE_THRESHOLD) {
-      if (path && path.current < path.waypoints.length) {
-        path.current = path.current + 1;
-        return;
-      }
-      ConductRemoveComponent(entity, MoveTarget);
-      if (path) ConductRemoveComponent(entity, Path);
-      return;
-    }
+      const step = Math.min(MOVE_SPEED * deltaTime, dist);
+      const nx = dx / dist;
+      const nz = dz / dist;
 
-    const step = Math.min(MOVE_SPEED * deltaTime, dist);
-    const nx = dx / dist;
-    const nz = dz / dist;
-
-    transform.x = transform.x + nx * step;
-    transform.z = transform.z + nz * step;
+      transform.x = transform.x + nx * step;
+      transform.z = transform.z + nz * step;
+    });
   });
 }

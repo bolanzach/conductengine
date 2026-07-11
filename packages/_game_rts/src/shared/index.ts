@@ -9,6 +9,7 @@ export const BUNDLE = {
   SPACE_MARINE: 1,
   TILE: 2,
   STRUCTURE_TILE: 3,
+  SQUAD: 4,
 } as const;
 
 export type BundleRegistry = Record<typeof BUNDLE[keyof typeof BUNDLE], ConductBundle>;

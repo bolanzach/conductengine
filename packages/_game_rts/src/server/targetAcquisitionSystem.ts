@@ -2,124 +2,67 @@ import type { Query, Optional } from "@conduct/ecs";
 import { ConductAddComponent } from "@conduct/ecs";
 import { Transform3D } from "@conduct/simulation";
 import { Networked } from "@conduct/networking/networked";
-import { SquadMember } from "../shared/squadMember.js";
-import { Path } from "./path.js";
-import { AttackTarget } from "./attackTarget.js";
+import { Squad } from "../shared/squad.js";
+import { SquadTarget } from "./squadTarget.js";
 
 const ATTACK_RANGE = 5;
 const ATTACK_RANGE_SQ = ATTACK_RANGE * ATTACK_RANGE;
 
-// --- Per-unit record, reused each tick ---
-
-interface UnitRecord {
+interface SquadRecord {
   id: number;
   x: number;
   z: number;
-  owner: number;
+  needsTarget: boolean;
 }
 
-// Pre-allocated arrays for enemy positions, indexed by 0=human 1=AI
-const teamUnits: UnitRecord[][] = [[], []];
-
-// Per-squad tracking
-interface SquadInfo {
-  members: UnitRecord[];
-  hasAttackTarget: boolean;
-  hasIdleMember: boolean;
-  owner: number;
-}
-const squads = new Map<number, SquadInfo>();
+// Pre-allocated arrays per team, indexed by 0=human 1=AI
+const teamSquads: SquadRecord[][] = [[], []];
 
 function teamIndex(owner: number): number {
   return owner > 0 ? 0 : 1;
 }
 
-function clearState(): void {
-  teamUnits[0]!.length = 0;
-  teamUnits[1]!.length = 0;
-  squads.clear();
-}
-
 export default function TargetAcquisitionSystem(
-  query: Query<[Transform3D, Networked, SquadMember, Optional<[Path, AttackTarget]>]>
-): void {
-  clearState();
+  query: Query<[Squad, Transform3D, Networked, Optional<[SquadTarget]>]>,
+) {
+  teamSquads[0]!.length = 0;
+  teamSquads[1]!.length = 0;
 
-  // Phase 1: build lookup tables
-  query.iter(([entity, transform, networked, member, path, attackTarget]) => {
-    const record: UnitRecord = {
+  query.iter(([entity, _squad, transform, networked, squadTarget]) => {
+    teamSquads[teamIndex(networked.owner)]!.push({
       id: entity,
       x: transform.x,
       z: transform.z,
-      owner: networked.owner,
-    };
-
-    // Track all units by team for enemy lookup
-    teamUnits[teamIndex(networked.owner)]!.push(record);
-
-    // Track squad membership
-    let squad = squads.get(member.squadId);
-    if (!squad) {
-      squad = { members: [], hasAttackTarget: false, hasIdleMember: false, owner: networked.owner };
-      squads.set(member.squadId, squad);
-    }
-    squad.members.push(record);
-
-    if (attackTarget) {
-      squad.hasAttackTarget = true;
-    } else if (!path) {
-      squad.hasIdleMember = true;
-    }
+      needsTarget: !squadTarget,
+    });
   });
 
-  // Phase 2: for each eligible squad, find nearest enemy
-  for (const [_squadId, squad] of squads) {
-    // Eligible: at least one idle member AND no members already attacking
-    if (!squad.hasIdleMember || squad.hasAttackTarget) continue;
+  for (let t = 0; t < 2; t++) {
+    const squads = teamSquads[t]!;
+    const enemies = teamSquads[t === 0 ? 1 : 0]!;
 
-    // Compute center from idle members
-    let cx = 0;
-    let cz = 0;
-    let idleCount = 0;
-    const members = squad.members;
+    for (let i = 0; i < squads.length; i++) {
+      const squad = squads[i]!;
+      if (!squad.needsTarget) continue;
 
-    for (let i = 0; i < members.length; i++) {
-      // Idle members are those without Path or AttackTarget — we can approximate
-      // by using all members since we know none have AttackTarget
-      cx += members[i]!.x;
-      cz += members[i]!.z;
-      idleCount++;
-    }
+      let bestTarget = -1;
+      let bestDistSq = ATTACK_RANGE_SQ;
 
-    cx /= idleCount;
-    cz /= idleCount;
+      for (let j = 0; j < enemies.length; j++) {
+        const enemy = enemies[j]!;
+        const dx = enemy.x - squad.x;
+        const dz = enemy.z - squad.z;
+        const distSq = dx * dx + dz * dz;
 
-    // Find closest enemy within range
-    const enemyTeam = teamIndex(squad.owner) === 0 ? 1 : 0;
-    const enemies = teamUnits[enemyTeam]!;
-
-    let bestTarget = -1;
-    let bestDistSq = ATTACK_RANGE_SQ;
-
-    for (let i = 0; i < enemies.length; i++) {
-      const enemy = enemies[i]!;
-      const dx = enemy.x - cx;
-      const dz = enemy.z - cz;
-      const distSq = dx * dx + dz * dz;
-
-      if (distSq < bestDistSq) {
-        bestDistSq = distSq;
-        bestTarget = enemy.id;
+        if (distSq < bestDistSq) {
+          bestDistSq = distSq;
+          bestTarget = enemy.id;
+        }
       }
-    }
 
-    if (bestTarget === -1) continue;
-
-    console.log(`[target] squad ${_squadId} acquired target entity ${bestTarget}`);
-
-    // Assign AttackTarget to ALL squad members (including those still moving)
-    for (let i = 0; i < members.length; i++) {
-      ConductAddComponent(members[i]!.id, AttackTarget, { target: bestTarget });
+      if (bestTarget !== -1) {
+        ConductAddComponent(squad.id, SquadTarget, { target: bestTarget });
+      }
     }
   }
 }

@@ -6,6 +6,18 @@ export type ConductSystem = (...queries: Query<QueryElement[]>[]) => void;
 
 export type ConductBundle = [component: ComponentConstructor, data?: Record<string, any>][];
 
+export class ChildOf {
+  /**
+   * Points to the parent Entity in the hierarchy. This field is not directly
+   * mutable as writes should go through:
+   *
+   * ```
+   * ConductAddComponent(entity, ChildOf, { parent: newParent });
+   * ```
+   */
+  readonly parent = 0;
+}
+
 export const ComponentId = Symbol("ComponentId");
 const ComponentFields = Symbol("ComponentFields");
 const ComponentColumnKeys = Symbol("ComponentColumnKeys");
@@ -197,6 +209,23 @@ export const entityLocations: (EntityLocation | undefined)[] = [];
 const freeEntityIds: number[] = [];
 
 /**
+ * Packed array indexed by entity ID → array of child entity IDs.
+ */
+const entityChildren: (number[] | undefined)[] = [];
+
+/**
+ * Tracks each child entity's index within its parent's entityChildren array.
+ */
+const entityChildIndex: (number | undefined)[] = [];
+
+/**
+ * Cached column key for ChildOf.parent, set lazily on first ChildOf usage.
+ */
+let childOfParentColumnKey: string | null = null;
+
+const EMPTY_CHILDREN: readonly number[] = Object.freeze([]);
+
+/**
  * A schedule determines when a system runs within the game loop.
  * - FixedUpdate: Runs at a fixed tick rate (0-N times per frame). deltaTime is always TICK_DT.
  * - Update: Runs once per frame at variable frame rate. deltaTime is the actual frame delta.
@@ -373,7 +402,7 @@ export function ConductSpawnEntity(): number {
   return nextEntityId++;
 }
 
-export function ConductSpawnBundle(bundle: ConductBundle): ConductEntity {
+export function ConductSpawnBundle(bundle: ConductBundle, parent?: ConductEntity): ConductEntity {
   const entity = ConductSpawnEntity();
 
   // Merge duplicate component entries (later data fields overwrite earlier)
@@ -387,6 +416,18 @@ export function ConductSpawnBundle(bundle: ConductBundle): ConductEntity {
     } else {
       merged.set(component, data ? { ...data } : undefined);
     }
+  }
+
+  // Add ChildOf if parent specified
+  if (parent !== undefined) {
+    const childOf = ChildOf;
+    merged.set(childOf, { parent });
+    // const existing = merged.get(childOfCtor);
+    // if (existing !== undefined) {
+    //   existing.parent = parent;
+    // } else {
+    //   merged.set(childOfCtor, { parent });
+    // }
   }
 
   for (const [component, data] of merged) {
@@ -437,6 +478,34 @@ function growArchetype(archetype: Archetype): void {
   archetype.capacity = newCapacity;
 }
 
+function addToChildrenArray(parentId: number, childId: number): void {
+  let children = entityChildren[parentId];
+  if (!children) {
+    children = [];
+    entityChildren[parentId] = children;
+  }
+  entityChildIndex[childId] = children.length;
+  children.push(childId);
+}
+
+function removeFromChildrenArray(parentId: number, childId: number): void {
+  const children = entityChildren[parentId];
+  if (!children) return;
+  const idx = entityChildIndex[childId];
+  if (idx === undefined) return;
+
+  const last = children.length - 1;
+  if (idx !== last) {
+    const swappedChild = children[last]!;
+    children[idx] = swappedChild;
+    entityChildIndex[swappedChild] = idx;
+  }
+  children.pop();
+  entityChildIndex[childId] = undefined;
+
+  if (children.length === 0) entityChildren[parentId] = undefined;
+}
+
 function addComponent<T extends ComponentConstructor>(
   entityId: number,
   component: T,
@@ -456,6 +525,18 @@ function addComponent<T extends ComponentConstructor>(
         const row = existingLocation.row;
         const columnKeys = component[ComponentColumnKeys]!;
         const fieldToIndex = component[ComponentFieldToIndex]!;
+
+        // ChildOf re-parenting
+        if (component === ChildOf && (data as any).parent !== undefined) {
+          if (childOfParentColumnKey === null) childOfParentColumnKey = columnKeys[0]!;
+          const oldParent = archetype.columns[childOfParentColumnKey]![row] as number;
+          const newParent = (data as any).parent as number;
+          if (oldParent !== newParent) {
+            removeFromChildrenArray(oldParent, entityId);
+            addToChildrenArray(newParent, entityId);
+          }
+        }
+
         for (const key in data) {
           archetype.columns[columnKeys[fieldToIndex[key]!]!]![row] = data[key];
         }
@@ -552,6 +633,13 @@ function addComponent<T extends ComponentConstructor>(
   } else {
     entityLocations[entityId] = { archetypeIndex: dstArchIdx, row: dstRow };
   }
+
+  // ChildOf: register new child in parent's children array
+  if (component === ChildOf) {
+    if (childOfParentColumnKey === null) childOfParentColumnKey = component[ComponentColumnKeys]![0]!;
+    const parentId = dstArch.columns[childOfParentColumnKey]![dstRow] as number;
+    addToChildrenArray(parentId, entityId);
+  }
 }
 
 function removeComponent(
@@ -569,6 +657,12 @@ function removeComponent(
   // Check if entity actually has this component
   const componentSig = createSignature([componentId]);
   if (!signatureContains(srcArch.signature, componentSig)) return false;
+
+  // ChildOf removal: remove from parent's children array
+  if (component === ChildOf && childOfParentColumnKey !== null) {
+    const parentId = srcArch.columns[childOfParentColumnKey]![srcRow] as number;
+    removeFromChildrenArray(parentId, entityId);
+  }
 
   const newSignature = signatureRemove(srcArch.signature, componentId);
 
@@ -658,10 +752,47 @@ export function ConductGetComponent<T extends ComponentConstructor>(
   return result as InstanceType<T>;
 }
 
+/**
+ * Returns the children of an entity.
+ */
+export function ConductGetChildren(entity: ConductEntity): readonly number[] {
+  return entityChildren[entity] ?? EMPTY_CHILDREN;
+}
+
+/**
+ * Returns the parent of an entity, or undefined if the entity has no ChildOf component.
+ */
+export function ConductGetParent(entity: ConductEntity): ConductEntity | undefined {
+  const location = entityLocations[entity];
+  if (!location || childOfParentColumnKey === null) return undefined;
+  const archetype = archetypes[location.archetypeIndex]!;
+  const column = archetype.columns[childOfParentColumnKey];
+  if (!column) return undefined;
+  return column[location.row] as number;
+}
 
 function deleteEntity(entityId: number): boolean {
   const location = entityLocations[entityId];
   if (!location) return false;
+
+  // Cascade delete: recursively delete all children first
+  const children = entityChildren[entityId];
+  if (children) {
+    entityChildren[entityId] = undefined;
+    for (let i = children.length - 1; i >= 0; i--) {
+      deleteEntity(children[i]!);
+    }
+  }
+
+  // Remove self from parent's children array
+  if (childOfParentColumnKey !== null) {
+    const arch = archetypes[location.archetypeIndex]!;
+    const parentColumn = arch.columns[childOfParentColumnKey];
+    if (parentColumn) {
+      const parentId = parentColumn[location.row] as number;
+      removeFromChildrenArray(parentId, entityId);
+    }
+  }
 
   const archetype = archetypes[location.archetypeIndex]!;
   const row = location.row;
@@ -688,6 +819,7 @@ function deleteEntity(entityId: number): boolean {
 
   // Clean up deleted entity
   entityLocations[entityId] = undefined;
+  entityChildIndex[entityId] = undefined;
   freeEntityIds.push(entityId);
 
   return true;

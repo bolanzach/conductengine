@@ -19,6 +19,11 @@ export const SquadBundle: ConductBundle = [
   [Networked, { bundle: BUNDLE.SQUAD }],
 ];
 
+export const GunBundle: ConductBundle = [
+  [Transform3D, { sx: 0.05, sy: 0.05, sz: 0.25 }],
+  [Networked, { bundle: BUNDLE.GUN }],
+];
+
 export const TileBundle: ConductBundle = [
   [Transform3D, { sx: 1, sy: 0.4, sz: 1 }],
 ];

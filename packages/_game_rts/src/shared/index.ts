@@ -10,6 +10,7 @@ export const BUNDLE = {
   TILE: 2,
   STRUCTURE_TILE: 3,
   SQUAD: 4,
+  GUN: 5,
 } as const;
 
 export type BundleRegistry = Record<typeof BUNDLE[keyof typeof BUNDLE], ConductBundle>;

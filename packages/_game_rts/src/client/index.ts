@@ -1,7 +1,14 @@
 // RTS client entrypoint (rendering, input, client-side prediction)
 // This code only runs in the browser.
 
-import { ConductSpawnEntity, ConductAddComponent, ConductRegisterSystem, ConductStart, FixedUpdate, Update } from "@conduct/ecs";
+import {
+  ConductSpawnEntity,
+  ConductAddComponent,
+  ConductRegisterSystem,
+  ConductStart,
+  FixedUpdate,
+  Update,
+} from "@conduct/ecs";
 import { WebSocketClientTransport, setClientTransport } from "@conduct/networking/clientTransport";
 import { setClientBundles, pushSnapshot, setLocalPlayerId } from "@conduct/networking/clientNetworkReceive";
 import ClientNetworkReceiveSystem from "@conduct/networking/clientNetworkReceiveSystem";
@@ -15,7 +22,7 @@ import CameraSystem from "@conduct/renderer/systems/cameraSystem";
 import RendererSystem from "@conduct/renderer/systems/rendererSystem";
 import type { NetworkMessage } from "@conduct/networking/protocol";
 import { BUNDLE, BundleRegistry, startRTS } from "../shared";
-import { SpaceMarineBundle, SquadBundle, TileBundle } from "../shared/bundles";
+import { SpaceMarineBundle, SquadBundle, TileBundle, GunBundle } from "../shared/bundles";
 import { replicateComponents } from "../shared/network";
 import ClientCommandSendSystem from "@conduct/networking/clientCommandSendSystem";
 import RtsInputSystem from "./rtsInputSystem";
@@ -46,6 +53,11 @@ const bundles: BundleRegistry = {
     ...TileBundle,
     [MeshRenderer, { meshId: MESH.CUBE }],
     [Material, { r: 0.4, g: 0.2, b: 0.1 }],
+  ],
+  [BUNDLE.GUN]: [
+    ...GunBundle,
+    [MeshRenderer, { meshId: MESH.CUBE }],
+    [Material, { r: 1.0, g: 0.0, b: 0.0 }],
   ],
   [BUNDLE.SQUAD]: SquadBundle,
 };

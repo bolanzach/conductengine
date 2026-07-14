@@ -9,7 +9,6 @@ const ARRIVE_THRESHOLD = 0.1;
 
 export default function PathfindingSystem(query: Query<[Squad, Transform3D, Path]>) {
   query.iter(([entity, _squad, transform, path]) => {
-    console.log(entity)
     if (path.current >= path.waypoints.length) {
       ConductRemoveComponent(entity, Path);
       return;
@@ -31,7 +30,5 @@ export default function PathfindingSystem(query: Query<[Squad, Transform3D, Path
 
     transform.x = transform.x + nx * step;
     transform.z = transform.z + nz * step;
-
-    console.log(transform.x, transform.z);
   });
 }

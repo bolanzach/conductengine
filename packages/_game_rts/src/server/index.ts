@@ -8,7 +8,7 @@ import ServerNetworkSnapshotSystem from "@conduct/networking/serverNetworkSnapsh
 import { Networked } from "@conduct/networking/networked";
 import { Transform3D } from "@conduct/simulation";
 import { BUNDLE, BundleRegistry, startRTS } from "../shared/index.js";
-import { SpaceMarineBundle, SquadBundle, TileBundle } from "../shared/bundles.js";
+import { SpaceMarineBundle, SquadBundle, TileBundle, GunBundle } from "../shared/bundles.js";
 import { replicateComponents } from "../shared/network.js";
 import { SquadMember } from "../shared/squadMember.js";
 import CommandSystem from "./commandSystem.js";
@@ -18,6 +18,7 @@ import TargetAcquisitionSystem from "./targetAcquisitionSystem.js";
 import MovementSystem from "./movementSystem.js";
 import SquadCenterSystem from "./squadCenterSystem.js";
 import { FormationOffset } from "./formationOffset.js";
+import ChildTransformSystem from "./childTransformSystem.js";
 
 const PORT = 3001;
 
@@ -27,6 +28,7 @@ const bundles: BundleRegistry = {
   [BUNDLE.SPACE_MARINE]: SpaceMarineBundle,
   [BUNDLE.TILE]: TileBundle,
   [BUNDLE.STRUCTURE_TILE]: TileBundle,
+  [BUNDLE.GUN]: GunBundle,
   [BUNDLE.SQUAD]: SquadBundle,
 };
 
@@ -38,7 +40,7 @@ const FORMATION_SPREAD = 0.3;
 
 function spawnSquad(x: number, z: number, owner: number) {
   const squadId = ConductSpawnBundle([
-      ...SquadBundle,
+    ...SquadBundle,
     [Transform3D, { x, z }],
     [Networked, { owner }],
   ]);
@@ -47,13 +49,20 @@ function spawnSquad(x: number, z: number, owner: number) {
     const angle = (i / SQUAD_SIZE) * Math.PI * 2;
     const ox = Math.cos(angle) * FORMATION_SPREAD;
     const oz = Math.sin(angle) * FORMATION_SPREAD;
-    ConductSpawnBundle([
+    const marineId = ConductSpawnBundle([
       ...SpaceMarineBundle,
       [Transform3D, { x: x + ox, z: z + oz }],
       [Networked, { owner }],
       [SquadMember, { squadId, slotIndex: i }],
       [FormationOffset, { x: ox, z: oz }],
     ]);
+
+    // Spawn gun as child of marine
+    ConductSpawnBundle([
+      ...GunBundle,
+      [Transform3D, { x: x + ox, z: z + oz }],
+      [Networked, { owner }],
+    ], marineId);
   }
 }
 
@@ -89,6 +98,7 @@ ConductRegisterSystem(FixedUpdate, CommandSystem);
 ConductRegisterSystem(FixedUpdate, PathfindingSystem);
 ConductRegisterSystem(FixedUpdate, TargetAcquisitionSystem);
 ConductRegisterSystem(FixedUpdate, MovementSystem);
+ConductRegisterSystem(FixedUpdate, ChildTransformSystem);
 ConductRegisterSystem(FixedUpdate, SquadCenterSystem);
 ConductRegisterSystem(FixedUpdate, ColliderSystem);
 ConductRegisterSystem(FixedUpdate, ServerNetworkSnapshotSystem);

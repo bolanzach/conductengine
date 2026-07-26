@@ -4,7 +4,9 @@ export type ConductComponent = object;
 
 export type ConductSystem = (...queries: Query<QueryElement[]>[]) => void;
 
-export type ConductBundle = [component: ComponentConstructor, data?: Record<string, any>][];
+export type ConductBundleEntry = [component: ComponentConstructor, data?: Record<string, any>];
+
+export type ConductBundle = (ConductBundleEntry | ConductBundle)[];
 
 export class ChildOf {
   /**
@@ -15,7 +17,7 @@ export class ChildOf {
    * ConductAddComponent(entity, ChildOf, { parent: newParent });
    * ```
    */
-  readonly parent = 0;
+  readonly parent: number = 0;
 }
 
 export const ComponentId = Symbol("ComponentId");
@@ -181,7 +183,8 @@ interface EntityLocation {
 type Command =
   | { type: 'addComponent'; entity: number; component: ComponentConstructor; data?: object | ((instance: object) => void) }
   | { type: 'removeComponent'; entity: number; component: ComponentConstructor }
-  | { type: 'deleteEntity'; entity: number };
+  | { type: 'deleteEntity'; entity: number }
+  | { type: 'runSystem'; system: ConductSystem };
 
 const ARCHETYPE_INITIAL_CAPACITY = 64;
 const ARCHETYPE_GROWTH_FACTOR = 2;
@@ -395,21 +398,47 @@ function signatureToKey(sig: Signature): string {
   return sig.join(",");
 }
 
-export function ConductSpawnEntity(): number {
+export function getBundleComponents(bundle: ConductBundle): ConductBundleEntry[] {
+  return bundle.filter((entry): entry is ConductBundleEntry => typeof entry[0] === 'function')
+}
+
+export function getBundleChildren(bundle: ConductBundle): ConductBundle[] {
+  return bundle.filter((entry): entry is ConductBundle => typeof entry[0] !== 'function')
+}
+
+export function ConductSpawnEntity(id?: number): number {
+  if (id !== undefined) {
+    if (id >= nextEntityId) {
+      nextEntityId = id + 1;
+      return id;
+    }
+    if (entityLocations[id] !== undefined) {
+      throw new Error(`Entity ID ${id} is already in use`);
+    }
+    // Remove from free list (swap-remove)
+    const idx = freeEntityIds.indexOf(id);
+    if (idx !== -1) {
+      freeEntityIds[idx] = freeEntityIds[freeEntityIds.length - 1]!;
+      freeEntityIds.pop();
+    }
+    return id;
+  }
+
   if (freeEntityIds.length > 0) {
     return freeEntityIds.pop()!;
   }
   return nextEntityId++;
 }
 
-export function ConductSpawnBundle(bundle: ConductBundle, parent?: ConductEntity): ConductEntity {
-  const entity = ConductSpawnEntity();
+export function ConductSpawnBundle(bundle: ConductBundle, options: { parent?: ConductEntity; id?: number } = {}): ConductEntity {
+  const entity = ConductSpawnEntity(options.id);
+  const entries = getBundleComponents(bundle);
 
   // Merge duplicate component entries (later data fields overwrite earlier)
   const merged = new Map<ComponentConstructor, Record<string, any> | undefined>();
-  for (let i = 0; i < bundle.length; i++) {
-    const component = bundle[i]![0];
-    const data = bundle[i]![1];
+  for (let i = 0; i < entries.length; i++) {
+    const component = entries[i]![0];
+    const data = entries[i]![1];
     const existing = merged.get(component);
     if (existing !== undefined) {
       if (data) Object.assign(existing, data);
@@ -419,20 +448,20 @@ export function ConductSpawnBundle(bundle: ConductBundle, parent?: ConductEntity
   }
 
   // Add ChildOf if parent specified
-  if (parent !== undefined) {
-    const childOf = ChildOf;
-    merged.set(childOf, { parent });
-    // const existing = merged.get(childOfCtor);
-    // if (existing !== undefined) {
-    //   existing.parent = parent;
-    // } else {
-    //   merged.set(childOfCtor, { parent });
-    // }
+  if (options.parent !== undefined) {
+    merged.set(ChildOf, { parent: options.parent });
   }
 
   for (const [component, data] of merged) {
     ConductAddComponent(entity, component, data);
   }
+
+  // Recursively spawn children
+  const children = getBundleChildren(bundle);
+  for (let i = 0; i < children.length; i++) {
+    ConductSpawnBundle(children[i]!, { parent: entity });
+  }
+
   return entity;
 }
 
@@ -864,6 +893,8 @@ function flushCommands(): void {
       case 'deleteEntity':
         deleteEntity(cmd.entity);
         break;
+      case 'runSystem':
+        cmd.system();
     }
   }
   commandQueue.length = 0;
@@ -913,6 +944,10 @@ export function ConductRegisterSystem(schedule: Schedule, system: ConductSystem)
     updateSystems.push(registeredSystem);
   }
   return registeredSystem;
+}
+
+export function ConductRunSystem(system: ConductSystem): void {
+  commandQueue.push({ type: 'runSystem', system });
 }
 
 export function ConductUnregisterSystem(schedule: Schedule, system: ConductSystem): void {

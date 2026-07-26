@@ -2,8 +2,8 @@ import type { Query, Optional } from "@conduct/ecs";
 import { ConductAddComponent } from "@conduct/ecs";
 import { Transform3D } from "@conduct/simulation";
 import { Networked } from "@conduct/networking/networked";
-import { Squad } from "../shared/squad.js";
-import { SquadTarget } from "./squadTarget.js";
+import { Squad } from "../squad.js";
+import { SquadTarget } from "../squadTarget.js";
 
 const ATTACK_RANGE = 5;
 const ATTACK_RANGE_SQ = ATTACK_RANGE * ATTACK_RANGE;

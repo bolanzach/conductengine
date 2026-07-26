@@ -1,12 +1,12 @@
-import type { GameCommand } from "./protocol.js";
+import type { GameCommand } from "@conduct/networking/protocol";
 
 let commandBuffer: GameCommand[] = [];
 
-export function pushCommand(command: GameCommand): void {
+export function pushGameCommand(command: GameCommand): void {
   commandBuffer.push(command);
 }
 
-export function consumeCommands(): GameCommand[] {
+export function consumeGameCommands(): GameCommand[] {
   if (commandBuffer.length === 0) return commandBuffer;
   const commands = commandBuffer;
   commandBuffer = [];

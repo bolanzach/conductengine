@@ -1,4 +1,4 @@
-import type { PathNode } from "../shared/pathfinding.js";
+import type { PathNode } from "./pathfinding.js";
 
 export class Path {
   waypoints: PathNode[] = [];

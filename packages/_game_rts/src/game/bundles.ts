@@ -4,6 +4,7 @@ import { Networked } from "@conduct/networking/networked";
 import { BUNDLE } from "./index.js";
 import { BoundingBox } from "./boundingBox.js";
 import { SquadMember } from "./squadMember.js";
+import { FormationOffset } from "./formationOffset.js";
 import { Squad } from "./squad.js";
 
 export const SpaceMarineBundle: ConductBundle = [
@@ -11,17 +12,17 @@ export const SpaceMarineBundle: ConductBundle = [
   [Networked, { bundle: BUNDLE.SPACE_MARINE }],
   [BoundingBox, { hx: 0.22, hy: 0.4, hz: 0.22 }],
   [SquadMember],
+  [FormationOffset],
+  [
+    [Transform3D, { sx: 0.05, sy: 0.05, sz: 0.25 }],
+    [Networked],
+  ]
 ];
 
 export const SquadBundle: ConductBundle = [
   [Squad],
   [Transform3D],
   [Networked, { bundle: BUNDLE.SQUAD }],
-];
-
-export const GunBundle: ConductBundle = [
-  [Transform3D, { sx: 0.05, sy: 0.05, sz: 0.25 }],
-  [Networked, { bundle: BUNDLE.GUN }],
 ];
 
 export const TileBundle: ConductBundle = [

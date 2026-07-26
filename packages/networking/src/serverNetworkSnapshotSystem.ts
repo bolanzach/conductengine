@@ -1,14 +1,26 @@
-import { Query, ConductGetComponent, tick } from "@conduct/ecs";
+import { Query, ConductGetComponent, ConductGetParent, tick } from "@conduct/ecs";
 import { getReplicatedComponents } from "./replication.js";
 import { Networked } from "./networked.js";
-import type { SerializedEntity, SerializePrimitive } from "./protocol.js";
+import type { SnapshotEntity, SerializePrimitive } from "./protocol.js";
 import { getServerTransport } from "./serverTransport.js";
 
-export let snapshotEntities: SerializedEntity[] = [];
+const pendingPlayers: number[] = [];
+
+/**
+ * Queue a bootstrap snapshot for a newly connected player.
+ * Call `ConductRunSystem(ServerNetworkSnapshotSystem)` after to send immediately.
+ */
+export function queueBootstrapSnapshot(playerId: number): void {
+  pendingPlayers.push(playerId);
+}
 
 export default function ServerNetworkSnapshotSystem(query: Query<[Networked]>) {
+  if (pendingPlayers.length === 0) return;
+
   const replicatedComponents = getReplicatedComponents();
-  snapshotEntities.length = 0;
+
+  // First pass: serialize all networked entities into a flat map
+  const nodeMap = new Map<number, SnapshotEntity>();
 
   query.iter(([entity]) => {
     const components: Record<number, Record<string, SerializePrimitive>> = {};
@@ -20,18 +32,29 @@ export default function ServerNetworkSnapshotSystem(query: Query<[Networked]>) {
       }
     }
 
-    snapshotEntities.push({ id: entity, components });
+    nodeMap.set(entity, { entityId: entity, components, children: [] });
   });
+
+  // Second pass: build tree from ChildOf relationships
+  const roots: SnapshotEntity[] = [];
+
+  for (const [entity, node] of nodeMap) {
+    const parent = ConductGetParent(entity);
+    if (parent !== undefined && nodeMap.has(parent)) {
+      nodeMap.get(parent)!.children.push(node);
+    } else {
+      roots.push(node);
+    }
+  }
 
   const transport = getServerTransport();
-  if (!transport || snapshotEntities.length === 0) return;
+  if (!transport || roots.length === 0) return;
 
-  transport.broadcast({
-    type: 'snapshot',
-    payload: {
-      tick,
-      entities: snapshotEntities,
-      destroyed: [],
-    },
-  });
+  const payload = { tick, roots, destroyed: [] };
+
+  for (let i = 0; i < pendingPlayers.length; i++) {
+    transport.sendTo(pendingPlayers[i]!, { type: 'snapshot', payload });
+  }
+
+  pendingPlayers.length = 0;
 }

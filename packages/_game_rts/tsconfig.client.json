@@ -7,6 +7,6 @@
     "baseUrl": ".",
     "lib": ["ES2024", "DOM", "DOM.Iterable"]
   },
-  "include": ["src/client/**/*", "src/shared/**/*"],
+  "include": ["src/client/**/*", "src/game/**/*"],
   "exclude": ["node_modules", "dist"]
 }

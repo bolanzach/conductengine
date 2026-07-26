@@ -1,24 +1,25 @@
 // RTS server entrypoint (authoritative simulation, networking)
 // This code only runs on the server. No DOM/rendering imports allowed.
 
-import { ConductSpawnBundle, ConductRegisterSystem, ConductStart, FixedUpdate, tick } from "@conduct/ecs";
+import { ConductSpawnBundle, ConductGetComponent, ConductRegisterSystem, ConductRunSystem, ConductStart, FixedUpdate, tick } from "@conduct/ecs";
 import { WebSocketServerTransport, setServerTransport } from "@conduct/networking/serverTransport";
-import { pushCommand } from "@conduct/networking/serverCommandReceive";
-import ServerNetworkSnapshotSystem from "@conduct/networking/serverNetworkSnapshotSystem";
+import ServerNetworkSnapshotSystem, { queueBootstrapSnapshot } from "@conduct/networking/serverNetworkSnapshotSystem";
 import { Networked } from "@conduct/networking/networked";
 import { Transform3D } from "@conduct/simulation";
-import { BUNDLE, BundleRegistry, startRTS } from "../shared/index.js";
-import { SpaceMarineBundle, SquadBundle, TileBundle, GunBundle } from "../shared/bundles.js";
-import { replicateComponents } from "../shared/network.js";
-import { SquadMember } from "../shared/squadMember.js";
-import CommandSystem from "./commandSystem.js";
-import PathfindingSystem from "./pathfindingSystem.js";
-import ColliderSystem from "./colliderSystem.js";
-import TargetAcquisitionSystem from "./targetAcquisitionSystem.js";
-import MovementSystem from "./movementSystem.js";
-import SquadCenterSystem from "./squadCenterSystem.js";
-import { FormationOffset } from "./formationOffset.js";
-import ChildTransformSystem from "./childTransformSystem.js";
+import { BUNDLE, BundleRegistry, startRTS } from "../game/index.js";
+import { SpaceMarineBundle, SquadBundle, TileBundle } from "../game/bundles.js";
+import { replicateComponents } from "../game/network.js";
+import { SquadMember } from "../game/squadMember.js";
+import { FormationOffset } from "../game/formationOffset.js";
+import { pushGameCommand } from "../game/commandQueue.js";
+import CommandSystem from "../game/systems/commandSystem.js";
+import PathfindingSystem from "../game/systems/pathfindingSystem.js";
+import ColliderSystem from "../game/systems/colliderSystem.js";
+import TargetAcquisitionSystem from "../game/systems/targetAcquisitionSystem.js";
+import MovementSystem from "../game/systems/movementSystem.js";
+import SquadCenterSystem from "../game/systems/squadCenterSystem.js";
+import ChildTransformSystem from "../game/systems/childTransformSystem.js";
+import type { GameCommand } from "@conduct/networking/protocol";
 
 const PORT = 3001;
 
@@ -28,7 +29,6 @@ const bundles: BundleRegistry = {
   [BUNDLE.SPACE_MARINE]: SpaceMarineBundle,
   [BUNDLE.TILE]: TileBundle,
   [BUNDLE.STRUCTURE_TILE]: TileBundle,
-  [BUNDLE.GUN]: GunBundle,
   [BUNDLE.SQUAD]: SquadBundle,
 };
 
@@ -49,21 +49,31 @@ function spawnSquad(x: number, z: number, owner: number) {
     const angle = (i / SQUAD_SIZE) * Math.PI * 2;
     const ox = Math.cos(angle) * FORMATION_SPREAD;
     const oz = Math.sin(angle) * FORMATION_SPREAD;
-    const marineId = ConductSpawnBundle([
+
+    ConductSpawnBundle([
       ...SpaceMarineBundle,
       [Transform3D, { x: x + ox, z: z + oz }],
       [Networked, { owner }],
       [SquadMember, { squadId, slotIndex: i }],
       [FormationOffset, { x: ox, z: oz }],
     ]);
-
-    // Spawn gun as child of marine
-    ConductSpawnBundle([
-      ...GunBundle,
-      [Transform3D, { x: x + ox, z: z + oz }],
-      [Networked, { owner }],
-    ], marineId);
   }
+}
+
+/**
+ * Validates a command by checking entity ownership.
+ * Returns true if at least one entity in the command is owned by the player.
+ */
+function validateCommand(command: GameCommand): boolean {
+  if (command.type === 'move') {
+    const data = command.data as { entities: number[] };
+    for (let i = 0; i < data.entities.length; i++) {
+      const networked = ConductGetComponent(data.entities[i]!, Networked);
+      if (networked && networked.owner === command.playerId) return true;
+    }
+    return false;
+  }
+  return false;
 }
 
 transport.onConnection((playerId) => {
@@ -76,6 +86,9 @@ transport.onConnection((playerId) => {
     type: 'connected',
     payload: { playerId, tick },
   });
+
+  queueBootstrapSnapshot(playerId);
+  ConductRunSystem(ServerNetworkSnapshotSystem);
 });
 
 transport.onDisconnect((playerId) => {
@@ -84,14 +97,25 @@ transport.onDisconnect((playerId) => {
 
 transport.onMessage((playerId, message) => {
   if (message.type === 'command') {
-    pushCommand({ ...message.payload, playerId });
+    const command = { ...message.payload, playerId };
+
+    if (!validateCommand(command)) return;
+
+    // Broadcast to all other clients
+    transport.broadcastExcept(playerId, {
+      type: 'commands',
+      payload: { tick, commands: [command] },
+    });
+
+    // Apply to local simulation
+    pushGameCommand(command);
   }
 });
 
 startRTS(bundles);
 
 // Spawn enemy squads for testing target acquisition
-spawnSquad(8, 0, 0);
+// spawnSquad(8, 0, 0);
 // spawnSquad(8, 3, 0);
 
 ConductRegisterSystem(FixedUpdate, CommandSystem);
@@ -101,11 +125,6 @@ ConductRegisterSystem(FixedUpdate, MovementSystem);
 ConductRegisterSystem(FixedUpdate, ChildTransformSystem);
 ConductRegisterSystem(FixedUpdate, SquadCenterSystem);
 ConductRegisterSystem(FixedUpdate, ColliderSystem);
-ConductRegisterSystem(FixedUpdate, ServerNetworkSnapshotSystem);
 
 console.log(`[server] listening on ws://localhost:${PORT}`);
 ConductStart(60);
-
-// const un = ConductEventRegisterHandler(CollisionEvent, CollisionHandlerSystem);
-//
-// ConductEventUnregisterHandler(un)

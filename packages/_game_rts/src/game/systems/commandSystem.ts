@@ -1,15 +1,15 @@
 import { ConductGetComponent, ConductAddComponent, ConductRemoveComponent } from "@conduct/ecs";
-import { consumeCommands } from "@conduct/networking/serverCommandReceive";
 import { Networked } from "@conduct/networking/networked";
 import { Transform3D } from "@conduct/simulation";
-import { Path } from "./path.js";
-import { SquadTarget } from "./squadTarget.js";
-import { findPath } from "../shared/pathfinding.js";
-import { grid } from "../shared/index.js";
-import { Squad } from "../shared/squad.js";
+import { Path } from "../path.js";
+import { SquadTarget } from "../squadTarget.js";
+import { findPath } from "../pathfinding.js";
+import { grid } from "../index.js";
+import { Squad } from "../squad.js";
+import { consumeGameCommands } from "../commandQueue.js";
 
 export default function CommandSystem() {
-  const commands = consumeCommands();
+  const commands = consumeGameCommands();
 
   for (let i = 0; i < commands.length; i++) {
     const command = commands[i]!;
@@ -36,7 +36,6 @@ export default function CommandSystem() {
 
 function assignSquadPath(squadEntity: number, destX: number, destZ: number) {
   const transform = ConductGetComponent(squadEntity, Transform3D);
-  console.dir(transform)
   if (!transform) return;
 
   // Cancel any active engagement

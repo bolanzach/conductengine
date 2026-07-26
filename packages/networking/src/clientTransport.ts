@@ -1,19 +1,18 @@
-import type { NetworkMessage } from "./protocol.js";
-import type { NetworkTransport } from "./transport.js";
+import type { ToServerMessage, ToClientMessage } from "./protocol.js";
 
-let transport: NetworkTransport | null = null;
+let transport: WebSocketClientTransport | null = null;
 
-export function getClientTransport(): NetworkTransport {
+export function getClientTransport(): WebSocketClientTransport {
   return transport!;
 }
 
-export function setClientTransport(t: NetworkTransport): void {
+export function setClientTransport(t: WebSocketClientTransport): void {
   transport = t;
 }
 
-export class WebSocketClientTransport implements NetworkTransport {
+export class WebSocketClientTransport {
   private ws: WebSocket;
-  private messageHandler: ((message: NetworkMessage) => void) | null = null;
+  private messageHandler: ((message: ToClientMessage) => void) | null = null;
   private connectHandler: (() => void) | null = null;
   private disconnectHandler: (() => void) | null = null;
 
@@ -25,7 +24,7 @@ export class WebSocketClientTransport implements NetworkTransport {
     });
 
     this.ws.addEventListener('message', (event: MessageEvent) => {
-      const message = JSON.parse(event.data as string) as NetworkMessage;
+      const message = JSON.parse(event.data as string) as ToClientMessage;
       this.messageHandler?.(message);
     });
 
@@ -34,13 +33,13 @@ export class WebSocketClientTransport implements NetworkTransport {
     });
   }
 
-  send(message: NetworkMessage): void {
+  send(message: ToServerMessage): void {
     if (this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(message));
     }
   }
 
-  onMessage(handler: (message: NetworkMessage) => void): void {
+  onMessage(handler: (message: ToClientMessage) => void): void {
     this.messageHandler = handler;
   }
 

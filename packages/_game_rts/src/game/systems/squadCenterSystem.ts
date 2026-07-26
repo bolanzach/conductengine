@@ -1,8 +1,8 @@
 import type { Query, Not } from "@conduct/ecs";
 import { Transform3D } from "@conduct/simulation";
-import { SquadMember } from "../shared/squadMember.js";
-import { Squad } from "../shared/squad.js";
-import { Path } from "./path.js";
+import { SquadMember } from "../squadMember.js";
+import { Squad } from "../squad.js";
+import { Path } from "../path.js";
 
 interface Accumulator {
   sumX: number;

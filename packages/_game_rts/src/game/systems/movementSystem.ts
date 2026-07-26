@@ -1,9 +1,9 @@
 import type { Query } from "@conduct/ecs";
 import { deltaTime } from "@conduct/ecs";
 import { Transform3D } from "@conduct/simulation";
-import { SquadMember } from "../shared/squadMember.js";
-import { Squad } from "../shared/squad.js";
-import { FormationOffset } from "./formationOffset.js";
+import { SquadMember } from "../squadMember.js";
+import { Squad } from "../squad.js";
+import { FormationOffset } from "../formationOffset.js";
 
 const MOVE_SPEED = 5;
 const ARRIVE_THRESHOLD = 0.05;

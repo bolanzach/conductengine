@@ -1,5 +1,5 @@
 import { WebSocketServer, WebSocket } from "ws";
-import type { NetworkMessage } from "./protocol.js";
+import type { ToServerMessage, ToClientMessage } from "./protocol.js";
 
 let transport: WebSocketServerTransport | null = null;
 
@@ -22,7 +22,7 @@ export class WebSocketServerTransport {
   private nextPlayerId = 1;
 
   private connectionHandler: ((playerId: number) => void) | null = null;
-  private messageHandler: ((playerId: number, message: NetworkMessage) => void) | null = null;
+  private messageHandler: ((playerId: number, message: ToServerMessage) => void) | null = null;
   private disconnectHandler: ((playerId: number) => void) | null = null;
 
   constructor(port: number) {
@@ -36,7 +36,7 @@ export class WebSocketServerTransport {
       this.connectionHandler?.(playerId);
 
       ws.on('message', (data) => {
-        const message = JSON.parse(data.toString()) as NetworkMessage;
+        const message = JSON.parse(data.toString()) as ToServerMessage;
         this.messageHandler?.(playerId, message);
       });
 
@@ -47,7 +47,7 @@ export class WebSocketServerTransport {
     });
   }
 
-  broadcast(message: NetworkMessage): void {
+  broadcast(message: ToClientMessage): void {
     const json = JSON.stringify(message);
     for (const client of this.clients) {
       if (client.ws.readyState === WebSocket.OPEN) {
@@ -56,7 +56,16 @@ export class WebSocketServerTransport {
     }
   }
 
-  sendTo(playerId: number, message: NetworkMessage): void {
+  broadcastExcept(excludePlayerId: number, message: ToClientMessage): void {
+    const json = JSON.stringify(message);
+    for (const client of this.clients) {
+      if (client.playerId !== excludePlayerId && client.ws.readyState === WebSocket.OPEN) {
+        client.ws.send(json);
+      }
+    }
+  }
+
+  sendTo(playerId: number, message: ToClientMessage): void {
     const client = this.clients.find(c => c.playerId === playerId);
     if (client && client.ws.readyState === WebSocket.OPEN) {
       client.ws.send(JSON.stringify(message));
@@ -67,7 +76,7 @@ export class WebSocketServerTransport {
     this.connectionHandler = handler;
   }
 
-  onMessage(handler: (playerId: number, message: NetworkMessage) => void): void {
+  onMessage(handler: (playerId: number, message: ToServerMessage) => void): void {
     this.messageHandler = handler;
   }
 

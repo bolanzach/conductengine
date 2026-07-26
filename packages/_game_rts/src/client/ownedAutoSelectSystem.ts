@@ -3,7 +3,7 @@ import { ConductAddComponent } from "@conduct/ecs";
 import { Networked } from "@conduct/networking/networked";
 import { getLocalPlayerId } from "@conduct/networking/clientNetworkReceive";
 import { SelectedTag } from "./selected";
-import { SquadMember } from "../shared/squadMember";
+import { SquadMember } from "../game/squadMember";
 
 export default function OwnedAutoSelectSystem(query: Query<[Networked, Not<[SelectedTag, SquadMember]>]>) {
   const playerId = getLocalPlayerId();

@@ -1,12 +1,13 @@
 export type SerializePrimitive = boolean | number;
 
-type ReplicatedComponentId = number;
+export type ReplicatedComponentId = number;
 
-type ReplicatedComponentData = Record<string, SerializePrimitive>;
+export type ReplicatedComponentData = Record<string, SerializePrimitive>;
 
-export interface SerializedEntity {
-  id: number;
+export interface SnapshotEntity {
+  entityId: number;
   components: Record<ReplicatedComponentId, ReplicatedComponentData>;
+  children: SnapshotEntity[];
 }
 
 export interface GameCommand<T extends Record<string, unknown> = Record<string, unknown>> {
@@ -18,7 +19,7 @@ export interface GameCommand<T extends Record<string, unknown> = Record<string, 
 
 export interface Snapshot {
   tick: number;
-  entities: SerializedEntity[];
+  roots: SnapshotEntity[];
   destroyed: number[];
 }
 
@@ -31,8 +32,13 @@ export interface ConnectedPayload {
   tick: number;
 }
 
-export type NetworkMessage =
+// Client → Server
+export type ToServerMessage =
   | { type: 'command'; payload: GameCommand }
+  | { type: 'connect'; payload: ConnectPayload };
+
+// Server → Client
+export type ToClientMessage =
+  | { type: 'connected'; payload: ConnectedPayload }
   | { type: 'snapshot'; payload: Snapshot }
-  | { type: 'connect'; payload: ConnectPayload }
-  | { type: 'connected'; payload: ConnectedPayload };
+  | { type: 'commands'; payload: { tick: number; commands: GameCommand[] } };

@@ -2,9 +2,11 @@ import { ConductNetworkReplicateComponent } from "@conduct/networking/replicatio
 import { Networked } from "@conduct/networking/networked";
 import { Transform3D } from "@conduct/simulation";
 import { SquadMember } from "./squadMember.js";
+import { FormationOffset } from "./formationOffset.js";
 
 export function replicateComponents() {
   ConductNetworkReplicateComponent(Networked);
   ConductNetworkReplicateComponent(Transform3D);
-  ConductNetworkReplicateComponent(SquadMember);
+  ConductNetworkReplicateComponent(SquadMember, { entityRefs: ['squadId'] });
+  ConductNetworkReplicateComponent(FormationOffset);
 }

@@ -1,11 +1,10 @@
 import type { Query } from "@conduct/ecs";
 import { tick } from "@conduct/ecs";
 import { Inputs } from "@conduct/simulation";
-import { getServerId } from "@conduct/networking/entityMap";
-import { queueClientCommand } from "@conduct/networking/clientCommandSend";
 import { screenToRay, rayPlaneY } from "@conduct/renderer/raycast";
-import { SelectedTag } from "./selected";
 import { getLocalPlayerId } from "@conduct/networking/clientNetworkReceive";
+import { SelectedTag } from "./selected";
+import { issueCommand } from "./issueCommand";
 
 export default function RtsInputSystem(query: Query<[SelectedTag]>) {
   const rightClick = Inputs.getMouseEvent(2);
@@ -18,15 +17,12 @@ export default function RtsInputSystem(query: Query<[SelectedTag]>) {
 
   const entities: number[] = [];
   query.iter(([entity]) => {
-    const serverId = getServerId(entity);
-    if (serverId !== undefined) {
-      entities.push(serverId);
-    }
+    entities.push(entity);
   });
 
   if (entities.length === 0) return;
 
-  queueClientCommand({
+  issueCommand({
     type: 'move',
     playerId: getLocalPlayerId(),
     tick,

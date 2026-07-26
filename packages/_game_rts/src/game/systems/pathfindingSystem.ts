@@ -1,8 +1,8 @@
 import type { Query } from "@conduct/ecs";
 import { ConductRemoveComponent, deltaTime } from "@conduct/ecs";
 import { Transform3D } from "@conduct/simulation";
-import { Squad } from "../shared/squad.js";
-import { Path } from "./path.js";
+import { Squad } from "../squad.js";
+import { Path } from "../path.js";
 
 const MOVE_SPEED = 2.0;
 const ARRIVE_THRESHOLD = 0.1;

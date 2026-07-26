@@ -1,7 +1,7 @@
 // RTS server entrypoint (authoritative simulation, networking)
 // This code only runs on the server. No DOM/rendering imports allowed.
 
-import { ConductSpawnBundle, ConductGetComponent, ConductRegisterSystem, ConductRunSystem, ConductStart, FixedUpdate, tick } from "@conduct/ecs";
+import { ConductSpawnBundle, ConductBundleMergeChild, ConductGetComponent, ConductRegisterSystem, ConductRunSystem, ConductStart, FixedUpdate, tick } from "@conduct/ecs";
 import { WebSocketServerTransport, setServerTransport } from "@conduct/networking/serverTransport";
 import ServerNetworkSnapshotSystem, { queueBootstrapSnapshot } from "@conduct/networking/serverNetworkSnapshotSystem";
 import { Networked } from "@conduct/networking/networked";
@@ -56,6 +56,9 @@ function spawnSquad(x: number, z: number, owner: number) {
       [Networked, { owner }],
       [SquadMember, { squadId, slotIndex: i }],
       [FormationOffset, { x: ox, z: oz }],
+      ConductBundleMergeChild(
+        [Networked, { owner }],
+      ),
     ]);
   }
 }

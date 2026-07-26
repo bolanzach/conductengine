@@ -8,8 +8,7 @@ import {
   ConductStart,
   FixedUpdate,
   Update,
-  getBundleComponents,
-  getBundleChildren,
+  MergeChildMarker,
 } from "@conduct/ecs";
 import { WebSocketClientTransport, setClientTransport } from "@conduct/networking/clientTransport";
 import { setClientBundles, pushSnapshot, setLocalPlayerId } from "@conduct/networking/clientNetworkReceive";
@@ -50,11 +49,11 @@ replicateComponents();
 
 const bundles: BundleRegistry = {
   [BUNDLE.SPACE_MARINE]: [
-    ...getBundleComponents(SpaceMarineBundle),
+    ...SpaceMarineBundle,
     [MeshRenderer, { meshId: MESH.CUBE }],
     [Material, { r: 0.2, g: 0.6, b: 1.0 }],
     [
-      ...getBundleComponents(getBundleChildren(SpaceMarineBundle)[0]!),
+      MergeChildMarker,
       [MeshRenderer, { meshId: MESH.CUBE }],
       [Material, { r: 1.0, g: 0.0, b: 0.0 }],
     ],

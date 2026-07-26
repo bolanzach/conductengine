@@ -6,7 +6,9 @@ export type ConductSystem = (...queries: Query<QueryElement[]>[]) => void;
 
 export type ConductBundleEntry = [component: ComponentConstructor, data?: Record<string, any>];
 
-export type ConductBundle = (ConductBundleEntry | ConductBundle)[];
+export const MergeChildMarker = Symbol("MergeChildMarker");
+
+export type ConductBundle = (ConductBundleEntry | ConductBundle | ReturnType<typeof ConductBundleMergeChild>)[];
 
 export class ChildOf {
   /**
@@ -398,12 +400,61 @@ function signatureToKey(sig: Signature): string {
   return sig.join(",");
 }
 
+/**
+ * Marks component entries as overrides for an existing child entity in the
+ * bundle hierarchy. The N-th Merge maps to the N-th child.
+ *
+ * ```
+ * export const MyBundle: ConductBundle = [
+ *   [Transform3D, { sx: 0.22, sy: 0.8, sz: 0.22 }],
+ *   [
+ *     [Transform3D],
+ *   ]
+ * ];
+ *
+ * ConductSpawnBundle([
+ *   ...MyBundle,
+ *   ConductBundleMergeChild([, { Transform3D: 1 }]),  // merge into child 0
+ * ]);
+ * ```
+ */
+export function ConductBundleMergeChild(...entries: ConductBundleEntry[]): [typeof MergeChildMarker, ...ConductBundleEntry[]] {
+  return [MergeChildMarker, ...entries];
+}
+
 export function getBundleComponents(bundle: ConductBundle): ConductBundleEntry[] {
   return bundle.filter((entry): entry is ConductBundleEntry => typeof entry[0] === 'function')
 }
 
+/**
+ * Returns the child bundles with any Merge entries applied. The N-th Merge
+ * in the array is concatenated into the N-th child bundle.
+ */
 export function getBundleChildren(bundle: ConductBundle): ConductBundle[] {
-  return bundle.filter((entry): entry is ConductBundle => typeof entry[0] !== 'function')
+  const children: ConductBundle[] = [];
+  const merges: ConductBundleEntry[][] = [];
+
+  for (let i = 0; i < bundle.length; i++) {
+    const entry = bundle[i]!;
+    const first = entry[0];
+    if (typeof first === 'function') continue; // component entry
+    if (first === MergeChildMarker) {
+      const entries: ConductBundleEntry[] = [];
+      for (let j = 1; j < entry.length; j++) {
+        entries.push(entry[j] as ConductBundleEntry);
+      }
+      merges.push(entries);
+    } else {
+      children.push(entry as ConductBundle);
+    }
+  }
+
+  // Apply merges to children by position
+  for (let i = 0; i < merges.length && i < children.length; i++) {
+    children[i] = [...children[i]!, ...merges[i]!];
+  }
+
+  return children;
 }
 
 export function ConductSpawnEntity(id?: number): number {

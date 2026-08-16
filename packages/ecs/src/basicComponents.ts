@@ -41,3 +41,13 @@ export class Velocity {
   z = 0;
   gravity = 9.81;
 }
+
+export class Health {
+  hp = 100;
+  maxHp = 100;
+}
+
+export class Armor {
+  defense = 10;
+  resistance = 0.5;
+}

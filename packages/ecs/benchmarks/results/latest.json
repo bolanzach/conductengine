@@ -1,0 +1,148 @@
+{
+  "timestamp": "2026-08-16T21:39:29.172Z",
+  "runtime": "Node.js v24.11.0",
+  "results": [
+    {
+      "name": "System Iteration (5k entities, 7 systems)",
+      "entityCount": 5000,
+      "iterations": 1000,
+      "totalMs": 5.5844,
+      "avgPerIterationMs": 0.005584,
+      "iterationsPerSecond": 179069.72
+    },
+    {
+      "name": "query.get() Point-Lookup (5k entities)",
+      "entityCount": 5000,
+      "iterations": 1000,
+      "totalMs": 0.22,
+      "avgPerIterationMs": 0.00022,
+      "iterationsPerSecond": 4544607.6
+    },
+    {
+      "name": "Entity Spawn (1 component)",
+      "entityCount": 10000,
+      "iterations": 10000,
+      "totalMs": 3.9534,
+      "avgPerIterationMs": 0.000395,
+      "iterationsPerSecond": 2529484.3,
+      "opsPerSecond": 2529484.3
+    },
+    {
+      "name": "Entity Spawn (3 components)",
+      "entityCount": 10000,
+      "iterations": 10000,
+      "totalMs": 11.3814,
+      "avgPerIterationMs": 0.001138,
+      "iterationsPerSecond": 878625.22,
+      "opsPerSecond": 878625.22
+    },
+    {
+      "name": "Archetype Transition (add component)",
+      "entityCount": 5000,
+      "iterations": 5000,
+      "totalMs": 4.2503,
+      "avgPerIterationMs": 0.00085,
+      "iterationsPerSecond": 1176378.42,
+      "opsPerSecond": 1176378.42
+    },
+    {
+      "name": "Archetype Transition (remove component)",
+      "entityCount": 5000,
+      "iterations": 5000,
+      "totalMs": 5.0628,
+      "avgPerIterationMs": 0.001013,
+      "iterationsPerSecond": 987597.55,
+      "opsPerSecond": 987597.55
+    },
+    {
+      "name": "Entity Deletion",
+      "entityCount": 5000,
+      "iterations": 5000,
+      "totalMs": 1.1217,
+      "avgPerIterationMs": 0.000224,
+      "iterationsPerSecond": 4457321.15,
+      "opsPerSecond": 4457321.15
+    },
+    {
+      "name": "Component Update (overwrite fields)",
+      "entityCount": 5000,
+      "iterations": 5000,
+      "totalMs": 0.828,
+      "avgPerIterationMs": 0.000166,
+      "iterationsPerSecond": 6038953.67,
+      "opsPerSecond": 6038953.67
+    },
+    {
+      "name": "Triple Query Iteration (10k entities, 3 components)",
+      "entityCount": 10000,
+      "iterations": 1000,
+      "totalMs": 71.7759,
+      "avgPerIterationMs": 0.071776,
+      "iterationsPerSecond": 13932.26
+    },
+    {
+      "name": "Heavy Iteration (10k entities, arithmetic-heavy)",
+      "entityCount": 10000,
+      "iterations": 1000,
+      "totalMs": 47.0956,
+      "avgPerIterationMs": 0.047096,
+      "iterationsPerSecond": 21233.39
+    },
+    {
+      "name": "Optional Query Iteration (15k entities, mixed)",
+      "entityCount": 15000,
+      "iterations": 1000,
+      "totalMs": 31.8926,
+      "avgPerIterationMs": 0.031893,
+      "iterationsPerSecond": 31355.25
+    },
+    {
+      "name": "Not Filter Iteration (5k matching entities)",
+      "entityCount": 5000,
+      "iterations": 1000,
+      "totalMs": 6.7635,
+      "avgPerIterationMs": 0.006763,
+      "iterationsPerSecond": 147853.36
+    },
+    {
+      "name": "Scaling: Single System (10,000 entities)",
+      "entityCount": 10000,
+      "iterations": 1000,
+      "totalMs": 7.6737,
+      "avgPerIterationMs": 0.007674,
+      "iterationsPerSecond": 130315.08
+    },
+    {
+      "name": "Scaling: Single System (50,000 entities)",
+      "entityCount": 50000,
+      "iterations": 1000,
+      "totalMs": 32.5766,
+      "avgPerIterationMs": 0.032577,
+      "iterationsPerSecond": 30696.9
+    },
+    {
+      "name": "Scaling: Single System (100,000 entities)",
+      "entityCount": 100000,
+      "iterations": 1000,
+      "totalMs": 65.2249,
+      "avgPerIterationMs": 0.065225,
+      "iterationsPerSecond": 15331.56
+    },
+    {
+      "name": "Fragmented Archetypes (many archetypes, BasicSystem)",
+      "entityCount": 1000,
+      "iterations": 1000,
+      "totalMs": 13.537,
+      "avgPerIterationMs": 0.013537,
+      "iterationsPerSecond": 73871.61
+    },
+    {
+      "name": "Multiple Systems on Same Entities (10k, 2 systems)",
+      "entityCount": 10000,
+      "iterations": 1000,
+      "totalMs": 106.0464,
+      "avgPerIterationMs": 0.106046,
+      "iterationsPerSecond": 9429.84
+    }
+  ]
+}

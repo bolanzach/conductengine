@@ -126,5 +126,8 @@ web_modules/
 
 dist
 
+# Timestamped benchmark runs (only latest.json is committed)
+packages/ecs/benchmarks/results/benchmark-*.json
+
 # Playwright CLI
 .playwright-cli/

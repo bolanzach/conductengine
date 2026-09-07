@@ -58,21 +58,30 @@ What makes the ECS so performant is the underlying compiler. This has tradeoffs 
 For convenience, you define a **bundle** that describes how to construct an entity with multiple components.
 
 ```ts
-import { ConductSpawnBundle } from "@conduct/ecs";
+import { ConductSpawnBundle, MergeChildMarker } from "@conduct/ecs";
 
 const PlayerBundle = [
   [Player, { id: 1, name: "Alice" }],
   [Health, { hp: 100 }],
   [Position],
+
+  // nested - describe a full entity hierarchy
+  [
+    [Weapon, { type: "sword", attack: 7 }]
+  ],
 ];
 
 const entity = ConductSpawnBundle(PlayerBundle);
 
 // Bundles are meant to be composed:
-function spawnPlayer(id: number, name: string) {
+function spawnPlayer(id: number, name: string, attack: number ) {
   return ConductSpawnBundle([
     ...PlayerBundle, // Reuse the PlayerBundle for common components
     [Player, { id, name }], // Override the Player component with specific data
+    [
+      MergeChildMarker, // Merge child entity data. This is indexed on the base Bundle
+      [Weapon, { attack }],
+    ],
   ]);
 }
 ```

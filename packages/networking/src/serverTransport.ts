@@ -83,4 +83,8 @@ export class WebSocketServerTransport {
   onDisconnect(handler: (playerId: number) => void): void {
     this.disconnectHandler = handler;
   }
+
+  get connectedPlayerIds() {
+    return this.clients.map(({ playerId }) => playerId);
+  }
 }

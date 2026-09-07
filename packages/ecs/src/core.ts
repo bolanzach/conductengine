@@ -26,6 +26,7 @@ export const ComponentId = Symbol("ComponentId");
 const ComponentFields = Symbol("ComponentFields");
 const ComponentColumnKeys = Symbol("ComponentColumnKeys");
 const ComponentFieldToIndex = Symbol("ComponentFieldToIndex");
+const ComponentDefaults = Symbol("ComponentDefaults");
 
 /**
  * A bit mask signature for a set of components.
@@ -49,6 +50,7 @@ export type ComponentConstructor = {
    * Cached map from field name to index for fast partial updates.
    */
   [ComponentFieldToIndex]?: Record<string, number>;
+  [ComponentDefaults]?: unknown[];
 } & (new () => ConductComponent);
 
 // Marker for operator type identification at runtime
@@ -162,9 +164,14 @@ export interface Query<T extends QueryElement[]> {
 interface Archetype {
   signature: Signature;
   columns: Record<string, unknown[]>;
+  columnKeysList: string[];
   entities: number[];
   count: number;
   capacity: number;
+  /** Edge cache: componentId → destination archetype index for add transitions */
+  addEdges: Map<number, number>;
+  /** Edge cache: componentId → destination archetype index for remove transitions */
+  removeEdges: Map<number, number>;
 }
 
 interface QueryGenerated {
@@ -267,10 +274,13 @@ function registerComponentId(
     component[ComponentFields] = fields;
     component[ComponentColumnKeys] = fields.map(key => `${componentId}.${key}`);
     const fieldToIndex: Record<string, number> = {};
+    const defaults: unknown[] = new Array(fields.length);
     for (let i = 0; i < fields.length; i++) {
       fieldToIndex[fields[i]!] = i;
+      defaults[i] = (instance as Record<string, unknown>)[fields[i]!];
     }
     component[ComponentFieldToIndex] = fieldToIndex;
+    component[ComponentDefaults] = defaults;
   }
   return componentId;
 }
@@ -529,9 +539,12 @@ function createArchetype(signature: Signature): number {
   const archetype: Archetype = {
     signature,
     columns: {},
+    columnKeysList: [],
     entities: new Array(ARCHETYPE_INITIAL_CAPACITY).fill(0), // Fill to make PACKED
     count: 0,
     capacity: ARCHETYPE_INITIAL_CAPACITY,
+    addEdges: new Map(),
+    removeEdges: new Map(),
   };
 
   const index = archetypes.length;
@@ -547,15 +560,15 @@ function createArchetype(signature: Signature): number {
 function growArchetype(archetype: Archetype): void {
   const newCapacity = archetype.capacity * ARCHETYPE_GROWTH_FACTOR;
 
-  // Grow entities array - fill to make packed array
   const newEntities = new Array(newCapacity).fill(0);
   for (let i = 0; i < archetype.count; i++) {
     newEntities[i] = archetype.entities[i];
   }
   archetype.entities = newEntities;
 
-  // Grow all column arrays - fill to make packed array
-  for (const columnKey in archetype.columns) {
+  const keys = archetype.columnKeysList;
+  for (let k = 0; k < keys.length; k++) {
+    const columnKey = keys[k]!;
     const oldColumn = archetype.columns[columnKey]!;
     const newColumn = new Array(newCapacity).fill(0);
     for (let i = 0; i < archetype.count; i++) {
@@ -635,10 +648,13 @@ function migrateEntity(
 ): void {
   const srcArch = archetypes[srcLocation.archetypeIndex]!;
   const srcRow = srcLocation.row;
+  const keys = srcArch.columnKeysList;
 
-  for (const columnKey in srcArch.columns) {
+  for (let k = 0; k < keys.length; k++) {
+    const columnKey = keys[k]!;
     if (!dstArch.columns[columnKey]) {
       dstArch.columns[columnKey] = new Array(dstArch.capacity).fill(0);
+      dstArch.columnKeysList.push(columnKey);
     }
     dstArch.columns[columnKey]![dstRow] = srcArch.columns[columnKey]![srcRow];
   }
@@ -647,7 +663,8 @@ function migrateEntity(
   if (srcRow !== lastRow) {
     const lastEntityId = srcArch.entities[lastRow]!;
     srcArch.entities[srcRow] = lastEntityId;
-    for (const columnKey in srcArch.columns) {
+    for (let k = 0; k < keys.length; k++) {
+      const columnKey = keys[k]!;
       srcArch.columns[columnKey]![srcRow] = srcArch.columns[columnKey]![lastRow];
     }
     entityLocations[lastEntityId]!.row = srcRow;
@@ -666,25 +683,23 @@ function writeNewComponent(
   component: ComponentConstructor,
   data?: object,
 ): void {
-  const instance = new component();
-
-  if (data) {
-    for (const key in data) {
-      // @ts-ignore
-      instance[key] = (data as Record<string, unknown>)[key];
-    }
-  }
-
-  const fields = component[ComponentFields]!;
   const columnKeys = component[ComponentColumnKeys]!;
+  const defaults = component[ComponentDefaults]!;
 
   for (let i = 0; i < columnKeys.length; i++) {
     const columnKey = columnKeys[i]!;
     if (!dstArch.columns[columnKey]) {
       dstArch.columns[columnKey] = new Array(dstArch.capacity).fill(0);
+      dstArch.columnKeysList.push(columnKey);
     }
-    // @ts-ignore
-    dstArch.columns[columnKey]![dstRow] = instance[fields[i]!];
+    dstArch.columns[columnKey]![dstRow] = defaults[i];
+  }
+
+  if (data) {
+    const fieldToIndex = component[ComponentFieldToIndex]!;
+    for (const key in data) {
+      dstArch.columns[columnKeys[fieldToIndex[key]!]!]![dstRow] = (data as Record<string, unknown>)[key];
+    }
   }
 
   if (component === (ChildOf as ComponentConstructor)) {
@@ -703,21 +718,34 @@ function addComponent<T extends ComponentConstructor>(
   const existingLocation = entityLocations[entityId];
 
   if (existingLocation) {
-    const existingSig = archetypes[existingLocation.archetypeIndex]!.signature;
-    if (signatureHasBit(existingSig, componentId)) {
-      if (data) overwriteComponentFields(entityId, archetypes[existingLocation.archetypeIndex]!, existingLocation.row, component, data);
+    const srcArch = archetypes[existingLocation.archetypeIndex]!;
+    if (signatureHasBit(srcArch.signature, componentId)) {
+      if (data) overwriteComponentFields(entityId, srcArch, existingLocation.row, component, data);
       return;
     }
   }
 
-  const newSignature = existingLocation
-    ? signatureAdd(archetypes[existingLocation.archetypeIndex]!.signature, componentId)
-    : createSignature([componentId]);
-
-  const newKey = signatureToKey(newSignature);
-  let dstArchIdx = archetypesBySignature.get(newKey);
-  if (dstArchIdx === undefined) {
-    dstArchIdx = createArchetype(newSignature);
+  // Edge cache: O(1) lookup for archetype transitions without allocations
+  let dstArchIdx: number | undefined;
+  if (existingLocation) {
+    const srcArch = archetypes[existingLocation.archetypeIndex]!;
+    dstArchIdx = srcArch.addEdges.get(componentId);
+    if (dstArchIdx === undefined) {
+      const newSignature = signatureAdd(srcArch.signature, componentId);
+      const newKey = signatureToKey(newSignature);
+      dstArchIdx = archetypesBySignature.get(newKey);
+      if (dstArchIdx === undefined) {
+        dstArchIdx = createArchetype(newSignature);
+      }
+      srcArch.addEdges.set(componentId, dstArchIdx);
+    }
+  } else {
+    const sig = createSignature([componentId]);
+    const key = signatureToKey(sig);
+    dstArchIdx = archetypesBySignature.get(key);
+    if (dstArchIdx === undefined) {
+      dstArchIdx = createArchetype(sig);
+    }
   }
   const dstArch = archetypes[dstArchIdx]!;
 
@@ -841,11 +869,8 @@ function removeComponent(
   const componentId = component[ComponentId];
   if (componentId === undefined) return false;
 
-  // Check if entity actually has this component
-  const componentSig = createSignature([componentId]);
-  if (!signatureContains(srcArch.signature, componentSig)) return false;
+  if (!signatureHasBit(srcArch.signature, componentId)) return false;
 
-  // ChildOf removal: remove from parent's children array
   if (component === ChildOf && childOfParentColumnKey !== null) {
     const parentId = srcArch.columns[childOfParentColumnKey]![srcRow] as number;
     removeFromChildrenArray(parentId, entityId);
@@ -853,57 +878,57 @@ function removeComponent(
 
   const newSignature = signatureRemove(srcArch.signature, componentId);
 
-  // Edge case: removing last component deletes the entity
   if (signatureIsEmpty(newSignature)) {
     return deleteEntity(entityId);
   }
 
-  // Get or create target archetype
-  const newKey = signatureToKey(newSignature);
-  let dstArchIdx = archetypesBySignature.get(newKey);
+  // Edge cache for remove transitions
+  let dstArchIdx = srcArch.removeEdges.get(componentId);
   if (dstArchIdx === undefined) {
-    dstArchIdx = createArchetype(newSignature);
+    const newKey = signatureToKey(newSignature);
+    dstArchIdx = archetypesBySignature.get(newKey);
+    if (dstArchIdx === undefined) {
+      dstArchIdx = createArchetype(newSignature);
+    }
+    srcArch.removeEdges.set(componentId, dstArchIdx);
   }
   const dstArch = archetypes[dstArchIdx]!;
 
-  // Grow destination if needed
   if (dstArch.count >= dstArch.capacity) {
     growArchetype(dstArch);
   }
 
-  // Add entity to destination archetype
   const dstRow = dstArch.count;
   dstArch.entities[dstRow] = entityId;
   dstArch.count++;
 
-  // Copy component data (except the removed component)
+  // Copy column data except the removed component's columns
+  const keys = srcArch.columnKeysList;
   const componentPrefix = `${componentId}.`;
-  for (const columnKey in srcArch.columns) {
+  for (let k = 0; k < keys.length; k++) {
+    const columnKey = keys[k]!;
     if (columnKey.startsWith(componentPrefix)) continue;
 
     if (!dstArch.columns[columnKey]) {
       dstArch.columns[columnKey] = new Array(dstArch.capacity).fill(0);
+      dstArch.columnKeysList.push(columnKey);
     }
-    dstArch.columns[columnKey][dstRow] = srcArch.columns[columnKey]![srcRow];
+    dstArch.columns[columnKey]![dstRow] = srcArch.columns[columnKey]![srcRow];
   }
 
-  // Remove from source archetype using swap-remove
+  // Swap-remove from source
   const lastRow = srcArch.count - 1;
   if (srcRow !== lastRow) {
     const lastEntityId = srcArch.entities[lastRow]!;
     srcArch.entities[srcRow] = lastEntityId;
-
-    for (const columnKey in srcArch.columns) {
+    for (let k = 0; k < keys.length; k++) {
+      const columnKey = keys[k]!;
       srcArch.columns[columnKey]![srcRow] = srcArch.columns[columnKey]![lastRow];
     }
-
-    // archetypeIndex unchanged for the swapped entity, only row moves
     entityLocations[lastEntityId]!.row = srcRow;
   }
-
   srcArch.count--;
 
-  // Update entity location to new archetype — mutate
   location.archetypeIndex = dstArchIdx;
   location.row = dstRow;
 
@@ -992,9 +1017,9 @@ function deleteEntity(entityId: number): boolean {
     // Swap entity ID
     archetype.entities[row] = lastEntityId;
 
-    // Swap all column data
-    for (const columnKey in archetype.columns) {
-      const column = archetype.columns[columnKey]!;
+    const keys = archetype.columnKeysList;
+    for (let k = 0; k < keys.length; k++) {
+      const column = archetype.columns[keys[k]!]!;
       column[row] = column[lastRow];
     }
 

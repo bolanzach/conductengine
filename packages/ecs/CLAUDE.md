@@ -1,4 +1,4 @@
-# Entity Component System (EDS)
+# Entity Component System (ECS)
 
 This is the core ECS for the Conduct game engine. Refer to the [Conduct ECS README](./README.md) for usage instructions and examples.
 
@@ -19,10 +19,12 @@ The underlying engine code should also strive to be as optimal as possible.
 
 The implementation is inspired by Bevy and Flecs.
 
-**Expect to support:**
+### Expect to support (Scaling):
 
 **Entity Count**: hundreds of thousands of entities
+
 **Component Count**: hundreds of unique components
+
 **System Count**: hundreds of systems
 
 All running at 60fps in the browser.

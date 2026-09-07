@@ -1,148 +1,148 @@
 {
-  "timestamp": "2026-08-16T21:39:29.172Z",
+  "timestamp": "2026-08-17T04:29:31.912Z",
   "runtime": "Node.js v24.11.0",
   "results": [
     {
       "name": "System Iteration (5k entities, 7 systems)",
       "entityCount": 5000,
       "iterations": 1000,
-      "totalMs": 5.5844,
-      "avgPerIterationMs": 0.005584,
-      "iterationsPerSecond": 179069.72
+      "totalMs": 3.9989,
+      "avgPerIterationMs": 0.003999,
+      "iterationsPerSecond": 250070.33
     },
     {
       "name": "query.get() Point-Lookup (5k entities)",
       "entityCount": 5000,
       "iterations": 1000,
-      "totalMs": 0.22,
-      "avgPerIterationMs": 0.00022,
-      "iterationsPerSecond": 4544607.6
+      "totalMs": 0.137,
+      "avgPerIterationMs": 0.000137,
+      "iterationsPerSecond": 7299270.07
     },
     {
       "name": "Entity Spawn (1 component)",
       "entityCount": 10000,
       "iterations": 10000,
-      "totalMs": 3.9534,
-      "avgPerIterationMs": 0.000395,
-      "iterationsPerSecond": 2529484.3,
-      "opsPerSecond": 2529484.3
+      "totalMs": 2.7442,
+      "avgPerIterationMs": 0.000274,
+      "iterationsPerSecond": 3643982.87,
+      "opsPerSecond": 3643982.87
     },
     {
       "name": "Entity Spawn (3 components)",
       "entityCount": 10000,
       "iterations": 10000,
-      "totalMs": 11.3814,
-      "avgPerIterationMs": 0.001138,
-      "iterationsPerSecond": 878625.22,
-      "opsPerSecond": 878625.22
+      "totalMs": 8.32,
+      "avgPerIterationMs": 0.000832,
+      "iterationsPerSecond": 1201929,
+      "opsPerSecond": 1201929
     },
     {
       "name": "Archetype Transition (add component)",
       "entityCount": 5000,
       "iterations": 5000,
-      "totalMs": 4.2503,
-      "avgPerIterationMs": 0.00085,
-      "iterationsPerSecond": 1176378.42,
-      "opsPerSecond": 1176378.42
+      "totalMs": 2.6455,
+      "avgPerIterationMs": 0.000529,
+      "iterationsPerSecond": 1889972.6,
+      "opsPerSecond": 1889972.6
     },
     {
       "name": "Archetype Transition (remove component)",
       "entityCount": 5000,
       "iterations": 5000,
-      "totalMs": 5.0628,
-      "avgPerIterationMs": 0.001013,
-      "iterationsPerSecond": 987597.55,
-      "opsPerSecond": 987597.55
+      "totalMs": 2.8329,
+      "avgPerIterationMs": 0.000567,
+      "iterationsPerSecond": 1764965.23,
+      "opsPerSecond": 1764965.23
     },
     {
       "name": "Entity Deletion",
       "entityCount": 5000,
       "iterations": 5000,
-      "totalMs": 1.1217,
-      "avgPerIterationMs": 0.000224,
-      "iterationsPerSecond": 4457321.15,
-      "opsPerSecond": 4457321.15
+      "totalMs": 0.801,
+      "avgPerIterationMs": 0.00016,
+      "iterationsPerSecond": 6242197.25,
+      "opsPerSecond": 6242197.25
     },
     {
       "name": "Component Update (overwrite fields)",
       "entityCount": 5000,
       "iterations": 5000,
-      "totalMs": 0.828,
-      "avgPerIterationMs": 0.000166,
-      "iterationsPerSecond": 6038953.67,
-      "opsPerSecond": 6038953.67
+      "totalMs": 0.5954,
+      "avgPerIterationMs": 0.000119,
+      "iterationsPerSecond": 8398068.44,
+      "opsPerSecond": 8398068.44
     },
     {
       "name": "Triple Query Iteration (10k entities, 3 components)",
       "entityCount": 10000,
       "iterations": 1000,
-      "totalMs": 71.7759,
-      "avgPerIterationMs": 0.071776,
-      "iterationsPerSecond": 13932.26
+      "totalMs": 50.0025,
+      "avgPerIterationMs": 0.050003,
+      "iterationsPerSecond": 19998.98
     },
     {
       "name": "Heavy Iteration (10k entities, arithmetic-heavy)",
       "entityCount": 10000,
       "iterations": 1000,
-      "totalMs": 47.0956,
-      "avgPerIterationMs": 0.047096,
-      "iterationsPerSecond": 21233.39
+      "totalMs": 27.5018,
+      "avgPerIterationMs": 0.027502,
+      "iterationsPerSecond": 36361.21
     },
     {
       "name": "Optional Query Iteration (15k entities, mixed)",
       "entityCount": 15000,
       "iterations": 1000,
-      "totalMs": 31.8926,
-      "avgPerIterationMs": 0.031893,
-      "iterationsPerSecond": 31355.25
+      "totalMs": 22.1084,
+      "avgPerIterationMs": 0.022108,
+      "iterationsPerSecond": 45231.73
     },
     {
       "name": "Not Filter Iteration (5k matching entities)",
       "entityCount": 5000,
       "iterations": 1000,
-      "totalMs": 6.7635,
-      "avgPerIterationMs": 0.006763,
-      "iterationsPerSecond": 147853.36
+      "totalMs": 4.7995,
+      "avgPerIterationMs": 0.0048,
+      "iterationsPerSecond": 208355.04
     },
     {
       "name": "Scaling: Single System (10,000 entities)",
       "entityCount": 10000,
       "iterations": 1000,
-      "totalMs": 7.6737,
-      "avgPerIterationMs": 0.007674,
-      "iterationsPerSecond": 130315.08
+      "totalMs": 5.1668,
+      "avgPerIterationMs": 0.005167,
+      "iterationsPerSecond": 193542.16
     },
     {
       "name": "Scaling: Single System (50,000 entities)",
       "entityCount": 50000,
       "iterations": 1000,
-      "totalMs": 32.5766,
-      "avgPerIterationMs": 0.032577,
-      "iterationsPerSecond": 30696.9
+      "totalMs": 22.6718,
+      "avgPerIterationMs": 0.022672,
+      "iterationsPerSecond": 44107.76
     },
     {
       "name": "Scaling: Single System (100,000 entities)",
       "entityCount": 100000,
       "iterations": 1000,
-      "totalMs": 65.2249,
-      "avgPerIterationMs": 0.065225,
-      "iterationsPerSecond": 15331.56
+      "totalMs": 45.423,
+      "avgPerIterationMs": 0.045423,
+      "iterationsPerSecond": 22015.28
     },
     {
       "name": "Fragmented Archetypes (many archetypes, BasicSystem)",
       "entityCount": 1000,
       "iterations": 1000,
-      "totalMs": 13.537,
-      "avgPerIterationMs": 0.013537,
-      "iterationsPerSecond": 73871.61
+      "totalMs": 9.2901,
+      "avgPerIterationMs": 0.00929,
+      "iterationsPerSecond": 107641.18
     },
     {
       "name": "Multiple Systems on Same Entities (10k, 2 systems)",
       "entityCount": 10000,
       "iterations": 1000,
-      "totalMs": 106.0464,
-      "avgPerIterationMs": 0.106046,
-      "iterationsPerSecond": 9429.84
+      "totalMs": 64.2415,
+      "avgPerIterationMs": 0.064242,
+      "iterationsPerSecond": 15566.25
     }
   ]
 }

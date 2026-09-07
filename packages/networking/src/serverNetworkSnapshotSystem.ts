@@ -7,8 +7,7 @@ import { getServerTransport } from "./serverTransport.js";
 const pendingPlayers: number[] = [];
 
 /**
- * Queue a bootstrap snapshot for a newly connected player.
- * Call `ConductRunSystem(ServerNetworkSnapshotSystem)` after to send immediately.
+ * Queue a bootstrap snapshot for a player.
  */
 export function queueBootstrapSnapshot(playerId: number): void {
   pendingPlayers.push(playerId);

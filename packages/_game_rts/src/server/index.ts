@@ -10,13 +10,13 @@ import { BUNDLE, BundleRegistry, startRTS } from "../game/index.js";
 import { SpaceMarineBundle, SquadBundle, TileBundle } from "../game/bundles.js";
 import { replicateComponents } from "../game/network.js";
 import { SquadMember } from "../game/squadMember.js";
-import { FormationOffset } from "../game/formationOffset.js";
 import { pushGameCommand } from "../game/commandQueue.js";
 import CommandSystem from "../game/systems/commandSystem.js";
 import PathfindingSystem from "../game/systems/pathfindingSystem.js";
 import ColliderSystem from "../game/systems/colliderSystem.js";
 import TargetAcquisitionSystem from "../game/systems/targetAcquisitionSystem.js";
-import MovementSystem from "../game/systems/movementSystem.js";
+import SquadFollowSystem from "../game/systems/squadFollowSystem.js";
+import UnitMovementSystem from "../game/systems/unitMovementSystem.js";
 import SquadCenterSystem from "../game/systems/squadCenterSystem.js";
 import ChildTransformSystem from "../game/systems/childTransformSystem.js";
 import type { GameCommand } from "@conduct/networking/protocol";
@@ -55,7 +55,6 @@ function spawnSquad(x: number, z: number, owner: number) {
       [Transform3D, { x: x + ox, z: z + oz }],
       [Networked, { owner }],
       [SquadMember, { squadId, slotIndex: i }],
-      [FormationOffset, { x: ox, z: oz }],
       ConductBundleMergeChild(
         [Networked, { owner }],
       ),
@@ -90,7 +89,8 @@ transport.onConnection((playerId) => {
     payload: { playerId, tick },
   });
 
-  queueBootstrapSnapshot(playerId);
+  // Send a snapshot to every connected player
+  transport.connectedPlayerIds.forEach((playerId) => queueBootstrapSnapshot(playerId))
   ConductRunSystem(ServerNetworkSnapshotSystem);
 });
 
@@ -124,7 +124,8 @@ startRTS(bundles);
 ConductRegisterSystem(FixedUpdate, CommandSystem);
 ConductRegisterSystem(FixedUpdate, PathfindingSystem);
 ConductRegisterSystem(FixedUpdate, TargetAcquisitionSystem);
-ConductRegisterSystem(FixedUpdate, MovementSystem);
+ConductRegisterSystem(FixedUpdate, SquadFollowSystem);
+ConductRegisterSystem(FixedUpdate, UnitMovementSystem);
 ConductRegisterSystem(FixedUpdate, ChildTransformSystem);
 ConductRegisterSystem(FixedUpdate, SquadCenterSystem);
 ConductRegisterSystem(FixedUpdate, ColliderSystem);

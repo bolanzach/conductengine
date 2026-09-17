@@ -19,6 +19,37 @@ let context: GPUCanvasContext;
 let pipeline: GPURenderPipeline;
 let depthTexture: GPUTexture;
 let commandEncoder: GPUCommandEncoder;
+let canvasEl!: HTMLCanvasElement;
+
+/**
+ * Resize the drawable to match the canvas's CSS size scaled by the device pixel
+ * ratio, recreating the depth texture to match. The color attachment follows the
+ * canvas automatically via getCurrentTexture(), but the depth texture does not, so
+ * it must be recreated here or the render pass will fail on a size mismatch.
+ *
+ * Returns the new aspect ratio so callers can update the active camera.
+ */
+export function resizeRenderer(): number {
+  const dpr = window.devicePixelRatio || 1;
+  const width = Math.max(1, Math.floor(canvasEl.clientWidth * dpr));
+  const height = Math.max(1, Math.floor(canvasEl.clientHeight * dpr));
+
+  if (depthTexture && canvasEl.width === width && canvasEl.height === height) {
+    return width / height;
+  }
+
+  canvasEl.width = width;
+  canvasEl.height = height;
+
+  if (depthTexture) depthTexture.destroy();
+  depthTexture = gpu.device.createTexture({
+    size: [width, height],
+    format: 'depth24plus',
+    usage: GPUTextureUsage.RENDER_ATTACHMENT,
+  });
+
+  return width / height;
+}
 
 export function mat4Identity(): Float32Array {
   const out = new Float32Array(16);
@@ -131,6 +162,7 @@ export async function initRenderer(canvas: HTMLCanvasElement) {
   if (!adapter) throw new Error('WebGPU adapter not available');
 
   gpu.device = await adapter.requestDevice();
+  canvasEl = canvas;
   context = canvas.getContext('webgpu')!;
   const presentationFormat = navigator.gpu.getPreferredCanvasFormat();
 
@@ -140,11 +172,8 @@ export async function initRenderer(canvas: HTMLCanvasElement) {
     alphaMode: 'premultiplied',
   });
 
-  depthTexture = gpu.device.createTexture({
-    size: [canvas.width, canvas.height],
-    format: 'depth24plus',
-    usage: GPUTextureUsage.RENDER_ATTACHMENT,
-  });
+  // Size the drawable (and depth texture) to the canvas's CSS size × DPR.
+  resizeRenderer();
 
   const align = gpu.device.limits.minUniformBufferOffsetAlignment;
   gpu.uniformStride = Math.ceil(208 / align) * align;

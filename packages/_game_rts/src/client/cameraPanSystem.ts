@@ -4,6 +4,10 @@ import { CameraPan } from "./cameraPan";
 
 let canvasRect: DOMRect | null = null;
 
+// The rect is cached; invalidate it when the window resizes so edge detection
+// uses the canvas's current position and size.
+window.addEventListener("resize", () => { canvasRect = null; });
+
 function getCanvasRect(): DOMRect | null {
   if (!canvasRect) {
     const canvas = document.getElementById("conduct") as HTMLCanvasElement;
@@ -15,6 +19,9 @@ function getCanvasRect(): DOMRect | null {
 export default function CameraPanSystem(query: Query<[Transform3D, CameraPan]>) {
   const rect = getCanvasRect();
   if (!rect) return;
+
+  // Stop panning entirely when the mouse has left the browser window.
+  if (!Inputs.isMouseInWindow) return;
 
   const mouse = Inputs.getMousePosition();
   const localX = mouse.x - rect.left;

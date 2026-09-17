@@ -19,7 +19,7 @@ import { MeshRenderer } from "@conduct/renderer/components/meshRenderer";
 import { Material } from "@conduct/renderer/components/material";
 import { Camera } from "@conduct/renderer/components/camera";
 import { MESH } from "@conduct/renderer/mesh";
-import { initRenderer } from "@conduct/renderer/webGpu";
+import { initRenderer, resizeRenderer } from "@conduct/renderer/webGpu";
 import CameraSystem from "@conduct/renderer/systems/cameraSystem";
 import RendererSystem from "@conduct/renderer/systems/rendererSystem";
 import type { ToClientMessage, GameCommand } from "@conduct/networking/protocol";
@@ -130,6 +130,12 @@ const camera = ConductSpawnEntity();
 ConductAddComponent(camera, Transform3D, { y: 10, z: 15, rx: -1.0 });
 ConductAddComponent(camera, Camera, { aspect: canvas.width / canvas.height, far: 200 });
 ConductAddComponent(camera, CameraPan);
+
+// Match the drawable to the window and follow with the camera aspect.
+window.addEventListener("resize", () => {
+  const aspect = resizeRenderer();
+  ConductAddComponent(camera, Camera, { aspect });
+});
 
 // FixedUpdate: simulation systems (same order as server)
 ConductRegisterSystem(FixedUpdate, CommandSystem);

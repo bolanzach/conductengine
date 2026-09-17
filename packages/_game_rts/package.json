@@ -38,6 +38,7 @@
     "@conduct/simulation": "workspace:*"
   },
   "devDependencies": {
+    "@types/node": "25.0.3",
     "tsx": "^4.0.0",
     "vite": "^6.0.0"
   }

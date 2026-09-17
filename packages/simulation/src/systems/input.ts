@@ -3,6 +3,7 @@ let bufferedInputs: Set<string> = new Set();
 let bufferedMouseInputs = new Map<number, MouseEvent>
 let mouseX = 0;
 let mouseY = 0;
+let mouseInWindow = true;
 
 /**
  * Sets up event listeners for keyboard and mouse events. This is required
@@ -34,6 +35,12 @@ export function listenForInput() {
     mouseX = event.clientX;
     mouseY = event.clientY;
   })
+  window.addEventListener('mouseout', (event) => {
+    if (!event.relatedTarget) mouseInWindow = false;
+  })
+  window.addEventListener('mouseover', () => {
+    mouseInWindow = true;
+  })
 }
 
 export function flushInputBuffer() {
@@ -55,6 +62,10 @@ export const Inputs = {
 
   getMousePosition(): { x: number; y: number } {
     return { x: mouseX, y: mouseY };
+  },
+
+  get isMouseInWindow(): boolean {
+    return mouseInWindow;
   }
 }
 

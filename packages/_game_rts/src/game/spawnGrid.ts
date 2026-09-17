@@ -3,8 +3,8 @@ import { Transform3D } from "@conduct/simulation";
 import { Grid, TileType } from "./grid.js";
 import { Tile } from "./tile.js";
 
-const GRID_WIDTH = 42;
-const GRID_HEIGHT = 42;
+const GRID_WIDTH = 48;
+const GRID_HEIGHT = 48;
 const GRID_LAYERS = 3;
 
 // Simple seeded PRNG so client and server generate identical grids
